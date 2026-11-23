@@ -1,29 +1,20 @@
 import Inputs
+import PhysicalReplay
 
 namespace VastitasQualification.ExitAdmission
 open Lean VastitasKernel VastitasQualification.ExitFixture
 set_option maxRecDepth 30000
+set_option maxHeartbeats 3000000
 
--- The physical declaration scan starts with an empty table of exact headers.
-attribute [local cbv_eval] Std.HashMap.isEmpty_emptyWithCapacity
-
-private def mainFn : Indexed.FunctionSource.Function := {
-  name := "main", params := [], result := .data (.pure .int), isPublic := true
-  body := .mk [] (.unary "-" (.integer "340282366920938463463374607431768211457" ⟨84,123,2,21⟩)
-    ⟨83,123,2,20⟩) ⟨81,125,2,18⟩
-  span := ⟨64,125,2,1⟩ }
-
-private def rootModule : ResourceSource.Module := {
-  pureModule := {
-    module := { path := [], isPublic := true, imports := [], functions := [], generics := [], methods := [], span := {} }
-    declarations := [], functions := [mainFn] }
-  functions := [] }
-
-def candidate : ResourceSource.Program := {
-  file := "ExitStatus.vast", root := owner.scope.package.source, legacyGeometry := true
-  packages := [{ id := owner.scope.package, dependencies := [], modules := [rootModule] }] }
+attribute [local cbv_eval] Std.HashMap.isEmpty_emptyWithCapacity Std.HashMap.keys_emptyWithCapacity
+attribute [local cbv_eval] keys_singleton Std.HashMap.getD_emptyWithCapacity
 
 theorem decodedProgram : ResourceSource.Wire.program wire = .ok candidate := by cbv
+
+private theorem decodedLayout : PhysicalSources.layout wire = .ok entryLayout := by cbv
+
+theorem physicalEdits : EditSourceFiles.check wire candidate = .ok () :=
+  physicalEditsOfLayout decodedLayout
 
 theorem acceptedEnvelope : ResourceSource.envelope candidate = .ok () := by rfl
 

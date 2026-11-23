@@ -12,6 +12,28 @@ def scalarValue : Scalar → Value
   | .int n => .integer n
   | .nat n => .natural n
 
+private theorem literal_evaluates (m : Core.Module) (env : Values) {t v}
+    (h : MidIR.ExactFold.Literal t v) : Evaluates m env t (scalarValue v) := by
+  induction h with
+  | nat n => exact IndexedEvaluation.natural m env n
+  | int l => cases l with
+    | integer n => exact IndexedEvaluation.integer m env n
+    | negated n => exact IndexedEvaluation.unary (IndexedEvaluation.integer m env n) rfl
+  | ascribe _ ih => exact IndexedEvaluation.ascribe _ ih
+
+/-- Exact literal comparisons have the same Boolean result in every caller,
+including comparisons whose operands share a machine word or exit status. -/
+theorem literal_comparison_evaluates (m : Core.Module) (env : Values)
+    {op left right b} (r : Core.Result)
+    (folded : MidIR.ExactFold.literalComparison op left right = some b) :
+    Evaluates m env (.binary op left right r) (.boolean b) := by
+  simp only [MidIR.ExactFold.literalComparison, bind, Option.bind_eq_some_iff] at folded
+  obtain ⟨_, _, a, _, c, _, cmp⟩ := folded
+  apply IndexedEvaluation.binary (literal_evaluates m env a.property) (literal_evaluates m env c.property)
+  obtain ⟨a, _⟩ := a
+  obtain ⟨c, _⟩ := c
+  cases a <;> cases c <;> cases op <;> simp [Scalar.compare] at cmp <;> subst b <;> rfl
+
 def bindings (ctx : Bindings) : Values := fun n => (ctx.lookup n).map scalarValue
 
 private theorem bindings_cons (n : Nat) (x : Scalar) (ctx : Bindings) :

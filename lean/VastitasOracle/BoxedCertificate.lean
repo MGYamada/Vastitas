@@ -1,4 +1,5 @@
 import VastitasOracle.ExactProgram
+import VastitasOracle.ResourceSource
 import VastitasKernel.LLVM.Emission
 
 set_option autoImplicit false
@@ -45,6 +46,29 @@ structure Publication (s : Subject) (requireMain : Bool) where
   returned : Emission.check s.wire s.header requireMain = .ok (.exactProgram artifact text parsed)
   revision : artifact.linked.exe.revision = s.revision
   graph : artifact.model = s.code
+
+/-- The manifest of each package in this published module occurs in the
+physical files bound to the stage certificate, with the same nominal owner. -/
+theorem published_manifest_metadata {s : Subject} (valid : Valid s) {requireMain : Bool}
+    (p : Publication s requireMain) (disk : p.req.input.root ≠ flatPackageId.source)
+    {pkg : VastitasKernel.ResourceSource.Package} (member : pkg ∈ p.req.input.packages) :
+    ∃ (i : Nat) (file : PhysicalSources.File), s.sources.files[i]? = some file ∧
+      file.path = pkg.id.source.toUTF8 ∧
+      ManifestMetadata.read? file.text = some ⟨pkg.id.name, pkg.id.version, currentEdition⟩ := by
+  obtain ⟨layout, i, file, physical, atIndex, path, fields⟩ :=
+    ResourceSource.physical_manifest_metadata p.req disk member
+  have same := Except.ok.inj (physical.symm.trans valid.physical)
+  exact ⟨i, file, same ▸ atIndex, path, fields⟩
+
+/-- The physical inputs of the selected certificate also fix each package's dependency
+aliases and its complete optional legacy geometry export. -/
+theorem published_manifest_bindings {s : Subject} (valid : Valid s) {requireMain : Bool}
+    (p : Publication s requireMain) (disk : p.req.input.root ≠ flatPackageId.source)
+    {pkg : VastitasKernel.ResourceSource.Package} (member : pkg ∈ p.req.input.packages) :
+    ManifestBindings.Corresponds s.sources pkg := by
+  obtain ⟨layout, physical, bindings⟩ := ResourceSource.physical_manifest_bindings p.req disk
+  have same := Except.ok.inj (physical.symm.trans valid.physical)
+  exact same ▸ bindings pkg member
 
 /-- Capture all fields in one execution of the real public emitter. The typed
 publication equation stays available to the composition theorem. -/

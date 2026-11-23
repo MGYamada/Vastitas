@@ -1,0 +1,11 @@
+indexed finite Obj { pt; }
+indexed finite Arr { id; }
+indexed table src(Arr) -> Obj { (id) => pt; }
+indexed table dst(Arr) -> Obj { (id) => pt; }
+indexed table ids(Obj) -> Arr { (pt) => id; }
+indexed table comp(Arr, Arr) -> Arr where composable(src, dst) { (id, id) => id; }
+indexed schema Small = finite_category;
+indexed instance C : Small = finite_graph(Obj, Arr, src, dst, ids, comp);
+
+fn flag<M: Small, X: Obj<M>>(b: Bool, q: Bool) -> Bool { b }
+fn main() -> Int { if flag::<C, Obj::pt>(true, false) { 42 } else { 7 } }

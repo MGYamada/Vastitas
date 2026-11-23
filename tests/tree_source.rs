@@ -8,26 +8,7 @@ const REAL: &str =
 const COMPLEX: &str =
     include_str!("../examples/packages/numerical/contraction-tree/src/complex/mod.vast");
 
-const COLUMN_PRODUCT: &str = "pub resource fn product() -> Unit {
-    space u = linear(super::profiles::ComplexSmooth, 2); basis bu = basis(u);
-    space v = linear(super::profiles::ComplexSmooth, 3); basis bv = basis(v);
-    space vd = dual(v); basis bvd = derived(bv, vd);
-    allocate a: F32<CC>[6]; allocate x: F32<CC>[3]; allocate y: F32<CC>[2];
-    borrow wa = write(a, layout(0,2,3,2,false)); fill(wa, complex32(1,2)); release(wa);
-    borrow wx = write(x, layout(0,3,1,3,false)); fill(wx, complex32(3,-4)); release(wx);
-    borrow ra = read(a, layout(0,2,3,2,false)); tensor matrix = view2(ra,bu,bvd);
-    borrow rx = read(x, layout(0,3,1,3,false)); tensor column = view1(rx,bv);
-    borrow wy = write(y, layout(0,2,1,2,false)); tensor result = view1(wy,bu);
-    contract_tree(result, NativeFast) {
-        occurrence a = matrix; occurrence x = column;
-        edge ev = (a[1], x[0]); boundary(a[0]);
-        plan { join done = (ev,a,x,result); }
-    }
-    release(wy); release(rx); release(ra);
-    borrow r = read(y, layout(0,2,1,2,false));
-    expect(r,0,0,complex32(33,6)); expect(r,1,0,complex32(33,6)); release(r);
-    drop(y); drop(x); drop(a); value { () }
-}";
+const COLUMN_PRODUCT: &str = include_str!("../llvm/fixtures/tensor-column/src/product/mod.vast");
 
 #[test]
 fn tensor_column_contraction_requires_the_selected_dual_and_surviving_basis() {
@@ -1006,4 +987,44 @@ fn tree_native_executes_multiedge_branching_and_written_operand_order() {
         // The example's entry point returns 0 (#836).
         assert_eq!(common::ran(&result), common::exits(0));
     }
+}
+
+#[test]
+fn the_physical_tree_binds_its_graph_ports_and_every_ordered_plan_step() {
+    let package = fixture(REAL, COMPLEX);
+    let wire = package.captured("Vastitas.toml", common::CURRENT_PROTOCOL);
+    let genuine = kernel(&wire, "check");
+    assert_eq!(genuine["ok"], true, "{genuine}");
+    common::assert_stale_module_rejected(
+        &wire,
+        "/src/real/mod.vast",
+        &[
+            ("occurrence a = right_a", "occurrence a = right_b"),
+            ("edge ev = (t[1], a[0])", "edge ev = (t[2], a[0])"),
+            ("boundary(t[0], a[1], b[1])", "boundary(t[0], b[1], a[1])"),
+            (
+                "write(scratch, layout(8, 8, 3, 9",
+                "write(scratch, layout(8, 8, 3, 8",
+            ),
+            (
+                "view3(packed_write, bu, bvd, bwd",
+                "view3(packed_write, bu, bwd, bvd",
+            ),
+            ("regroup(t, first_pack)", "regroup(a, first_pack)"),
+            ("release(packed_write)", "release(packed_wrong)"),
+            ("rebind(t, first_read)", "rebind(b, first_read)"),
+            ("join done = (ew, ta, b, c)", "join done = (ev, ta, b, c)"),
+        ],
+    );
+    let split = REAL.replace(
+        "boundary(t[0], a[1], b[1]);",
+        "boundary(t[0],); boundary(); boundary(a[1], b[1]);",
+    );
+    assert_ne!(split, REAL);
+    package.write("src/real/mod.vast", &split);
+    let equivalent = kernel(
+        package.captured("Vastitas.toml", common::CURRENT_PROTOCOL),
+        "check",
+    );
+    assert_eq!(equivalent["ok"], true, "{equivalent}");
 }

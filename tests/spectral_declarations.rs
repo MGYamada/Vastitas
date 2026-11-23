@@ -161,6 +161,31 @@ const LONE_FORMS: &[&str] = &[
 /// A package with a Stage 5 form alone, and an indexed package without one,
 /// decode: their requests are of the current protocol (#533).
 #[test]
+fn invariant_morphisms_preserve_the_written_subject_and_index() {
+    let wire = request(MAIN, common::CURRENT_PROTOCOL);
+    assert_eq!(kernel(&wire, "check")["ok"], true);
+    for (from, to, token) in [
+        ("trace_power(H, 2)", "trace_power(H, 3)", "3"),
+        ("char_coefficient(S, 0)", "char_coefficient(H, 0)", "H"),
+    ] {
+        let mut changed = wire.clone();
+        let source = common::checked_replace(MAIN, from, to);
+        let column = source
+            .lines()
+            .find(|line| line.contains(to))
+            .unwrap()
+            .find(to)
+            .unwrap()
+            + to.find(token).unwrap()
+            + 1;
+        changed["root_source"]["text"] = source.into();
+        let result = kernel(changed, "function-revision");
+        common::assert_wire_rejected(&result, "E_AFFINE_SOURCE");
+        assert_eq!(result["diagnostics"][0]["span"]["column"], column);
+    }
+}
+
+#[test]
 fn spectral_forms_decode_alone() {
     request(
         "indexed marker M;\nfn main() -> Int { 0 }\n",

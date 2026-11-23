@@ -28,7 +28,7 @@ SOURCE_NAMES = (
     "StorageNumerical", "StorageRealization", "StorageOwnedPackages", "StorageFunctionReceipts", "StorageFunctionContext",
     "NumericalCoverage", "StorageShapeExpr", "StorageShapes",
     "StorageShapeNumerical", "StorageShapeFunctions", "StorageValueFlow",
-    "TensorNumerical", "TensorNetwork", "TensorTree", "ResourceSource", "MidIR/IR",
+    "TensorNumerical", "TensorNetwork", "TensorTree", "AffineRealizationProfile", "ResourceSource", "MidIR/IR",
 )
 SOURCES = tuple(f"lean-kernel/VastitasKernel/{name}.lean" for name in SOURCE_NAMES)
 NAME = r"(?:[A-Za-z_][A-Za-z_0-9']*|«[^»\n]+»)(?:\.(?:[A-Za-z_][A-Za-z_0-9']*|«[^»\n]+»))*"
@@ -36,6 +36,15 @@ DECL = re.compile(rf"^(?:private\s+)?(?P<kind>inductive|structure)\s+(?P<name>{N
 SCOPE = re.compile(rf"^(namespace|section|mutual|end)(?:\s+({NAME}))?\s*$")
 HASH = re.compile(r"[0-9a-f]{64}\Z")
 MODULE = re.compile(r"[A-Za-z_][A-Za-z_0-9]*(?:\.[A-Za-z_][A-Za-z_0-9]*)*\Z")
+
+
+LITERAL_THEOREM = "VastitasOracle.MidIR.literal_constructor_coverage"
+FINITE_TAG_THEOREM = "VastitasOracle.MidIR.finite_tag_constructor_coverage"
+LOOKUP_THEOREM = "VastitasOracle.MidIR.finite_lookup_constructor_coverage"
+STRUCTURAL_THEOREMS = {
+    "VastitasKernel.Indexed.Core.Term." + origin: "VastitasOracle.MidIR." + theorem + "_constructor_coverage"
+    for origin, theorem in [("variable", "variable"), ("scope", "scope"), ("ascribe", "ascription"), ("letE", "let")]
+}
 
 
 class CoverageError(ValueError):
@@ -404,7 +413,7 @@ def validate(ledger, actual, require_complete=False):
         details = ", ".join(changed[:8]) or "runtime inputs or source inventory"
         raise CoverageError(f"source schema drift: {details}; regenerate a pending candidate and review the diff")
     origins = {ctor["id"] for decl in actual["declarations"] for ctor in decl.get("constructors", [])}
-    seen, counts = set(), {"pending": 0, "rejected": 0, "admitted": 0}
+    seen, counts = set(), {"pending": 0, "lowered": 0, "structural": 0, "rejected": 0, "admitted": 0}
     for item in ledger["coverage"]:
         if set(item) != {"origin", "disposition", "owner", "planned_opcode", "reason", "evidence"}:
             raise CoverageError("incomplete constructor disposition")
@@ -417,7 +426,11 @@ def validate(ledger, actual, require_complete=False):
             raise CoverageError(f"unknown disposition for {origin}")
         if not re.fullmatch(r"#[1-9][0-9]*", item["owner"]):
             raise CoverageError(f"missing issue owner for {origin}")
-        if not MODULE.fullmatch(item["planned_opcode"]) or not item["planned_opcode"].startswith("midir."):
+        opcode = item["planned_opcode"]
+        if status == "structural":
+            if opcode is not None or origin not in STRUCTURAL_THEOREMS or item["evidence"] != [STRUCTURAL_THEOREMS[origin]]:
+                raise CoverageError(f"structural lowering requires its checked binding theorem and no opcode: {origin}")
+        elif not isinstance(opcode, str) or not MODULE.fullmatch(opcode) or not opcode.startswith("midir."):
             raise CoverageError(f"missing exact planned opcode for {origin}")
         if not isinstance(item["reason"], str) or not item["reason"].strip() or not isinstance(item["evidence"], list):
             raise CoverageError(f"missing disposition reason/evidence for {origin}")
@@ -425,14 +438,35 @@ def validate(ledger, actual, require_complete=False):
         # change or an arbitrary evidence path cannot admit an operation today.
         if status == "admitted":
             raise CoverageError(f"admission unavailable before closed-registry evidence checking: {origin}")
-        if item["evidence"]:
+        if status == "lowered":
+            if item["evidence"] not in ([LITERAL_THEOREM], [FINITE_TAG_THEOREM], [LOOKUP_THEOREM]):
+                raise CoverageError(f"missing checked local lowering theorem for {origin}")
+        elif status != "structural" and item["evidence"]:
             raise CoverageError(f"unrecognized evidence schema for {origin}")
         counts[status] += 1
     if seen != origins:
         raise CoverageError("missing constructor dispositions: " + ", ".join(sorted(origins - seen)[:8]))
-    if require_complete and (counts["pending"] or not counts["admitted"]):
+    if require_complete and (counts["pending"] or counts["lowered"] or counts["structural"] or not counts["admitted"]):
         raise CoverageError("MidIR coverage is incomplete; the constructor guard is not release acceptance")
     return counts
+
+
+def check_lowerings(ledger, rows):
+    """Resolve every local mapping against the proved registry in the built Oracle."""
+    expected = {}
+    for row in rows:
+        if (set(row) != {"origin", "opcode", "theorem"} or not isinstance(row["origin"], str)
+                or not isinstance(row["theorem"], str) or not (row["opcode"] is None or isinstance(row["opcode"], str))):
+            raise CoverageError("invalid compiled lowering row")
+        origin = row["origin"]
+        if origin in expected:
+            raise CoverageError(f"duplicate compiled lowering for {origin}")
+        opcode = row["opcode"]
+        expected[origin] = (None if opcode is None else "midir." + opcode, [row["theorem"]])
+    recorded = {r["origin"]: (r["planned_opcode"], r["evidence"]) for r in ledger["coverage"] if r["disposition"] in {"lowered", "structural"}}
+    if expected != recorded:
+        changed = sorted(k for k in expected.keys() | recorded.keys() if expected.get(k) != recorded.get(k))
+        raise CoverageError("compiled lowering differs from ledger: " + ", ".join(changed))
 
 
 def unique_json(pairs):
@@ -450,6 +484,7 @@ def main():
     parser.add_argument("--ledger", type=Path, default=None)
     parser.add_argument("--inventory", action="store_true", help="print a fresh pending candidate; never overwrite a reviewed ledger")
     parser.add_argument("--require-complete", action="store_true", help="fail while any planned lowering remains pending")
+    parser.add_argument("--check-lowerings", action="store_true", help="compare every local mapping with the compiled Lean registry")
     args = parser.parse_args()
     try:
         root = args.root.resolve()
@@ -461,6 +496,11 @@ def main():
             ledger = json.loads(path.read_text(), object_pairs_hook=unique_json)
             actual = inventory(root)
             counts = validate(ledger, actual, args.require_complete)
+            if args.check_lowerings or args.require_complete:
+                command = ["lake", "-d", "lean", "env", "lean", "-DwarningAsError=true",
+                           "--run", "scripts/export_midir_lowerings.lean"]
+                report = subprocess.check_output(command, cwd=root, text=True)
+                check_lowerings(ledger, json.loads(report, object_pairs_hook=unique_json))
             print(json.dumps({"status": "covered", "compiler_admission": False,
                               "schema_sha256": digest(actual), "dispositions": counts,
                               "runtime_modules": len(actual["runtime"]["modules"])}))

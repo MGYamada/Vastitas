@@ -291,3 +291,73 @@ fn a_short_name_cannot_select_a_conflicting_function_import_or_local_value() {
         "flat-local-operator.vast",
     );
 }
+
+#[test]
+fn the_revision_names_the_sole_method_and_result_at_every_integer_key() {
+    use serde_json::json;
+    use std::fmt::Write;
+
+    let cases = [
+        ("add", "n+n", "n,n", &["Nat", "Nat"][..], 0, "Nat"),
+        ("add", "i+i", "i,i", &["Int", "Int"], 1, "Int"),
+        ("sub", "n-n", "n,n", &["Nat", "Nat"], 0, "Nat"),
+        ("sub", "i-i", "i,i", &["Int", "Int"], 1, "Int"),
+        ("mul", "n*n", "n,n", &["Nat", "Nat"], 0, "Nat"),
+        ("mul", "i*i", "i,i", &["Int", "Int"], 1, "Int"),
+        ("neg", "-i", "i", &["Int"], 0, "Int"),
+        ("div", "n/n", "n,n", &["Nat", "Nat"], 0, "Nat"),
+        ("div", "n/i", "n,i", &["Nat", "Int"], 1, "Int"),
+        ("div", "i/n", "i,n", &["Int", "Nat"], 2, "Int"),
+        ("div", "i/i", "i,i", &["Int", "Int"], 3, "Int"),
+    ];
+    let mut source = String::from("fn probe(n: Nat, i: Int) -> Int {\n");
+    for (index, (name, glyph, arguments, _, _, result)) in cases.iter().enumerate() {
+        writeln!(source, "let glyph{index}: {result} = {glyph};").unwrap();
+        writeln!(
+            source,
+            "let named{index}: {result} = std::operator::{name}({arguments});"
+        )
+        .unwrap();
+    }
+    source.push_str("i }\nfn main() -> Int { probe(5,7) }\n");
+    let s = Scratch::empty("integer method revision");
+    s.write_package("app", &source, "");
+    let mut wire = s.captured("app/Vastitas.toml", common::CURRENT_PROTOCOL);
+    let response = common::kernel(&wire, "function-revision");
+    let revision = &response["function_revision"];
+    let sites = revision["pure"]["operator_sites"].as_array().unwrap();
+    assert_eq!(sites.len(), 2 * cases.len());
+    for (sites, (name, _, _, key, ordinal, result)) in sites.as_chunks::<2>().0.iter().zip(cases) {
+        assert_eq!(sites[0], sites[1]);
+        assert_eq!(sites[0]["id"]["name"], name);
+        assert_eq!(
+            sites[0]["id"]["package"]["source"],
+            "vastitas:compat:operators"
+        );
+        assert_eq!(sites[0]["key"], json!(key));
+        assert_eq!(
+            sites[0]["method"],
+            json!({"ordinal": ordinal, "result": result})
+        );
+    }
+
+    wire["expected_function_revision"] = revision.clone();
+    assert_eq!(
+        common::kernel(&wire, "check")["function_revision_matched"],
+        true
+    );
+    let mixed = sites
+        .iter()
+        .position(|s| s["key"] == json!(["Nat", "Int"]))
+        .unwrap();
+    for method in [
+        json!({"ordinal": 2, "result": "Int"}),
+        json!({"ordinal": 1, "result": "Nat"}),
+    ] {
+        let mut changed = wire.clone();
+        changed["expected_function_revision"]["pure"]["operator_sites"][mixed]["method"] = method;
+        for mode in ["check", "emit"] {
+            common::assert_wire_rejected(&common::kernel(&changed, mode), "E_FUNCTION_REVISION");
+        }
+    }
+}

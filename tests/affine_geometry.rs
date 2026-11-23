@@ -150,6 +150,109 @@ fn affine_forms_are_accepted_in_the_current_envelope() {
 }
 
 #[test]
+fn physical_affine_relations_and_substitutions_match_before_normalization() {
+    let main = with(
+        "indexed affine Extra(AffineQQ) = spec[x,] relations(((x^2)) + frac(-1, 2) * x,) over SpecQQ;",
+    );
+    let raw = request(&fixture(&main));
+    assert_eq!(kernel(&raw, "check")["ok"], true);
+    // Keep the source byte extents and the valid, previously accepted wire.
+    for (from, to, token) in [
+        (
+            "((x^2)) + frac(-1, 2) * x",
+            "((x^3)) + frac(-1, 2) * x",
+            "((",
+        ),
+        (
+            "((x^2)) + frac(-1, 2) * x",
+            "((x^2)) + frac(-2, 2) * x",
+            "((",
+        ),
+        ("relations(x^2 - t)", "relations(x^2 + t)", "x^2"),
+        ("over S by(t -> t)", "over S by(t -> 0)", "0)"),
+        (
+            "via(t -> t) inverse(t -> t)",
+            "via(t -> t) inverse(t -> 0)",
+            "0)",
+        ),
+        ("localize(Line, t^2)", "localize(Line, t^3)", "t^3"),
+        ("pullback(t -> t^2)", "pullback(t -> t^3)", "t^3"),
+        ("pullback(e -> X::x)", "pullback(e -> X::t)", "X::t"),
+        ("restrict(sq)", "restrict(to)", "to"),
+        ("dsToS: Over<DS, S, S>", "dsToS: Over<DS, X, S>", "X"),
+    ] {
+        let mut changed = raw.clone();
+        let source = common::checked_replace(&main, from, to);
+        assert_eq!(source.len(), main.len());
+        let start = source.find(to).unwrap() + to.find(token).unwrap();
+        let before = &source[..start];
+        changed["root_source"]["text"] = source.clone().into();
+        for args in [
+            &["check"][..],
+            &["emit"],
+            &["function-revision"],
+            &[
+                "llvm-check",
+                "aarch64-apple-darwin",
+                "e-m:o-i64:64-n32:64-S128",
+            ],
+            &[
+                "llvm-build",
+                "aarch64-apple-darwin",
+                "e-m:o-i64:64-n32:64-S128",
+            ],
+        ] {
+            let response = common::kernel_with_args(&changed, args);
+            common::assert_wire_rejected(&response, "E_AFFINE_SOURCE");
+            let span = &response["diagnostics"][0]["span"];
+            assert_eq!(span["line"], before.lines().count(), "{to}");
+            assert_eq!(
+                span["column"],
+                before.rsplit('\n').next().unwrap().chars().count() + 1,
+                "{to}"
+            );
+            assert!(response.get("llvm").is_none() && response.get("function_revision").is_none());
+        }
+    }
+}
+
+#[test]
+fn even_an_unused_affine_object_must_match_its_declaring_module() {
+    let s = fixture(MAIN);
+    let profile = format!(
+        "{PROFILE}\npub indexed affine Extra(AffineQQ) = spec[u] relations(u^2) over SpecQQ;\n"
+    );
+    s.write("src/profile.vast", &profile);
+    let raw = request(&s);
+    assert_eq!(kernel(&raw, "check")["ok"], true);
+    let path = declaration_pointer(&raw, "Extra");
+    let mut changed = raw.clone();
+    let d = changed.pointer_mut(&path).unwrap();
+    d["public"] = json!(false);
+    common::assert_wire_rejected(&kernel(changed, "check"), "E_AFFINE_SOURCE");
+
+    let mut changed = raw.clone();
+    let file = changed["root_source"]["files"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|f| f["text"] == profile)
+        .unwrap();
+    file["text"] = common::checked_replace(&profile, "relations(u^2)", "relations(u^3)").into();
+    common::assert_wire_rejected(&kernel(changed, "check"), "E_AFFINE_SOURCE");
+
+    let mut omitted = raw;
+    let (list, index) = path.rsplit_once('/').unwrap();
+    omitted
+        .pointer_mut(list)
+        .unwrap()
+        .as_array_mut()
+        .unwrap()
+        .remove(index.parse().unwrap());
+    common::assert_wire_rejected(&kernel(omitted, "check"), "E_AFFINE_SOURCE");
+}
+
+#[test]
 fn structural_applications_follow_declared_base_chains() {
     for probe in [
         "fn probe(arrow: Over<X, X, S>) -> Int { 0 }",
@@ -341,6 +444,8 @@ fn coordinates_named_frac_are_not_fraction_literals() {
     *raw.pointer_mut(&format!("{a}/relations/0/base/name"))
         .unwrap() = json!("frac");
     assert_eq!(parsed.pointer(&a), raw.pointer(&a));
+    common::assert_wire_rejected(&kernel(&raw, "emit"), "E_AFFINE_SOURCE");
+    raw["root_source"]["text"] = minimal("frac").into();
     let expected = kernel(&raw, "emit");
     assert_eq!(expected["ok"], true, "{expected}");
     assert_eq!(kernel(&parsed, "emit"), expected);

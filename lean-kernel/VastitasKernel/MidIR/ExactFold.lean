@@ -1,4 +1,5 @@
 import VastitasKernel.ExactOperators
+import VastitasKernel.MidIR.IR
 import VastitasKernel.OperatorProfile
 
 set_option autoImplicit false
@@ -17,6 +18,35 @@ inductive Scalar where
 def Scalar.type : Scalar → Core.DataType
   | .nat _ => .pure .nat
   | .int _ => .pure .int
+
+/-- Literal operands can be recognized inside a function with arbitrary
+parameters. Their values are independent of the caller's environment. -/
+inductive Literal : Core.Term → Scalar → Prop where
+  | nat (n) : Literal (.natural n) (.nat n)
+  | int (l : IntLiteral) : Literal l.term (.int l.value)
+  | ascribe {t v} : Literal t v → Literal (.ascribe v.type t) v
+
+def literal : (t : Core.Term) → Option {v // Literal t v}
+  | .natural n => some ⟨.nat n, .nat n⟩
+  | .ascribe ty t => do
+    let ⟨v, h⟩ ← literal t
+    if eq : ty = v.type then return ⟨v, eq ▸ Literal.ascribe h⟩ else none
+  | t => do
+    let ⟨l, h⟩ ← IntLiteral.inspect t
+    return ⟨.int l.value, h ▸ Literal.int l⟩
+
+def Scalar.compare : BinaryOp → Scalar → Scalar → Option Bool
+  | .eq, .nat x, .nat y => some (x == y)
+  | .ne, .nat x, .nat y => some (x != y)
+  | .eq, .int x, .int y => some (x == y)
+  | .ne, .int x, .int y => some (x != y)
+  | _, _, _ => none
+
+def literalComparison (op : BinaryOp) (left right : Core.Term) : Option Bool := do
+  guard (op == .eq || op == .ne)
+  let a ← literal left
+  let b ← literal right
+  Scalar.compare op a.val b.val
 
 private def Scalar.bits : Scalar → Nat
   | .nat n => n.log2 + 1
@@ -102,18 +132,8 @@ def integer (t : Core.Term) : Option {n : Int // Folded [] t (.int n)} := do
   let ⟨.int n, h⟩ ← visit (bitBudget t) [] t | none
   return ⟨n,h⟩
 
-/-- Select against the protected package by defining owner and concrete
-operands alone. The index is relative to this family's immutable method list. -/
-def candidates (selection : ExactOperators.Selection) : List (Nat × Core.DataType) := Id.run do
-  let pkg := OperatorProfile.package [selection.family.owner.name]
-  return pkg.modules.flatMap fun m =>
-    if selection.family.owner.scope == ⟨pkg.id,m.module.path⟩ then
-      m.methods.zipIdx.filterMap fun (method, i) =>
-        if method.target.path == [selection.family.owner.name] &&
-            method.params.map (·.ty) == selection.scalarKey.map (fun n => Surface.TypeExpr.data (.named n)) then
-          some (i, .pure method.result)
-        else none
-    else []
+/-- The same family-local methods used in the wire revision. -/
+abbrev candidates := ExactOperators.candidates
 
 structure Method (selection : ExactOperators.Selection) where
   ordinal : Nat

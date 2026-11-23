@@ -54,7 +54,7 @@ status = "tested"
 evidence = [
   "tests/nature_dimension.rs::the_scaled_metric_is_accepted_and_its_gradient_is_nine_four",
   "tests/nature_dimension.rs::scaled_interpretations_must_match_the_metric_and_its_dimensions",
-  "VastitasKernel.NatureRegression",
+  "VastitasPublicTest.NatureRegression",
 ]
 
 [property."dimension.euclid-rejected"]
@@ -89,7 +89,7 @@ assumes = ["rust-frontend"]
 status = "tested"
 evidence = [
   "tests/nature_dimension.rs::euclid_under_length_and_time_is_rejected_naming_l2_and_t2",
-  "VastitasKernel.NatureRegression",
+  "VastitasPublicTest.NatureRegression",
 ]
 
 [property."dimension.kinds"]
@@ -121,7 +121,7 @@ assumes = ["rust-frontend"]
 status = "tested"
 evidence = [
   "tests/nature_dimension.rs::normalized_needs_the_kind_of_each_coordinate",
-  "VastitasKernel.NatureRegression",
+  "VastitasPublicTest.NatureRegression",
 ]
 
 [property."dimension.std-independent"]

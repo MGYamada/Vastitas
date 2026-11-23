@@ -1,4 +1,4 @@
-import VastitasKernel.ExactOperators
+import VastitasKernel.ExactOperatorMethods
 import VastitasKernel.ResourceSource
 import VastitasKernel.Protocol
 import Lean.Data.Json
@@ -81,6 +81,19 @@ private def staticUseJson (u : Compiler.StaticUse) : Json :=
   let scalarOnly := u.expected.allData fun ty => match ty with | .pure _ => true | _ => false
   Json.mkObj (if scalarOnly then fields else ("signature", signatureJson u.expected) :: fields)
 
+/-- The immutable family-local method ordinal and its Core result type. -/
+def operatorMethod (selection : Nat × Core.DataType) : Json :=
+  Json.mkObj [("ordinal", toJson selection.1), ("result", signatureJson (.data selection.2))]
+
+/-- Complete method selected at this exact operator site of the accepted Core. -/
+def operatorSite {m : Core.Module} (typed : Core.Typing.ModuleTyped m)
+    (site : Nat × ExactOperators.Selection) (member : site ∈ ExactOperators.selections m) : Json :=
+  Json.mkObj [("core", site.1), ("id", functionIdJson site.2.family), ("key", toJson site.2.scalarKey),
+    ("method", operatorMethod (ExactOperators.methodAt typed site member))]
+
+def operatorSites {m : Core.Module} (typed : Core.Typing.ModuleTyped m) : List Json :=
+  (ExactOperators.selections m).attach.map fun ⟨site, member⟩ => operatorSite typed site member
+
 private def pass {prepared : Compiler.PreparedProgram} {main} (checked : Compiler.CheckedPass prepared false main) : Json :=
   let lowered := checked.lowered
   let forwarded := lowered.forwardUses.map fun f => Json.mkObj [
@@ -100,8 +113,7 @@ private def pass {prepared : Compiler.PreparedProgram} {main} (checked : Compile
         let indices := (prepared.input.prepared[k.definition]?.map (·.finiteKey)).getD []
         let fields := [("definition", toJson k.definition), ("targets", toJson (k.targets.map targetJson))]
         Json.mkObj (if indices.isEmpty then fields else ("finite_indices", toJson (indices.map indexJson)) :: fields))]),
-    ("operator_sites", toJson <| (ExactOperators.selections checked.core.module).map fun (caller, selected) =>
-      Json.mkObj [("core", caller), ("id", functionIdJson selected.family), ("key", toJson selected.scalarKey)]),
+    ("operator_sites", toJson (operatorSites checked.core.typed)),
     ("calls", toJson <| lowered.emittedCalls.map fun c =>
       Json.mkObj [("caller", c.caller.definition), ("caller_targets", toJson (c.caller.targets.map targetJson)),
         ("definition", c.key.definition), ("targets", toJson (c.key.targets.map targetJson)), ("core", c.id)]),
@@ -125,7 +137,8 @@ private def realizationSite (site : RealizationSite) : Json :=
   let fields := [("owner", ownerJson site.owner), ("path", toJson site.position),
     ("span", spanJson site.span), ("id", functionIdJson site.functionId),
     ("subject", ownerJson d.subject), ("chart", ownerJson d.chart),
-    ("representation", toJson (representationName d.representation))]
+    ("representation", toJson (representationName d.representation))] ++
+    (site.affine.toList.map fun _ => ("constructor", functionIdJson ⟨Namespace.affineConstructor⟩))
   Json.mkObj <| fields ++ match op with
     | .realize _ => []
     | .interpret plan => planFields plan
@@ -184,6 +197,17 @@ def artifact (input : Json) {p : Program} {main} (checked : Checked p main) : Js
     ("resource_values", if p.pureFragments.isEmpty then Json.null else pass checked.values.executable)]
   Json.mkObj <| if checked.lowered.realizationSites.isEmpty then fields else
     ("resource_realizations", realizationRevision checked) :: fields
+
+private theorem pass_operators {prepared main} (checked : Compiler.CheckedPass prepared false main) :
+    (pass checked).getObjVal? "operator_sites" = .ok (toJson (operatorSites checked.core.typed)) := by
+  simp only [pass]
+  split <;> split <;> rfl
+
+theorem artifact_operators (input : Json) {p : Program} {main} (checked : Checked p main) :
+    ((artifact input checked).getObjVal? "pure").bind (·.getObjVal? "operator_sites") =
+      .ok (toJson (operatorSites checked.pureProgram.executable.core.typed)) := by
+  simp only [artifact]
+  split <;> exact pass_operators checked.pureProgram.executable
 
 /-- Keep revision printing/replay below the driver response limit, even when
 many Core symbols refer to the same long package name. Count before rendering

@@ -9,7 +9,10 @@ open Indexed.Core.Semantics
 
 deriving instance ReflBEq, LawfulBEq for VastitasKernel.MidIR.Ty
 
-def slotType : Kind → MidIR.Ty | .nat => .nat | .int => .int
+abbrev slotType := Kind.type
+
+private theorem kind_type {t : MidIR.Ty} {k : Kind} (h : Kind.ofTy t = some k) : slotType k = t := by
+  cases t <;> cases h <;> rfl
 
 def instruction : Step → Op .execution
   | .nat n => ⟨.natural n,[]⟩
@@ -47,11 +50,9 @@ theorem reconstruct (target : LLVM.TargetHeader) (f : MidIR.Function .execution)
     c.header = target ∧ slotType c.resultType = f.result ∧ f.blocks = #[block c] := by
   simp only [translate, bind, Option.bind_eq_some_iff] at lowered
   obtain ⟨ks,hp,k,hk,h⟩ := lowered
-  have output : slotType k = f.result := by
-    generalize eq : f.result = ty at hk ⊢
-    cases ty <;> cases k <;> first | rfl | contradiction
+  have output := kind_type hk
   have paramTypes := mapM_reconstruct (decode := slotType) (xs := f.params.toList) (ys := ks) (h := hp)
-    (fun ty k h => by cases ty <;> cases k <;> first | rfl | contradiction)
+    (fun _ _ h => kind_type h)
   split at h <;> try contradiction
   rename_i b hb
   simp only [Option.bind_eq_some_iff] at h

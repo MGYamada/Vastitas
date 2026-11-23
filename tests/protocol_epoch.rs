@@ -170,6 +170,86 @@ fn root_source_is_the_physical_package_entry_at_its_global_byte_offset() {
 }
 
 #[test]
+fn physical_manifest_editions_bind_the_root_and_unused_dependencies() {
+    let s = common::Scratch::empty("physical manifest edition");
+    s.write_package("dep", "pub fn answer() -> Int { 9 }", "");
+    s.write_package("app", PROGRAM, "dep={path='../dep'}");
+    let raw = s.captured("app/Vastitas.toml", CURRENT_PROTOCOL);
+    let target = &[
+        "llvm-check",
+        "aarch64-apple-darwin",
+        "e-m:o-i64:64-n32:64-S128",
+    ];
+    let build = &["llvm-build", target[1], target[2]];
+    let routes = [
+        &["check"][..],
+        &["emit"],
+        &["function-revision"],
+        target,
+        build,
+    ];
+    for args in routes {
+        let result = common::kernel_with_args(&raw, args);
+        assert_eq!(result["ok"], true, "{result}");
+    }
+    // All following spans stay fixed because each edit preserves the byte count.
+    for row in [0, 1] {
+        for (old, new) in [
+            ("2026", "2025"),
+            ("edition =", "missing ="),
+            ("\"2026\"", "2026  "),
+        ] {
+            let mut changed = raw.clone();
+            let text = &mut changed["root_source"]["files"][row]["text"];
+            *text = common::checked_replace(text.as_str().unwrap(), old, new).into();
+            for args in routes {
+                let result = common::kernel_with_args(&changed, args);
+                assert_wire_rejected(&result, "E_PROTOCOL");
+                assert!(
+                    result["diagnostics"][0]["message"]
+                        .as_str()
+                        .unwrap()
+                        .contains("package.edition")
+                );
+                assert!(result.get("llvm").is_none() && result.get("function_revision").is_none());
+            }
+        }
+    }
+    let mut detached = raw;
+    detached["file"] = json!("main.vast");
+    detached["root_source"] = json!({"offset":0,"text":PROGRAM});
+    assert_wire_rejected(&kernel(detached, "check"), "E_PROTOCOL");
+}
+
+#[test]
+fn physical_edition_accepts_equivalent_toml_and_ignores_decoys() {
+    let s = common::Scratch::empty("manifest edition syntax");
+    s.write("app/main.vast", PROGRAM);
+    let manifest = "app/Vastitas.toml";
+    for doc in [
+        "[package]\nedition='2026'\nname='app'\nversion='0.1.0'\nroot='main.vast'",
+        "package={ edition='2026', name='app', version='0.1.0', root='main.vast' }",
+        "package.\"ed\\u0069tion\"=\"20\\u00326\"\r\npackage.name='app'\r\npackage.version='0.1.0'\r\npackage.root='main.vast'",
+        "[package]\nname='''edition = \"2025\"\n[other]'''\nversion='0.1.0'\nroot='main.vast'\nedition=\"\"\"\n20\\\n 26\"\"\" # edition = '2025'",
+    ] {
+        s.write(manifest, doc);
+        common::success(&s.check_manifest(manifest));
+    }
+    let doc =
+        "[package]\n#dition='2026'\nedition='2026'\nname='app'\nversion='0.1.0'\nroot='main.vast'";
+    s.write(manifest, doc);
+    let raw = s.captured(manifest, CURRENT_PROTOCOL);
+    for (old, new) in [
+        ("#dition", "edition"),
+        ("\nedition='2026'", "\nedition='2025'"),
+    ] {
+        let mut changed = raw.clone();
+        changed["root_source"]["files"][0]["text"] = common::checked_replace(doc, old, new).into();
+        assert_wire_rejected(&kernel(changed, "check"), "E_PROTOCOL");
+    }
+}
+
+#[test]
 fn every_package_carries_the_edition_including_flat_library_inputs() {
     let s = common::Scratch::empty("flat edition");
     let entry = "fn main() -> Int { answer() }";
@@ -518,4 +598,116 @@ fn rewrite_geometry(value: &Value, edit: &impl Fn(&mut Value) -> bool) -> Value 
         let scheme = edit(&mut profile["scheme"]);
         edit(&mut profile["smooth"]) || scheme
     })
+}
+
+#[test]
+fn each_physical_dependency_alias_belongs_to_the_manifest_that_declares_it() {
+    let s = common::Scratch::empty("manifest dependency declarations");
+    s.write_package("dep", "pub fn answer() -> Int { 9 }", "");
+    s.write_package(
+        "app",
+        PROGRAM,
+        "alpha={path='../dep'}\nomega={path='../linked'}",
+    );
+    std::os::unix::fs::symlink(s.0.join("dep"), s.0.join("linked")).unwrap();
+    let root = "app/Vastitas.toml";
+    let raw = s.captured(root, CURRENT_PROTOCOL);
+    let triple = "aarch64-apple-darwin";
+    let layout = "e-m:o-i64:64-n32:64-S128";
+    let accepted = common::kernel_with_args(&raw, &["llvm-check", triple, layout]);
+    assert_eq!(accepted["ok"], true, "{accepted}");
+    let mut stale = raw.clone();
+    let row = &mut stale["root_source"]["files"][0];
+    let offset = row["offset"].as_u64().unwrap() as usize;
+    let text = common::checked_replace(row["text"].as_str().unwrap(), "omega=", "theta=");
+    let start = text.find("theta=").unwrap();
+    row["text"] = json!(text);
+    for route in [
+        &["check"][..],
+        &["emit"],
+        &["function-revision"],
+        &["llvm-check", triple, layout],
+        &["llvm-build", triple, layout],
+    ] {
+        let response = common::kernel_with_args(&stale, route);
+        assert_wire_rejected(&response, "E_MANIFEST_SOURCE");
+        let diagnostic = &response["diagnostics"][0];
+        assert_eq!(diagnostic["span"]["start"], offset + start);
+        assert_eq!(diagnostic["span"]["end"], offset + start + "theta".len());
+        assert!(diagnostic["message"].as_str().unwrap().contains("theta"));
+        assert!(response.get("llvm").is_none() && response.get("function_revision").is_none());
+    }
+
+    // The two written aliases can legitimately point to one canonical package.
+    // Equivalent dotted, quoted and table syntax preserves the same LLVM bytes.
+    let path = s.0.join(root);
+    let manifest = std::fs::read_to_string(&path).unwrap();
+    let start = manifest.find("[dependencies]").unwrap();
+    let alternate = format!(
+        "dependencies.\"o\\u006dega\".path='../linked'\n{}[dependencies.alpha]\npath='../dep'\n",
+        &manifest[..start],
+    );
+    s.write(root, &alternate);
+    let reordered = s.captured(root, CURRENT_PROTOCOL);
+    assert_eq!(
+        common::kernel_with_args(&reordered, &["llvm-check", triple, layout])["llvm"],
+        accepted["llvm"]
+    );
+}
+
+#[test]
+fn legacy_geometry_exports_replay_the_physical_manifest_roles_and_presence() {
+    let raw = geometry_request();
+    assert_eq!(kernel(&raw, "check")["ok"], true);
+    let old = "identity = \"self::scheme::id\"";
+    for (from, to, written) in [
+        (
+            old,
+            "identity = \"self::smooth::id\"",
+            "\"self::smooth::id\"",
+        ),
+        (
+            "point = \"self::Point\"",
+            "point = \"self::Other\"",
+            "\"self::Other\"",
+        ),
+        (
+            "dimension = \"self::scheme::dim\"",
+            "dimension = \"self::smooth::dim\"",
+            "\"self::smooth::dim\"",
+        ),
+    ] {
+        let mut changed = raw.clone();
+        let row = changed["root_source"]["files"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|f| f["text"].as_str().is_some_and(|s| s.contains(old)))
+            .unwrap();
+        let offset = row["offset"].as_u64().unwrap() as usize;
+        let source = row["text"].as_str().unwrap();
+        let start = source.find(from).unwrap() + to.find(written).unwrap();
+        let source = source.replacen(from, to, 1);
+        row["text"] = json!(source);
+        let response = kernel(&changed, "check");
+        assert_wire_rejected(&response, "E_MANIFEST_SOURCE");
+        let span = &response["diagnostics"][0]["span"];
+        assert_eq!(span["start"], offset + start);
+        assert_eq!(span["end"], offset + start + written.len());
+        assert_eq!(span["line"], source[..start].lines().count());
+    }
+    let mut missing = raw;
+    let row = missing["root_source"]["files"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|f| f["text"].as_str().is_some_and(|s| s.contains(old)))
+        .unwrap();
+    let source = row["text"].as_str().unwrap();
+    let start = source.find("[geometry_compat]").unwrap();
+    let absent = format!("{}{}", &source[..start], " ".repeat(source.len() - start));
+    row["text"] = json!(absent);
+    let response = kernel(&missing, "function-revision");
+    assert_wire_rejected(&response, "E_MANIFEST_SOURCE");
+    assert!(response.get("function_revision").is_none());
 }

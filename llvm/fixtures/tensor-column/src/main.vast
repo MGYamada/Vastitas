@@ -1,0 +1,7 @@
+mod profiles;
+mod product;
+
+resource fn main() -> Int {
+    call product::product() -> ();
+    value { 0 }
+}

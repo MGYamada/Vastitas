@@ -3,7 +3,7 @@ import VastitasKernel.ResourcePure
 import VastitasKernel.IndexedObservation
 import VastitasKernel.CompatibilityProfile
 import VastitasKernel.OperatorProfile
-import VastitasKernel.FloatProfile
+import VastitasKernel.AffineRealizationProfile
 
 /-! Unresolved resource functions in the same package namespace as pure indexed
 functions, dispatch and edit authority. No owner, local symbol or callee ID is
@@ -126,6 +126,7 @@ inductive NumericalOperation where
 abbrev FloatRepresentation := Storage.Realization.Representation
 
 inductive Statement where
+  | affineRealization (callee : Indexed.Source.Path) (site : Indexed.AffineRealizationProfile.Site) (result : String)
   | realization (callee : Indexed.Source.Path) (representation : Option FloatRepresentation)
       (arguments : List Indexed.Source.Path) (result : String) (into : Bool) (span : Span)
   | value (name : String) (type : Indexed.Core.PureType) (body : Indexed.FunctionSource.Block) (span : Span)
@@ -190,7 +191,7 @@ def Function.header (function : Function) : Namespace.ResourceHeader :=
 private def usesRealization : List Statement → Bool
   | [] => false
   | stmt :: rest => match stmt with
-    | .realization .. => true
+    | .realization .. | .affineRealization .. => true
     | .branch _ yes no _ | .branchValue _ yes no _ =>
       usesRealization yes || usesRealization no || usesRealization rest
     | _ => usesRealization rest
@@ -201,11 +202,21 @@ private def Program.usesFloat (program : Program) : Bool :=
     m.pureModule.module.imports.any (fun i => i.path.take 2 == ["monad", "float"]) ||
       m.functions.any (fun f => usesRealization f.body)
 
-/-- The packages that the kernel adds to the request's packages: the
-compatibility profile when the request asks for it (`legacyGeometry`). -/
+private def affineSites : List Statement → List Indexed.AffineRealizationProfile.Site
+  | [] => []
+  | stmt :: rest => match stmt with
+    | .affineRealization _ site _ => site :: affineSites rest
+    | .branch _ yes no _ | .branchValue _ yes no _ => affineSites yes ++ affineSites no ++ affineSites rest
+    | _ => affineSites rest
+  termination_by statements => sizeOf statements
+
+/-- Only used profiles are added. Affine sites contribute their mathematical
+declarations to a reserved package before namespace and Core checking. -/
 def Program.profile (program : Program) : List Indexed.DispatchSource.Package :=
+  let sites := program.packages.flatMap fun p => p.modules.flatMap fun m => m.functions.flatMap fun f => affineSites f.body
   (if program.operatorValues.isEmpty then [] else [Indexed.OperatorProfile.package program.operatorValues]) ++
   (if program.usesFloat then [Indexed.FloatProfile.package] else []) ++
+  (if sites.isEmpty then [] else [Indexed.AffineRealizationProfile.package sites]) ++
   (if program.legacyGeometry then [Indexed.CompatibilityProfile.profilePackage] else [])
 
 /-- Keep every original declaration, import, contribution, assembly and body.
@@ -323,6 +334,7 @@ structure RealizationSite where
   operation : Realization.Operation
   callee : Indexed.Source.Path
   span : Span
+  affine : Option Indexed.AffineRealizationProfile.Site := none
   deriving Repr, Inhabited
 
 structure State where
@@ -627,6 +639,15 @@ private def localArgument (frame : Frame) (p : Indexed.Source.Path) : M (Symbol 
   let [name] := p.path | Namespace.problem p.span "E_REALIZATION_POINT" "expected a local represented value"
   lookup frame name p.span
 
+/-- Only an otherwise unbound constructor gets the edition's protected
+mapping. A local import or dependency cannot transfer its authority. -/
+private def resolvesAffine (index : Namespace.Indexed) (scope : Namespace.Scope)
+    (callee : Indexed.Source.Path) : Bool :=
+  let ctor := Namespace.affineConstructor
+  callee.path == [ctor.name] && Namespace.unboundName index scope ctor.name &&
+    index.byOwner[ctor]?.any (·.kind == .resourceFunction) &&
+    index.byOwner[(⟨Namespace.floatScope, "realize"⟩ : Namespace.Owner)]?.any (·.kind == .resourceFunction)
+
 private def lowerRealization (index : Namespace.Indexed) (scope : Namespace.Scope) (caller : Nat)
     (frame : Frame) (owner : Indexed.DeclId) (position : List Nat) (callee : Indexed.Source.Path)
     (rep : Option FloatRepresentation) (args : List Indexed.Source.Path) (out : String) (into : Bool)
@@ -662,7 +683,16 @@ private def lowerRealization (index : Namespace.Indexed) (scope : Namespace.Scop
         index.byPackage[scope.package.source]?.any (·.dependencies.contains "NativeFast")
       unless policy.path == ["NativeFast"] && !shadowed do
         Namespace.problem policy.span "E_NUMERICAL_POLICY" "resource execution requires NativeFast"
-      let plan : Realization.Plan := ⟨← descriptorOf r, ← ownerOf graph, .nativeFast⟩
+      let d ← descriptorOf r
+      let graphId ← match graph.path with
+        | [binding, "identity"] => do
+          if let some (_, _, .realization parent) := frame.find? (·.1 == binding) then
+            unless parent.subject.scope == Namespace.affineConstructor.scope do
+              Namespace.problem graph.span "E_REALIZATION" "a named mathematical subject needs an explicit graph"
+            pure (Indexed.AffineRealizationProfile.identityGraph parent.subject)
+          else ownerOf graph
+        | _ => ownerOf graph
+      let plan : Realization.Plan := ⟨d, graphId, .nativeFast⟩
       pure (← bind (.interpreted plan), .interpret plan)
     | "point", none, [r,input], false => do
       let d ← descriptorOf r
@@ -678,7 +708,7 @@ private def lowerRealization (index : Namespace.Indexed) (scope : Namespace.Scop
       pure (frame,.run plan i o)
     | _, _, _, _ => Namespace.problem span "E_ARITY" "wrong finite signature or destination for this realization operation"
     : M (Frame × Realization.Operation))
-  modify fun s => {s with realizationSites := ⟨owner,position,⟨target.owner⟩,op,callee,span⟩ :: s.realizationSites}
+  modify fun s => {s with realizationSites := ⟨owner,position,⟨target.owner⟩,op,callee,span,none⟩ :: s.realizationSites}
   return (next, .numerical (.realization op))
 
 private def lowerStatements (index : Namespace.Indexed) (owners : List Indexed.DeclId)
@@ -691,6 +721,15 @@ private def lowerStatements (index : Namespace.Indexed) (owners : List Indexed.D
     if state.unused == 0 then throw {code := "E_LIMIT", message := "resource source exceeds the global statement budget"}
     set {state with unused := state.unused - 1}
     let (frame, statement) ← (match first with
+    | .affineRealization callee site out => do
+      unless resolvesAffine index scope callee && !(frame.any (·.1 == Namespace.affineConstructor.name)) do
+        Namespace.problem callee.span "E_REALIZATION" "expected the edition's Affine representation constructor"
+      let d := site.descriptor
+      let (next, _) ← bindName index scope frame out (.realization d) site.span
+      let op := Realization.Operation.realize d
+      modify fun s => {s with realizationSites :=
+        ⟨owner,path ++ [position],⟨⟨Namespace.floatScope,"realize"⟩⟩,op,callee,site.span,some site⟩ :: s.realizationSites}
+      pure (next, .numerical (.realization op))
     | .realization callee rep args out into span =>
       lowerRealization index scope caller frame owner (path ++ [position]) callee rep args out into span
     | .value name type body span => do
@@ -1043,11 +1082,16 @@ def RealizationSite.valid (identities : Std.HashSet (Indexed.DeclId × Storage.R
   let some profile := d.profile env.indexed | return false
   unless site.functionId.owner == ⟨Namespace.floatScope,site.operation.family⟩ do return false
   match site.operation with
-  | .realize _ | .point .. => return true
+  | .realize _ => return site.affine.all (fun written => profile.coordinates.length == written.dimension)
+  | .point .. => return true
   | .interpret plan | .run plan .. =>
     return identities.contains (plan.graph,profile.base.kind) && matchesIdentity plan env profile
 
 def RealizationSite.resolves (index : Namespace.Indexed) (site : RealizationSite) : Bool :=
+  if let some written := site.affine then
+    resolvesAffine index site.owner.scope site.callee && decide (site.operation = .realize written.descriptor) &&
+      site.functionId.owner == ⟨Namespace.floatScope, "realize"⟩
+  else
   match Namespace.resolve index site.owner.scope site.callee.path site.callee.span with
   | .ok target => target.kind == .resourceFunction && target.owner == site.functionId.owner
   | .error _ => false
@@ -1220,6 +1264,7 @@ structure Checked (program : Program) (requireMain : Bool) where
     RunSources lowered (execution id same).checked.context.realizationRuns.toList
 
 private def statementSpan : Statement → Span
+  | .affineRealization _ site _ => site.span
   | .value _ _ _ span | .runtime _ span | .runtimeNumerical _ span | .action _ span
   | .numerical _ span | .tensor _ span | .realization _ _ _ _ _ span => span
   | .callValue _ _ _ _ _ span | .branchValue _ _ _ span | .call _ _ _ span
@@ -1437,7 +1482,7 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
           let realizations ← if h : validRealizations program env lowered.realizationSites = true then pure (PLift.up h)
             else
               let span := (lowered.realizationSites.find? fun s => !s.valid identities env).map (·.span)
-              Namespace.problem (span.getD {}) "E_REALIZATION" "expected a checked smooth affine chart and an explicitly declared identity with those same endpoints"
+              Namespace.problem (span.getD {}) "E_REALIZATION" "expected the selected affine's standard chart and an identity graph with matching endpoints"
           match libraryAccepted : Functions.checkLibrary lowered.functions (numericalEnvironment pureProgram) targets.signatures with
           | .error diagnostic => .error (resourceError program lowered diagnostic)
           | .ok library => match entry : program.entry with

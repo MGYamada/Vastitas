@@ -98,7 +98,7 @@ private def library {json} (req : Wire.CheckedInput json false) (header : Target
     Option (Output json header) := do
   match (UnaryFunction.checkedCore req).functions with
   | [f] =>
-    if f.returnType == .pure .int || f.returnType == .pure .nat then
+    if f.returnType matches .pure .int | .pure .nat | .pure (.pair _) then
       let a ← ExactFunction.compile req header
       let ⟨s,parsed⟩ ← checkedText a.model ExactLibrary.Code.print ExactLibrary.parse
       return .exactLibrary a s parsed
@@ -124,5 +124,25 @@ def check (json : Json) (header : TargetHeader) (requireExecutable : Bool) : Exc
   let req ← Wire.check json false
   if req.input.entry.isSome || (UnaryFunction.checkedCore req).main.isSome then return ← supported (app req header)
   supported (library req header)
+
+/-- A checked singleton literal uses the executable branch and returns exactly
+the UTF-8 string accepted by its parser. This proof applies to the current wire
+result without reducing a concrete program's manifest, Core or revision. -/
+theorem check_literal {json : Json} {header : TargetHeader} {req : Wire.CheckedInput json true}
+    (accepted : Wire.check json true = .ok req)
+    (a : ExitFunction.Artifact req header) (compiled : ExitFunction.compile req header = some a)
+    (pureEntry : req.input.entry.isSome = false)
+    (noFamilies : req.checked.pureProgram.dispatcher.families.isEmpty = true)
+    (literal : (ExitFunction.literalBody a.source.body).isSome = true)
+    (text : String) (parsed : ExitMain.parse text.toUTF8.data.toList = some a.toModule) :
+    check json header true = .ok (.executable a text parsed) := by
+  have rendered : String.fromUTF8? ⟨(ExitMain.print a.toModule).toArray⟩ = some text := by
+    rw [← (ExitMain.parse_iff _ _).mp parsed]
+    change String.fromUTF8? text.toByteArray = some text
+    simp [String.fromUTF8?, text.isValidUTF8]
+    rfl
+  have parseBytes : ExitMain.parse text.toByteArray.data.toList = some a.toModule := parsed
+  simp [check, accepted, app, pureEntry, scalarApp, noFamilies, a.onlyCore, literal,
+    compiled, checkedText, rendered, parseBytes, supported, bind, Except.bind, Option.bind]
 
 end VastitasKernel.LLVM.Emission

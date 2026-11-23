@@ -1,0 +1,20 @@
+pub resource fn product() -> Unit {
+    space u = linear(super::profiles::ComplexSmooth, 2); basis bu = basis(u);
+    space v = linear(super::profiles::ComplexSmooth, 3); basis bv = basis(v);
+    space vd = dual(v); basis bvd = derived(bv, vd);
+    allocate a: F32<CC>[6]; allocate x: F32<CC>[3]; allocate y: F32<CC>[2];
+    borrow wa = write(a, layout(0,2,3,2,false)); fill(wa, complex32(1,2)); release(wa);
+    borrow wx = write(x, layout(0,3,1,3,false)); fill(wx, complex32(3,-4)); release(wx);
+    borrow ra = read(a, layout(0,2,3,2,false)); tensor matrix = view2(ra,bu,bvd);
+    borrow rx = read(x, layout(0,3,1,3,false)); tensor column = view1(rx,bv);
+    borrow wy = write(y, layout(0,2,1,2,false)); tensor result = view1(wy,bu);
+    contract_tree(result, NativeFast) {
+        occurrence a = matrix; occurrence x = column;
+        edge ev = (a[1], x[0]); boundary(a[0]);
+        plan { join done = (ev,a,x,result); }
+    }
+    release(wy); release(rx); release(ra);
+    borrow r = read(y, layout(0,2,1,2,false));
+    expect(r,0,0,complex32(33,6)); expect(r,1,0,complex32(33,6)); release(r);
+    drop(y); drop(x); drop(a); value { () }
+}

@@ -139,13 +139,19 @@ class RepositoryBoundaryTests(unittest.TestCase):
                             for error in check_boundaries(self.root)))
 
     def test_public_source_fixture_cannot_enter_the_compiler(self):
+        self.oracle_package()
         self.write("lean-kernel/VastitasPublicTest/AuthorityRegression.lean",
-                   "import VastitasKernel.ResourceProtocol\nimport Lean\n")
+                   "import VastitasPublicTest.SingletonFixtures\nimport VastitasKernel.ResourceProtocol\n")
+        self.write("lean-kernel/VastitasPublicTest/SingletonFixtures.lean", "import Lean.Data.Json\n")
         self.assertEqual(check_boundaries(self.root), [])
         self.write("lean-kernel/VastitasKernel/Core.lean",
                    "import VastitasPublicTest.AuthorityRegression\n")
-        self.assertTrue(any("forbidden import VastitasPublicTest.AuthorityRegression" in error
-                            for error in check_boundaries(self.root)))
+        self.write("lean-kernel/VastitasPublicTestExtra/Bad.lean",
+                   "import VastitasPublicTest.SingletonFixtures\n")
+        self.write("lean/VastitasOracle/Core.lean", "import VastitasPublicTest.SingletonFixtures\n")
+        errors = check_boundaries(self.root)
+        self.assertEqual(sum("forbidden import VastitasPublicTest.AuthorityRegression" in e for e in errors), 1)
+        self.assertEqual(sum("forbidden import VastitasPublicTest.SingletonFixtures" in e for e in errors), 2)
 
     def test_storage_fixtures_stay_within_the_test_library(self):
         self.write("lean-kernel/VastitasStorageTest/Regression.lean",

@@ -179,6 +179,19 @@ theorem guard_pass (a b : Scalar f) (site : String) (nonzero : isZero b = false)
       [⟨site,.guardPass,{}⟩, ⟨site,.div,(ieeeDiv a b).flags⟩]⟩ := by
   simp [checkedDiv, nonzero, rawBind, lift, binary, primitive, pure]
 
+/-- Recover a failed zero guard by multiplying the original operands. The
+result bits and sticky flags agree with totalized real division for all bit
+patterns in either format, including exceptional numerators. -/
+theorem recover_checked_real_div (a b : Scalar f) (site : String) (cfg : Unit) :
+    ((run (checkedDiv a b site) cfg) >>= fun
+      | .ok x => pure x
+      | .error .divisionByZero => BinaryFloat.mul a b) = realDiv a b := by
+  cases h : isZero b with
+  | true =>
+    simp [run, guard_fail a b site ((zero_patterns b).mp h), realDiv, h, flags, bind]
+  | false =>
+    simp [run, guard_pass a b site h, realDiv, h, flags, bind, pure]
+
 theorem first_error (p : Safe α) (k : α → Safe β) (cfg : Unit) (e : Failure)
     (failed : (p cfg).value = .error e) :
     safeBind p k cfg = ⟨.error e,(p cfg).events⟩ := by

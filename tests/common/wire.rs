@@ -155,7 +155,11 @@ pub fn assert_rejected(request: Value, code: &str) -> Value {
 /// The response of the built kernel in `mode` to the wire request `request`,
 /// whose success must agree with the exit status.
 pub fn kernel(request: impl std::borrow::Borrow<Value>, mode: &str) -> Value {
-    let output = kernel_bytes(mode, serde_json::to_vec(request.borrow()).unwrap());
+    kernel_with_args(request, &[mode])
+}
+
+pub fn kernel_with_args(request: impl std::borrow::Borrow<Value>, args: &[&str]) -> Value {
+    let output = kernel_bytes_with_args(args, serde_json::to_vec(request.borrow()).unwrap());
     let response: Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
         panic!(
             "invalid response: {error}; {}",
@@ -173,13 +177,17 @@ pub fn kernel(request: impl std::borrow::Borrow<Value>, mode: &str) -> Value {
 /// truncated request would arrive, under the 60-second regression deadline.
 /// The input must be written whole; returns the exit status and both outputs.
 pub fn kernel_bytes(mode: &str, input: Vec<u8>) -> Output {
+    kernel_bytes_with_args(&[mode], input)
+}
+
+fn kernel_bytes_with_args(args: &[&str], input: Vec<u8>) -> Output {
     let path = kernel_path();
     assert!(
         path.is_file(),
         "Build backend first: lake -d lean-kernel build vastitas-kernel"
     );
     let mut child = Command::new(path)
-        .arg(mode)
+        .args(args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -225,5 +233,36 @@ pub fn kernel_bytes(mode: &str, input: Vec<u8>) -> Output {
         status,
         stdout,
         stderr,
+    }
+}
+
+/// Mutate only one nested module in the saved physical file table. Equal byte
+/// lengths preserve every enclosing span and isolate the changed operand.
+pub fn assert_stale_module_rejected(wire: &Value, suffix: &str, edits: &[(&str, &str)]) {
+    let files = wire["root_source"]["files"].as_array().unwrap();
+    let matches: Vec<_> = files
+        .iter()
+        .enumerate()
+        .filter(|(_, f)| f["path"].as_str().unwrap().ends_with(suffix))
+        .collect();
+    let [(index, file)] = matches.as_slice() else {
+        panic!("expected one module ending in {suffix}");
+    };
+    let source = file["text"].as_str().unwrap();
+    for &(from, to) in edits {
+        let changed = source.replacen(from, to, 1);
+        assert_ne!(source, changed, "{from}");
+        assert_eq!(source.len(), changed.len(), "{from}");
+        let mut stale = wire.clone();
+        stale["root_source"]["files"][*index]["text"] = Value::String(changed.clone());
+        for mode in ["check", "emit"] {
+            let response = kernel(&stale, mode);
+            assert_wire_rejected(&response, "E_RESOURCE_SOURCE");
+            let line = response["diagnostics"][0]["span"]["line"].as_u64().unwrap() as usize;
+            assert!(
+                changed.lines().nth(line - 1).unwrap().contains(to),
+                "{from}: {response}"
+            );
+        }
     }
 }

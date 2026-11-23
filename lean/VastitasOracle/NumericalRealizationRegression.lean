@@ -1,5 +1,4 @@
 import VastitasOracle.NumericalRealization
-import VastitasKernel.RegressionRequest
 import VastitasKernel.RegressionSupport
 
 set_option autoImplicit false
@@ -7,30 +6,10 @@ set_option autoImplicit false
 namespace VastitasOracle.NumericalRealization.Regression
 open Lean VastitasKernel VastitasKernel.Indexed
 
-private def span : Json := Json.mkObj [("start", 0), ("end", 0), ("line", 1), ("column", 1)]
-private def path (name : String) : Json := Json.mkObj [("path", toJson [name]), ("span", span)]
-private def decl (kind name : String) (fields : List (String × Json)) : Json :=
-  Json.mkObj ([("kind", toJson kind), ("name", toJson name), ("public", toJson true), ("span", span)] ++ fields)
-
-private def affine (name : String) : Json :=
-  decl "smooth_affine" name [("implementation", path "SmoothR"), ("dimension", "1"), ("coordinates", toJson ["t"])]
-private def map (name : String) (definition : Json) : Json :=
-  decl "morphism" name [("family", path "Smooth"), ("indices", toJson [path "X", path "X"]), ("definition", definition)]
-private def request : Json := Id.run do
-  let obj := Json.mkObj [("kind", "object"), ("domain", path "Spaces")]
-  let canonical (n : Nat) := Json.mkObj [("kind", "canonical"), ("object", n)]
-  let pullback (image : Json) := Json.mkObj [("kind", "pullback"), ("images", toJson [Json.mkObj [("name", "t"), ("image", image)]])]
-  let t := Json.mkObj [("op", "coordinate"), ("name", "t")]
-  let ds := [decl "marker" "R" [],
-    decl "implementation" "SmoothR" [("marker", path "R"), ("representation", "smooth_affine"), ("capabilities", .arr #[])],
-    decl "classification" "Spaces" [("parents", .arr #[]), ("domain", toJson [path "SmoothR"])],
-    decl "family" "Smooth" [("parameters", toJson [obj, obj]), ("constraints", toJson [canonical 0, canonical 1]),
-      ("representation", "smooth")],
-    affine "X", affine "Y", map "idX" (Json.mkObj [("kind", "identity")]),
-    map "writtenT" (pullback t), map "negativeT" (pullback <| Json.mkObj [("op", "neg"), ("operand", t)])]
-  let mod := Json.mkObj [("path", .arr #[]), ("public", true), ("span", span), ("imports", .arr #[]),
-    ("generics", .arr #[]), ("methods", .arr #[]), ("functions", .arr #[]), ("indexed_declarations", toJson ds)]
-  return RegressionRequest.package "subject" [mod]
+/-- Captured from the edition 2026 package embedded in the request. Paths
+are relative to the fixed fixture root `/subject`. -/
+private def request : Json :=
+  (Json.parse (include_str "../../tests/fixtures/affine-realization.wire.json")).toOption.getD .null
 
 private def id (name : String) : DeclId := ⟨⟨⟨"/subject/Vastitas.toml", "subject", "0.1.0"⟩, []⟩, name⟩
 

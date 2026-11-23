@@ -1,4 +1,5 @@
-import VastitasKernel.ExactModelSource
+import VastitasKernel.ManifestMetadata
+import VastitasKernel.EditSourceFiles
 import VastitasKernel.FunctionRevision
 import VastitasKernel.ResourceCodegen
 import VastitasKernel.StorageFunctionProtocol
@@ -377,22 +378,32 @@ private def realizationPaths (j : Json) (span : Span) :
     place := p.span
   return (callee, args)
 
+private def numericalRepresentation : Json → Except String FloatRepresentation
+  | .str "real32" => pure .real32
+  | .str "real64" => pure .real64
+  | .str "complex32" => pure .complex32
+  | .str "complex64" => pure .complex64
+  | _ => throw "unknown numerical representation"
+
 private def statements : Nat → List Json → Except String (List Statement)
   | _, [] => pure []
   | 0, _ :: _ => throw "resource source exceeds decoding depth bound"
   | fuel + 1, first :: rest => do
     let span ← decodeSpan first
     let statement ← match ← str first "kind" with
+      | "affine_realization" =>
+        fields first ["kind", "callee", "representation", "dimension", "result", "span"]
+        let callee ← Indexed.Wire.path (← field first "callee")
+        let rep ← numericalRepresentation (← field first "representation")
+        let n ← first.getObjValAs? Nat "dimension"
+        unless n ≤ Limits.algebraGenerators do throw "affine wrapper exceeds the coordinate limit"
+        pure (.affineRealization callee ⟨rep, n, span⟩ (← str first "result"))
       | "realization" =>
         fields first ["kind", "callee", "representation", "arguments", "result", "into", "span"]
         let (callee, arguments) ← realizationPaths first span
         let representation : Option FloatRepresentation ← match ← field first "representation" with
           | .null => pure none
-          | .str "real32" => pure (some .real32)
-          | .str "real64" => pure (some .real64)
-          | .str "complex32" => pure (some .complex32)
-          | .str "complex64" => pure (some .complex64)
-          | _ => throw "unknown numerical representation"
+          | value => some <$> numericalRepresentation value
         pure (.realization callee representation arguments (← str first "result") (← first.getObjValAs? Bool "into") span)
       | "runtime" =>
         fields first ["kind", "action", "span"]
@@ -562,9 +573,22 @@ private def decodedProgram (j : Json) : Except String Program := do
   let names ← raw.valueFamilies.mapError (·.message)
   return {raw with operatorValues := names}
 
-/-- Verify all physical mathematical declarations of this exact input. -/
+abbrev physicalFileIndex := ManifestBindings.physicalFileIndex
+abbrev manifestFile? := ManifestBindings.manifestFile?
+
+def mismatchedManifest? (layout : PhysicalSources.Layout) (p : Program) : Option Package :=
+  if p.root == flatPackageId.source then none else
+  let index := physicalFileIndex layout
+  p.packages.find? fun pkg =>
+    ((manifestFile? layout index pkg.id.source).bind fun file => ManifestMetadata.read? file.text) !=
+      some ⟨pkg.id.name, pkg.id.version, currentEdition⟩
+
+/-- Check the manifest of each physical package and the mathematical declarations of its modules. -/
 def exactSources (j : Json) (p : Program) : Except String Unit := do
-  ExactModelSource.check (← PhysicalSources.layout j) p
+  let layout ← PhysicalSources.layout j
+  if let some pkg := mismatchedManifest? layout p then
+    throw s!"manifest {toJson pkg.id.source} must match the wire package name, version and package.edition = \"{currentEdition}\""
+  ExactModelSource.check layout p
 
 def program (j : Json) : Except String Program := do
   let p ← decodedProgram j
@@ -616,6 +640,7 @@ structure CheckedInput (json : Json) (requireMain : Bool) where
   checked : Checked input requireMain
   accepted : ResourceSource.check input requireMain = .ok checked
   assemblySource : AssemblySource.Corresponds json checked.pureProgram.authority.headers.assembled.prepared.core.assembly
+  editSources : EditSourceFiles.check json input = .ok ()
   revisionMatches : RevisionMatches json checked
   /-- The price of the request's JSON, in which the compatibility profile of
   `legacy_geometry` has no part, and the checked passes. -/
@@ -629,9 +654,12 @@ def check (json : Json) (requireMain : Bool) : Except Diagnostic (CheckedInput j
     | .error diagnostic => .error diagnostic
     | .ok result => do
       let assembly ← AssemblySource.check json result.value.pureProgram.authority.headers.assembled.prepared.core.assembly
-      if h : RevisionMatches json result.value then
-        .ok ⟨input, decoded, result.value, result.accepted, assembly, h, result.receipt⟩
-      else .error { code := "E_FUNCTION_REVISION", message := "supplied function revision differs from the checked input or its selected methods" }
+      match edits : EditSourceFiles.check json input with
+      | .error diagnostic => .error diagnostic
+      | .ok () =>
+        if h : RevisionMatches json result.value then
+          .ok ⟨input, decoded, result.value, result.accepted, assembly, edits, h, result.receipt⟩
+        else .error { code := "E_FUNCTION_REVISION", message := "supplied function revision differs from the checked input or its selected methods" }
 
 /-- Public generation consumes the budgeted wire request's exact checked program. -/
 def emit (json : Json) : Except Diagnostic Codegen.Generated := do

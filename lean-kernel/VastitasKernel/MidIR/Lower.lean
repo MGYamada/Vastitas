@@ -1,5 +1,6 @@
 import VastitasKernel.MidIR.Check
 import VastitasKernel.MidIR.ExactFold
+import VastitasKernel.MidIR.Literal
 
 set_option autoImplicit false
 
@@ -57,6 +58,12 @@ private def lowerTerm (resolve : Nat → Option CallTarget) (ctx : List (Nat × 
     if let some ⟨literal, _⟩ := IntLiteral.inspect (.unary .neg arg ann) then
       emit (.integer literal.value) []
     else emit (.exactOp .neg) [← lowerTerm resolve ctx arg]
+  | .pair element first second => do
+    let left ← lowerTerm resolve ctx first
+    let right ← lowerTerm resolve ctx second
+    emit (.exactOp (.pair element)) [left, right]
+  | .project element first arg => do
+    emit (.exactOp (.project element first)) [← lowerTerm resolve ctx arg]
   | .natToInt arg => do emit (.exactOp .natToInt) [← lowerTerm resolve ctx arg]
   | .variable symbol _ => liftM (ctx.lookup symbol)
   | .scope body => lowerTerm resolve ctx body
@@ -67,6 +74,8 @@ private def lowerTerm (resolve : Nat → Option CallTarget) (ctx : List (Nat × 
     let x ← lowerTerm resolve ctx rhs
     lowerTerm resolve ((symbol, x) :: ctx) body
   | .binary op left right _ => do
+    if let some value := ExactFold.literalComparison op left right then
+      return ← emit (.boolean value) []
     let code ← liftM (match op with
       | .and => some Opcode.boolAnd
       | .or => some Opcode.boolOr
@@ -100,6 +109,105 @@ private def lowerArguments (resolve : Nat → Option CallTarget) (ctx : List (Na
     let ref ← lowerTerm resolve ctx arg
     return ref :: (← lowerArguments resolve ctx rest)
 end
+
+private theorem lower_literal_action (lit : Literal) (resolve : Nat → Option CallTarget) (ctx : List (Nat × Ref)) :
+    lowerTerm resolve ctx lit.term = emit (lit.opcode .optimization) [] := by
+  cases lit <;> rfl
+
+/-- The production builder appends one nullary instruction to the live block
+and returns its SSA slot. All preceding blocks and instructions are preserved. -/
+def AppendsNullary (term : Core.Term) (code : Opcode .optimization) : Prop :=
+  ∀ resolve ctx (prior : Array Draft) (params : Array Ty) (prefixOps : Array (Op .optimization)),
+    (lowerTerm resolve ctx term).run (prior.push {params, ops := prefixOps}) =
+      some (⟨prior.size, params.size + prefixOps.size⟩,
+        prior.push {params, ops := prefixOps.push ⟨code, []⟩})
+
+private theorem emit_live (code : Opcode .optimization) (args : List Ref) (prior : Array Draft)
+    (params : Array Ty) (prefixOps : Array (Op .optimization)) :
+    (emit code args).run (prior.push {params, ops := prefixOps}) =
+      some (⟨prior.size, params.size + prefixOps.size⟩,
+        prior.push {params, ops := prefixOps.push ⟨code, args⟩}) := by
+  simp [emit, active, StateT.run, bind, StateT.bind, get, getThe, MonadStateOf.get, StateT.get,
+    pure, guard, StateT.pure, liftM, monadLift, MonadLift.monadLift, StateT.lift,
+    set, StateT.set, Array.set!, Array.setIfInBounds, Array.set_push]
+
+private theorem appends_nullary {term code}
+    (lower : ∀ resolve ctx, lowerTerm resolve ctx term = emit code []) : AppendsNullary term code := by
+  intro resolve ctx prior params prefixOps
+  rw [lower resolve ctx]
+  exact emit_live _ _ _ _ _
+
+def AppendsLiteral (lit : Literal) : Prop := AppendsNullary lit.term (lit.opcode .optimization)
+
+theorem appends_literal (lit : Literal) : AppendsLiteral lit :=
+  appends_nullary (lower_literal_action lit)
+
+theorem appends_finite_tag (carrier : FiniteSort) (tag : String) :
+    AppendsNullary (.finiteTag carrier tag) (.finiteTag carrier tag) :=
+  appends_nullary (fun _ _ => rfl)
+
+/-- The name of this opcode is shared by every nominal carrier and Hom fiber.
+The opcode itself carries the actual sort and tag. -/
+def finiteTagRegistryRow : Lean.Name × String := (``Core.Term.finiteTag, "finite.tag.v1")
+
+/-- Read every Core symbol in order. Missing symbols fail before emission.
+The successful instruction contains exactly the resolved SSA references. -/
+def AppendsLookup (site : FiniteLookup) (symbols : List Nat) : Prop :=
+  ∀ resolve (ctx : List (Nat × Ref)) (prior : Array Draft) (params : Array Ty) (prefixOps : Array (Op .optimization)),
+    (lowerTerm resolve ctx (.finiteLookup site symbols)).run (prior.push {params, ops := prefixOps}) =
+      (symbols.mapM (fun sym => ctx.lookup sym)).map fun args =>
+        (⟨prior.size, params.size + prefixOps.size⟩,
+          prior.push {params, ops := prefixOps.push ⟨.lookupTag site, args⟩})
+
+theorem appends_lookup (site : FiniteLookup) (symbols : List Nat) : AppendsLookup site symbols := by
+  intro resolve ctx prior params prefixOps
+  change ((do let refs ← liftM (symbols.mapM (fun sym => ctx.lookup sym)); emit (.lookupTag site) refs) : Builder Ref).run _ = _
+  cases found : symbols.mapM (fun sym => ctx.lookup sym) with
+  | none => rfl
+  | some args => exact emit_live _ _ _ _ _
+
+def lookupRegistryRow : Lean.Name × String := (``Core.Term.finiteLookup, "finite.lookup.tag.v1")
+
+/-- Variables reuse the defining SSA reference in every builder state. An
+unbound symbol fails before changing any block. -/
+def ReadsVariable (symbol : Nat) (result : Core.Result) : Prop :=
+  ∀ resolve (ctx : List (Nat × Ref)) blocks,
+    (lowerTerm resolve ctx (.variable symbol result)).run blocks =
+      (ctx.lookup symbol).map fun ref => (ref, blocks)
+
+theorem reads_variable (symbol : Nat) (result : Core.Result) : ReadsVariable symbol result := by
+  intro resolve ctx blocks
+  cases found : ctx.lookup symbol <;> simp [lowerTerm, found, liftM, monadLift,
+    MonadLift.monadLift, StateT.lift, StateT.run]
+
+/-- A lexical scope forwards the entire child action, including failure and
+changes to the active block inside the child. -/
+def ForwardsScope (body : Core.Term) : Prop :=
+  ∀ resolve ctx, lowerTerm resolve ctx (.scope body) = lowerTerm resolve ctx body
+
+theorem forwards_scope (body : Core.Term) : ForwardsScope body := fun _ _ => rfl
+
+/-- Ascription checks the exact Core type before forwarding the child. -/
+def ChecksAscription (annotation : Core.DataType) (body : Core.Term) : Prop :=
+  ∀ resolve ctx blocks, (lowerTerm resolve ctx (.ascribe annotation body)).run blocks =
+    if annotation = body.result.type then (lowerTerm resolve ctx body).run blocks else none
+
+theorem checks_ascription (annotation : Core.DataType) (body : Core.Term) :
+    ChecksAscription annotation body := by
+  intro resolve ctx blocks
+  by_cases h : annotation = body.result.type <;>
+    simp [lowerTerm, h, guard, bind, StateT.run, StateT.bind, pure, StateT.pure,
+      failure, Alternative.failure, StateT.failure]
+
+/-- Lower the initializer once and pass its returned SSA reference and updated
+blocks to the body. Failure of either action propagates. -/
+def BindsLet (symbol : Nat) (rhs body : Core.Term) : Prop :=
+  ∀ resolve ctx blocks, (lowerTerm resolve ctx (.letE symbol rhs body)).run blocks =
+    (do let (ref, after) ← (lowerTerm resolve ctx rhs).run blocks
+        (lowerTerm resolve ((symbol, ref) :: ctx) body).run after)
+
+theorem binds_let (symbol : Nat) (rhs body : Core.Term) : BindsLet symbol rhs body :=
+  fun _ _ _ => rfl
 
 /-- Structural lowering of one exact body. Acceptance of a source module and
 its family identities belongs to the checked request adapter in MidIR.Checked. -/

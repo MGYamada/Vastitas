@@ -266,6 +266,7 @@ def validateWithWork (p : Indexed) : Result ImportWork := do
       let names := declarations.map (·.owner.name) ++ m.imports.map (·.alias) ++ pkg.dependencies.map (·.alias)
       if !Finite.distinct names then throw (collision p pkg m)
       for decl in declarations do
+        if decl.kind == .resourceFunction && decl.owner == affineConstructor then continue
         if decl.kind == .function && decl.owner.name == "compose" && m.hasFiniteCompose then continue
         if let .error diagnostic := declarationName decl.kind decl.owner.name m.span then
           throw { diagnostic with span := (declarationPlace p decl.owner).getD m.span }

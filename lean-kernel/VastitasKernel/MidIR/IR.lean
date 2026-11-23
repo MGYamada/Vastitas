@@ -20,11 +20,12 @@ inductive Ty where
   | bool
   | nat
   | int
+  | pair (element : PairElem)
   | finite (carrier : FiniteSort)
   deriving BEq, DecidableEq, Repr
 
 def Ty.valid (env : Environment) : Ty → Bool
-  | .unit | .bool | .nat | .int => true
+  | .unit | .bool | .nat | .int | .pair _ => true
   | .finite c => (FiniteSort.tags env c).isSome
 
 def Ty.ofCore : Core.DataType → Option Ty
@@ -32,6 +33,7 @@ def Ty.ofCore : Core.DataType → Option Ty
   | .pure .bool => some .bool
   | .pure .nat => some .nat
   | .pure .int => some .int
+  | .pure (.pair e) => some (.pair e)
   | .finite c => some (.finite c)
   | _ => none
 
@@ -52,6 +54,8 @@ inductive ExactOp where
   | nat (op : Arithmetic)
   | int (op : Arithmetic)
   | natIntDiv | intNatDiv | neg | natToInt
+  | pair (element : PairElem)
+  | project (element : PairElem) (first : Bool)
   deriving DecidableEq, Repr
 
 def ExactOp.binary (op : BinaryOp) (left right : Core.DataType) : Option ExactOp := do
@@ -63,19 +67,29 @@ def ExactOp.binary (op : BinaryOp) (left right : Core.DataType) : Option ExactOp
   | .pure .int, .pure .nat => guard (arith = .div); return .intNatDiv
   | _, _ => none
 
+def pairScalar : PairElem → Ty | .nat => .nat | .int => .int
+
 def ExactOp.operands : ExactOp → List Ty
   | .nat _ => [.nat, .nat] | .int _ => [.int, .int]
   | .natIntDiv => [.nat, .int] | .intNatDiv => [.int, .nat]
   | .neg => [.int] | .natToInt => [.nat]
+  | .pair e => [pairScalar e, pairScalar e]
+  | .project e _ => [.pair e]
 
 def ExactOp.result : ExactOp → Ty
-  | .nat _ => .nat | _ => .int
+  | .nat _ => .nat
+  | .int _ | .natIntDiv | .intNatDiv | .neg | .natToInt => .int
+  | .pair e => .pair e
+  | .project e _ => pairScalar e
 
 def ExactOp.name : ExactOp → String
   | .nat op => "nat_" ++ op.name
   | .int op => "int_" ++ op.name
   | .natIntDiv => "nat_int_div" | .intNatDiv => "int_nat_div"
   | .neg => "int_neg" | .natToInt => "nat_to_int"
+  | .pair .nat => "nat_pair" | .pair .int => "int_pair"
+  | .project .nat true => "nat_pair_first" | .project .nat false => "nat_pair_second"
+  | .project .int true => "int_pair_first" | .project .int false => "int_pair_second"
 
 inductive Comparison where
   | eq | ne
@@ -191,7 +205,7 @@ def valid (env : Environment) : Opcode p → Bool
   | .finiteTag c t => (FiniteSort.tags env c).any (·.contains t)
   | .finiteOrdinal c n => (FiniteSort.tags env c).any (n < ·.length)
   | .lookupTag s | .lookupOrdinal s => (s.plan? env).isSome
-  | .compare _ .nat | .compare _ .int => false
+  | .compare _ .nat | .compare _ .int | .compare _ (.pair _) => false
   | .compare _ t => t.valid env
   | .call t => t.params.all (·.valid env) && t.result.valid env
 

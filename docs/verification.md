@@ -60,7 +60,11 @@ sections that hold its route theorems and its component theorems.
   holds the component theorems. [Code generation entries](#code-generation-entries)
   holds the theorems on the pure Core of the public route: the route theorem
   `IndexedReverseCore.public_resource_compiled`, and the theorems on the
-  certificate of `ResourceSource.check`.
+  certificate of `ResourceSource.check`. For homogeneous integer pairs,
+  `VastitasOracle.MidIR.pair_from_core` identifies each operation with Core.
+  `pair_projections` proves that the two projections recover the ordered inputs.
+  The native probe separately checks reference counts when both fields contain
+  the same heap integer. [Pair operations](spec/compiler-ir.md#compiler-ir.registry)
 - **Generics, dispatch, abstract types and abstract methods.**
   [Dispatch over indexed bodies](#dispatch-over-indexed-bodies) holds the
   route theorems. The components are the
@@ -206,6 +210,25 @@ coordinate spaces, duplicate/Unicode names and positional lists.
 The separately built mathematical bridge is described below.
 
 ## Closed finite LLVM executables
+
+For each finite-indexed function in an accepted protocol 10 input,
+`VastitasOracle.ResourceSource.physical_finite_function` gives its replay in the
+declaring package and lexical module. The kernel matches the schema and
+object binders, parameters, result and body against the source file even
+when no call selects the function. The Rust loader supplies the file bytes
+and their global offsets. [Protocol 10](protocol.md)
+
+For an ordinary singleton, `VastitasOracle.ResourceSource.physical_singleton_function`
+identifies its declaration in the same input. For a flat `main`, its physical
+file index equals the entry index. The checker replays the body even
+when no call uses it. In `main`, it checks which top-level initializers use
+`show!`. The observation label remains presentation metadata.
+
+`VastitasOracle.ResourceSource.physical_import` binds each import in the
+accepted input to its lexical owner, visibility, path, alias and terminating
+semicolon. `VastitasOracle.ResourceSource.physical_module` binds each named
+child module to its declaration in the parent file. The loader supplies the
+manifest dependency mapping and the file contents.
 
 `VastitasOracle.FiniteProgram.correspondence` applies to the public
 checker route when it returns a finite executable artifact and the complete
@@ -1269,6 +1292,14 @@ canonical-name/edge/closure construction is equal under permutations of the
 type and membership declaration lists. `selected_nominal_target` connects the
 actual family `checkWith` equation to the finite engine's selection theorem.
 This is nominal order, not containment of current inhabitant sets.
+
+For every module of an accepted protocol-10 request,
+`ResourceSource.physical_selector_hierarchy` locates each abstract type and
+scalar membership in the supplied physical source. The replay checks every
+parent and target path at its byte span. The declaration inventory also
+accounts for unused selectors. The assembled Boolean regression changes the
+parent order in the source to select each of two contributed methods.
+[Kernel and LLVM regression](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
 
 `Namespaces.membership_owner` establishes exact defining-module authority from
 the independently re-resolved ledger; alias visibility follows the same resolver

@@ -430,37 +430,59 @@ fn generated_code_at_the_source_check_bounds_builds() {
     assert_eq!(ran(&output), exits(3907 % 256));
 }
 
-/// The request of a flat unit beyond the frontend's parser nesting: `depth`
-/// nested branches around a chain of `lets` dependent lets in `main`.
+/// Add deeper branches than the Rust parser permits around a frontend-parsed
+/// let chain. Keep each physical byte and span so the kernel can independently
+/// check and emit this boundary case. All tokens occupy one ASCII line.
 fn nested_ir(depth: usize, lets: usize) -> Value {
-    let span = json!({"start": 0, "end": 1, "line": 1, "column": 1});
-    let integer =
-        |value: usize| json!({"kind": "integer", "value": value.to_string(), "span": span});
-    let variable = |name: String| json!({"kind": "variable", "name": name, "span": span});
-    let mut statements = vec![
-        json!({"kind": "let", "name": "v0", "annotation": null, "value": integer(1), "span": span}),
-    ];
-    for index in 1..lets {
-        statements.push(
-            json!({"kind": "let", "name": format!("v{index}"), "annotation": null,
-            "value": {"kind": "binary", "op": "+", "left": variable(format!("v{}", index - 1)),
-                "right": integer(1), "span": span}, "span": span}),
-        );
-    }
-    let mut result = variable(format!("v{}", lets - 1));
-    let mut inner = Some(statements);
+    let span =
+        |start: usize, end: usize| json!({"start":start, "end":end, "line":1, "column":start+1});
+    let header = "fn main() -> Int { ";
+    let flat = nested_chain(0, lets).replace('\n', " ");
+    let chain = flat
+        .strip_prefix(header)
+        .unwrap()
+        .strip_suffix("} ")
+        .unwrap();
+    let mut text = String::from(header);
+    let mut openings = Vec::new();
     for _ in 0..depth {
-        let then =
-            json!({"statements": inner.take().unwrap_or_default(), "result": result, "span": span});
-        result = json!({"kind": "if", "condition": {"kind": "boolean", "value": true, "span": span},
-            "then_branch": then, "else_branch": {"statements": [], "result": integer(1), "span": span},
-            "span": span});
+        let start = text.len();
+        text.push_str("if ");
+        let cond = text.len();
+        text.push_str("true");
+        let condition = json!({"kind":"boolean","value":true,"span":span(cond, text.len())});
+        text.push(' ');
+        let open = text.len();
+        text.push_str("{ ");
+        openings.push((start, condition, open));
     }
-    let mut request = common::request("fn main() -> Int { 0 }", "bounds.vast");
-    common::flat_module(&mut request)["functions"] = json!([{"name": "main", "params": [],
-        "return_type": {"kind": "named", "name": "Int"},
-        "body": {"statements": inner.unwrap_or_default(), "result": result, "span": span},
-        "span": span, "public": true}]);
+    let padding = " ".repeat(text.len() - header.len());
+    let mut request = common::request(&format!("{header}{padding}{chain}}}"), "bounds.vast");
+    let function = &mut common::flat_module(&mut request)["functions"][0];
+    let mut body = function["body"].take();
+    text.push_str(chain);
+    for (start, condition, open) in openings.into_iter().rev() {
+        text.push('}');
+        body["span"] = span(open, text.len());
+        text.push_str(" else ");
+        let alternate = text.len();
+        text.push_str("{ ");
+        let digit = text.len();
+        text.push('1');
+        let one = json!({"kind":"integer","value":"1","span":span(digit, text.len())});
+        text.push_str(" }");
+        let mut result = json!({"kind":"if","condition":condition,"span":span(start,text.len()),
+            "else_branch":{"statements":[],"result":one,"span":span(alternate,text.len())}});
+        result["then_branch"] = body;
+        body = json!({"statements":[]});
+        body["result"] = result;
+        text.push(' ');
+    }
+    text.push('}');
+    body["span"] = span(header.find('{').unwrap(), text.len());
+    function["body"] = body;
+    function["span"] = span(0, text.len());
+    request["root_source"]["text"] = json!(text);
     request
 }
 

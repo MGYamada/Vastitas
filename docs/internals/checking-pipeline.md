@@ -193,7 +193,7 @@ empty domains, overlapping/conflicting results, authority and tampered IR.
 Fn contracts and lambdas, zero/Unit/multiple arguments, dispatch, multiple
 explicit libraries, captures, invalid unused bodies, mismatched types/arity,
 runtime target choices, recursion, the 4096-instance boundary and forged IR.
-`VastitasKernel.IndexedWireRegression` checks JSON acceptance and rejection
+`VastitasPublicTest.IndexedWireRegression` checks JSON acceptance and rejection
 through the public checker directly; `IndexedFunctionRegression` covers the common function
 compiler and forged static ledgers. The current function compiler additionally
 reconstructs caller/target occurrence counts from the returned Core and checks

@@ -123,6 +123,34 @@ theorem checked_site {json main} (input : Wire.CheckedInput json main)
     simp only [validRealizations, List.isEmpty_cons, Bool.false_eq_true, ↓reduceIte, List.all_eq_true] at h
     simpa only [Bool.and_eq_true] using h site member
 
+/-- A written wrapper produces the canonical realize operation on its fresh
+subject. Its dimension is recovered from the accepted mathematical environment. -/
+theorem checked_affine_realization {json main} (input : Wire.CheckedInput json main)
+    (s : RealizationSite) (member : s ∈ input.checked.lowered.realizationSites)
+    (written : AffineRealizationProfile.Site) (wrapper : s.affine = some written) :
+    s.operation = .realize written.descriptor ∧
+    s.functionId.owner = ⟨Namespace.floatScope, "realize"⟩ ∧
+    ∃ profile, written.descriptor.profile (numericalEnvironment input.checked.pureProgram) = some profile ∧
+      profile.coordinates.length = written.dimension := by
+  obtain ⟨resolved, valid⟩ := checked_site input s member
+  simp only [RealizationSite.resolves, wrapper, Bool.and_eq_true, decide_eq_true_eq, beq_iff_eq] at resolved
+  obtain ⟨⟨_, op⟩, family⟩ := resolved
+  refine ⟨op, family, ?_⟩
+  unfold numericalEnvironment
+  simp only [RealizationSite.valid, op, Storage.Realization.Operation.descriptor,
+    Storage.Realization.Operation.family, family, wrapper] at valid
+  repeat' (split at valid <;> try contradiction)
+  exact ⟨_, by assumption, by simpa using valid⟩
+
+/-- Distinct physical constructor occurrences, including occurrences of the
+same representation and dimension, have different nominal subjects. -/
+theorem affine_subjects_distinct (a b : AffineRealizationProfile.Site)
+    (different : a.span.start ≠ b.span.start) : a.subject ≠ b.subject := by
+  intro equal
+  have names := congrArg Namespace.Owner.name equal
+  change "AffineAt" ++ Nat.repr a.span.start = "AffineAt" ++ Nat.repr b.span.start at names
+  exact different (Nat.repr_injective ((String.append_right_inj "AffineAt").mp names))
+
 /-- The point selects a physical allocation with exactly its descriptor's
 representation, including when two distinct scalar types occupy eight bytes. -/
 theorem point_scalar {env : Indexed.Environment} {d : Storage.Realization.Descriptor}

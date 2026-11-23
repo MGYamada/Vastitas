@@ -152,6 +152,25 @@ fn exact_payload_spellings_emit_identical_bits_and_execute_without_blas() {
     success(&check(&s));
     let mut raw = request(&s);
     assert_eq!(raw["version"], common::CURRENT_PROTOCOL);
+    for (written, altered) in [
+        ("f64(-0.25)", "f64(-0.50)"),
+        ("f64(0x1p-1074)", "f64(0x1p-1073)"),
+        ("complex(1., -0x1p1)", "complex(1., +0x1p1)"),
+        (
+            "runtime_fill(dynamic_init, f64(0.5))",
+            "runtime_fill(dynamic_init, f64(0.1))",
+        ),
+        (
+            "runtime_expect(dynamic_read, 0, 0,",
+            "runtime_expect(dynamic_read, 0, 1,",
+        ),
+    ] {
+        let mut changed = raw.clone();
+        changed["root_source"]["text"] = json!(common::checked_replace(source, written, altered));
+        for mode in ["check", "emit"] {
+            common::assert_wire_rejected(&kernel(&changed, mode), "E_RESOURCE_SOURCE");
+        }
+    }
     let emitted = kernel(&raw, "emit");
     assert_eq!(emitted["ok"], true, "{emitted}");
     assert_eq!(emitted["numerical_runtime"], false);
@@ -1122,4 +1141,32 @@ fn resource_source_keeps_nonwinning_pure_bodies_and_library_entry_rules() {
     success(&check(&s));
     let response = kernel(request(&s), "emit");
     common::assert_wire_rejected(&response, "E_MAIN");
+}
+
+#[test]
+fn moves_and_borrowed_views_replay_in_both_resource_branches() {
+    let source = SELF_COPY
+        .replace(
+            "copy(l, l);",
+            "if true { transpose(l); transpose(l); copy(l, l); } else { copy(l, l); }",
+        )
+        .replace("drop(data);", "move data -> next; drop(next);");
+    let wire = request(&fixture(&source, OPERATIONS));
+    let good = kernel(&wire, "check");
+    assert_eq!(good["ok"], true, "{good}");
+    for (old, new) in [
+        ("if true {", "if false{"),
+        ("transpose(l);", "transpose(w);"),
+        ("else { copy(l, l);", "else { copy(w, l);"),
+        ("move data -> next", "move next -> data"),
+        ("drop(next)", "drop(data)"),
+    ] {
+        let changed = source.replacen(old, new, 1);
+        assert_ne!(source, changed);
+        assert_eq!(source.len(), changed.len());
+        let mut stale = wire.clone();
+        stale["root_source"]["text"] = json!(changed);
+        let rejected = kernel(&stale, "check");
+        common::assert_wire_rejected(&rejected, "E_RESOURCE_SOURCE");
+    }
 }

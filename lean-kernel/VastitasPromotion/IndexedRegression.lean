@@ -41,8 +41,6 @@ private def span : Json := (values unit "methods")[0]!.getObjVal? "span" |>.toOp
 private def named (name : String) : Json := Json.mkObj [("kind", toJson "named"), ("name", toJson name)]
 private def integer (value : String) : Json := Json.mkObj [
   ("kind", toJson "integer"), ("value", toJson value), ("span", span)]
-private def varExpr (name : String) : Json := Json.mkObj [
-  ("kind", toJson "variable"), ("name", toJson name), ("span", span)]
 private def call (name : String) (args : List Json) : Json := Json.mkObj [
   ("kind", toJson "call"), ("callee", toJson name), ("args", toJson args), ("span", span)]
 private def block (result : Json) : Json := Json.mkObj [
@@ -70,10 +68,7 @@ private def entryCore (input : Json) : Except Diagnostic (Typing.CheckedModule t
     for (key, winner) in [[0, 0], [0, 1], [1, 0], [1, 1]].zip winners do
       checkCase "public checked family selects the actual method" (family.checked.winner key == some winner)
   checkCase "all public families accounted for" (actual.checked.pureProgram.authority.headers.assembled.families.length == 3)
-  let entry := Json.mkObj [("name", toJson "main"), ("params", toJson ([] : List Json)),
-    ("return_type", named "Int"), ("body", block (call "self::add" [integer "20", integer "22"])),
-    ("public", toJson true), ("span", span)]
-  let executable := changeUnit fun m => m.setObjVal! "functions" (toJson ((values m "functions").push entry))
+  let executable ← IO.ofExcept <| Json.parse (include_str "../../tests/fixtures/promotion-entry.json")
   let .ok core := entryCore executable
     | throw (IO.userError "public stdlib entry rejected")
   checkCase "public entry numerical contract" (numericalContract core.module)
@@ -87,17 +82,34 @@ private def forgedCall : Indexed.Core.Module := { checked with functions := chec
   else f }
 #eval checkCase "forged selected call metadata rejected by actual Core audit" (!(Typing.checkModule forgedCall false).isOk)
 
-private def badValues := changeMethod 1 fun m =>
-  m.setObjVal! "body" (block (call "pair" [integer "0", integer "0"]))
-private def badPolicy := changeMethod 0 fun m =>
-  (m.setObjVal! "return_type" (Json.mkObj [("kind", toJson "pair"), ("element", toJson "Int")])).setObjVal!
-    "body" (block (call "pair" [call "int" [varExpr "left"], call "int" [varExpr "right"]]))
+/-- A policy change must agree with the physical arithmetic library as well
+as the decoded method. The Rust regression compares each reconstructed input
+to the public frontend request for the edited library. -/
+private def policyInput (patch : Json) : Except String (Json × Json) := do
+  let index ← patch.getObjValAs? Nat "index"
+  let method ← patch.getObjVal? "method"
+  let before ← patch.getObjValAs? String "before"
+  let after ← patch.getObjValAs? String "after"
+  let wireOnly := changeMethod index fun _ => method
+  let source ← wireOnly.getObjVal? "root_source"
+  let files ← (values source "files").mapM fun f => do
+    if (f.getObjVal? "path").toOption == some (.str "arithmetic/generic.vast") then
+      let text ← f.getObjValAs? String "text"
+      return f.setObjVal! "text" (.str (text.replace before after))
+    return f
+  return (wireOnly, wireOnly.setObjVal! "root_source" (source.setObjVal! "files" (.arr files)))
 
 #eval show IO Unit from do
-  for (label, input) in [("value-changing", badValues), ("wrong same-type policy", badPolicy)] do
-    let .ok module := executableModule input
-      | throw (IO.userError s!"{label} must remain legal ordinary code")
-    checkCase s!"{label} violates stdlib numerical policy" (!numericalContract module)
+  let patches ← IO.ofExcept <| Json.parse (include_str "../../tests/fixtures/promotion-policy.json")
+  let cases ← IO.ofExcept patches.getArr?
+  checkCase "both policy mutations supplied" (cases.size == 2)
+  for patch in cases do
+    let (wireOnly, changed) ← IO.ofExcept (policyInput patch)
+    match executableModule wireOnly with
+    | .error d => checkCase "wire-only policy change differs from physical method" (d.code == "E_ASSEMBLY")
+    | .ok _ => throw (IO.userError "policy change accepted without matching library text")
+    let .ok module := executableModule changed | throw (IO.userError "edited policy must be legal ordinary code")
+    checkCase "edited policy violates stdlib numerical contract" (!numericalContract module)
   for (input, code) in [
       (changeMethod 1 (fun m => m.setObjVal! "owner" (toJson "forged")), "E_PROTOCOL"),
       (changeMethod 1 (fun m => m.setObjVal! "body" (block (call "absent" [integer "0"]))), "E_NAME"),
@@ -107,6 +119,6 @@ private def badPolicy := changeMethod 0 fun m =>
     | .ok _ => throw (IO.userError "public raw method metadata/body forgery accepted")
     | .error diagnostic =>
         checkCase s!"public forgery rejected with {code}: {diagnostic.message}" (diagnostic.code == code)
-  IO.println "public promotion: exact Core, checked winners, native emission, two accepted policy mutations and five rejected forgeries passed"
+  IO.println "public promotion: exact Core, checked winners, native emission, two accepted source policy mutations and seven rejected forgeries passed"
 
 end VastitasKernel.IndexedPromotionRegression

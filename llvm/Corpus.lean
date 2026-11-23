@@ -19,6 +19,10 @@ def header : TargetHeader :=
   ⟨⟨TableSwitch.ascii "arm64-apple-darwin27.2.0", by decide⟩,
    ⟨TableSwitch.ascii "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32", by decide⟩⟩
 
+def linuxHeader : TargetHeader :=
+  ⟨⟨TableSwitch.ascii "x86_64-unknown-linux-gnu", by decide⟩,
+   ⟨TableSwitch.ascii "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128", by decide⟩⟩
+
 def emptyModel : TableSwitch.Module := ⟨header, [], by decide⟩
 def lookupModel : TableSwitch.Module := ⟨header, [1, 0, 1], by decide⟩
 def closureUnitModel : TableSwitch.Module := ⟨header, [1, 2], by decide⟩
@@ -63,6 +67,38 @@ set_option maxRecDepth 65536 in
 set_option maxHeartbeats 2000000 in
 theorem boxed_program_verified : programBytes = boxedProgram.print := by rfl
 
+def boxedPairs : ExactProgram.Code :=
+  let op := fun code refs => ExactProgram.Instruction.primitive (.apply code refs)
+  let neighbors : ExactProgram.Function := ⟨[.nat],.pair .nat,
+    [.primitive (.nat 1), op (.nat .sub) [0,1], op (.pair .nat) [2,0]], 3⟩
+  let swap : ExactProgram.Function := ⟨[.pair .int],.pair .int,
+    [op (.project .int false) [0], op (.project .int true) [0], op (.pair .int) [1,2]], 3⟩
+  let split := fun refs => ExactProgram.Function.mk [.int] (.pair .int)
+    [.primitive (.int 0), op (.pair .int) refs] 2
+  let entry : ExactProgram.Function := ⟨[],.int,[
+    .primitive (.nat (2^128 + 1)), .invoke 0 [0], .primitive (.int (-(2^128 + 1))), .invoke 2 [2],
+    .invoke 1 [3], op (.project .nat false) [1], op (.project .nat true) [1], op (.nat .sub) [5,6],
+    op (.project .int false) [4], op (.project .nat true) [1], op .natToInt [9], op (.int .add) [8,10],
+    op .natToInt [7], op (.int .add) [11,12], .primitive (.int 42), op (.int .add) [13,14]],15⟩
+  ⟨header, #[neighbors,swap,split [0,1],entry,split [1,0]],3⟩
+
+def pairBytes := corpus_bytes "src/boxed-pairs.ll"
+
+set_option maxRecDepth 65536 in
+set_option maxHeartbeats 2000000 in
+theorem boxed_pairs_verified : pairBytes = boxedPairs.print := by rfl
+
+def singletonPower : ExactProgram.Code :=
+  let squares := (List.range 8).map fun i => ExactProgram.Instruction.primitive (.apply (.int .mul) [i,i])
+  ⟨header, #[⟨[], .int, [.primitive (.int 3)] ++ squares ++
+    [.primitive (.int 7), .primitive (.apply (.int .div) [8,9])], 10⟩], 0⟩
+
+def singletonPowerBytes := corpus_bytes "src/singleton-power.ll"
+
+set_option maxRecDepth 65536 in
+set_option maxHeartbeats 2000000 in
+theorem singleton_power_verified : singletonPowerBytes = singletonPower.print := by rfl
+
 private def unselectedChoose (left right : ExactLibrary.Kind) : ExactProgram.Function :=
   ⟨[left,right],.int,[.primitive (.int 0)],2⟩
 
@@ -106,9 +142,12 @@ def isoBytes := corpus_bytes "src/finite-iso.ll"
 def kleisliBytes := corpus_bytes "src/finite-kleisli.ll"
 def kleisliCallbackBytes := corpus_bytes "src/kleisli-callback.ll"
 def kleisliForwardBytes := corpus_bytes "src/kleisli-forward.ll"
+def kleisliForwardLinuxBytes := corpus_bytes "src/kleisli-forward-linux-x86_64.ll"
 def structuredLookupBytes := corpus_bytes "src/structured-lookup.ll"
 def structuredLookupLinuxBytes := corpus_bytes "src/structured-lookup-linux-x86_64.ll"
 def staticSelectionBytes := corpus_bytes "src/static-selection.ll"
+def projectionBytes := corpus_bytes "src/finite-projection.ll"
+def literalComparisonBytes := corpus_bytes "src/literal-comparison.ll"
 
 open FiniteModule
 
@@ -243,6 +282,8 @@ before invoking its selected target and passing its result to bind. -/
 def forwarded : Code := withAdapter (straight "f2" 1
   [.binary (slot 1) .bor .bit (.literal 0) (.literal 0), call 2 "f0" [], call 3 "f1" [0,2]] 3)
 
+def forwardedLinux : Code := { forwarded with header := linuxHeader }
+
 end KleisliCallback
 
 private def bit (dst : Nat) (b : Bool) : Instr :=
@@ -254,6 +295,20 @@ private def boolCall (dst : Nat) (callee : String) (args : List Nat) : Instr :=
 private def boolHelper (name : String) (params : List (Width × String)) (ops : List Instr)
     (result : Nat) : Func :=
   ⟨name, true, .bit, params, [⟨"b0", ops, .ret ⟨.bit, reg result⟩⟩]⟩
+
+/-- The checked category and object specialize the function statically. Its
+two runtime parameters are Booleans, and its body returns the first one. -/
+def projectionCode : Code :=
+  let project := boolHelper "f0" [(.bit, slot 0), (.bit, slot 1)] [] 0
+  let entry : Func := ⟨"f1", true, .word, [], [
+    ⟨"b0", [bit 0 true, bit 1 false, boolCall 2 "f0" [0,1]], .branch (reg 2) "b1" "b2"⟩,
+    ⟨"b1", [constant "v1_0" 42], .jump "b3"⟩, ⟨"b2", [constant "v2_0" 7], .jump "b3"⟩,
+    ⟨"b3", [.phi "v3_0" .word [(.reg "v1_0","b1"),(.reg "v2_0","b2")]], ret "v3_0"⟩]⟩
+  ⟨header, [project, entry,
+    ⟨"main", false, .word, [], [⟨"start", [.call "result" .word "f1" []], ret "result"⟩]⟩]⟩
+
+set_option maxRecDepth 65536 in
+theorem finite_projection_verified : projectionBytes = projectionCode.print := rfl
 
 namespace StaticSelection
 
@@ -274,6 +329,17 @@ def code : Code :=
     ⟨"main", false, .word, [], [⟨"start", [.call "result" .word "f5" []], ret "result"⟩]⟩]⟩
 
 end StaticSelection
+
+/-- The selected and fallback methods compare different full integers with
+equal low bytes. Their Boolean constants feed the remaining argument tests. -/
+def literalComparisonCode : Code :=
+  let method name b := boolHelper name [(.bit, slot 0)] [bit 1 b, both 2 0 1] 2
+  let entry : Func := ⟨"f1", true, .word, [], [
+    ⟨"b0", [bit 0 true, boolCall 1 "f0" [0]], .branch (reg 1) "b1" "b2"⟩,
+    ⟨"b1", [constant "v1_0" 42], .jump "b3"⟩, ⟨"b2", [constant "v2_0" 7], .jump "b3"⟩,
+    ⟨"b3", [.phi "v3_0" .word [(.reg "v1_0", "b1"), (.reg "v2_0", "b2")]], ret "v3_0"⟩]⟩
+  ⟨header, [method "f0" true, entry, method "f2" false,
+    ⟨"main", false, .word, [], [⟨"start", [.call "result" .word "f1" []], ret "result"⟩]⟩]⟩
 
 namespace StructuredLookup
 
@@ -316,9 +382,7 @@ def code : Code :=
     ⟨"main", false, .word, [], [⟨"start", [.call "result" .word "f2" []], ret "result"⟩]⟩]⟩
 
 /-- The same function model printed with LLVM 23.1.4's x86-64 Linux target. -/
-def linuxCode : Code := { code with header :=
-  ⟨⟨TableSwitch.ascii "x86_64-unknown-linux-gnu", by decide⟩,
-   ⟨TableSwitch.ascii "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128", by decide⟩⟩ }
+def linuxCode : Code := { code with header := linuxHeader }
 
 end StructuredLookup
 
@@ -333,6 +397,10 @@ theorem structured_lookup_linux_verified : structuredLookupLinuxBytes = Structur
 set_option maxRecDepth 65536 in
 set_option maxHeartbeats 3000000 in
 theorem static_selection_verified : staticSelectionBytes = StaticSelection.code.print := rfl
+
+set_option maxRecDepth 65536 in
+set_option maxHeartbeats 2000000 in
+theorem literal_comparison_verified : literalComparisonBytes = literalComparisonCode.print := rfl
 
 set_option maxRecDepth 65536 in
 set_option maxHeartbeats 3000000 in
@@ -353,6 +421,10 @@ theorem kleisli_callback_verified : kleisliCallbackBytes = KleisliCallback.code.
 set_option maxRecDepth 65536 in
 set_option maxHeartbeats 3000000 in
 theorem kleisli_forward_verified : kleisliForwardBytes = KleisliCallback.forwarded.print := rfl
+
+set_option maxRecDepth 65536 in
+set_option maxHeartbeats 3000000 in
+theorem kleisli_forward_linux_verified : kleisliForwardLinuxBytes = KleisliCallback.forwardedLinux.print := rfl
 
 private theorem parse_printed {bytes : List UInt8} {code : FiniteModule.Code} {model : FiniteModule.Module}
     (printed : bytes = code.print) (certified : FiniteModule.certify code = some model) :
@@ -422,11 +494,15 @@ private def forExact {bytes : List UInt8} {code : ExactLibrary.Code}
 /-- Two coordinate buffers and a standard chart with one complex or real
 element in each row. Reconstruct the payloads and the checked copy from the
 source fixture independently of its printed module. -/
-def affineIdentity (complex : Bool) : StorageModule.Code :=
-  let tag := if complex then 1 else 0
+def affineIdentity (scalar : VastitasKernel.Storage.Scalar) : StorageModule.Code :=
+  let (tag, complex, negativeZero, nan) : Nat × Bool × Nat × Nat := match scalar with
+    | .f64 => (0, false, 2^63, 9218868437227405378)
+    | .complexF64 => (1, true, 2^63, 9218868437227405378)
+    | .f32 => (2, false, 2^31, 2139095106)
+    | .complexF32 => (3, true, 2^31, 2139095106)
   let view := [0,2,1,2,0]
-  let first := [tag,9223372036854775808,if complex then 1 else 0]
-  let second := if complex then [tag,0,9218868437227405378] else [tag,9218868437227405378,0]
+  let first := [tag,negativeZero,if complex then 1 else 0]
+  let second := if complex then [tag,0,nan] else [tag,nan,0]
   ⟨header,[⟨.allocate,[0,tag,2]⟩, ⟨.allocate,[1,tag,2]⟩,
     ⟨.store,[0] ++ view ++ [0,0] ++ first⟩, ⟨.store,[0] ++ view ++ [1,0] ++ second⟩,
     ⟨.copy,[0] ++ view ++ [1] ++ view⟩, ⟨.expect,[1] ++ view ++ [0,0] ++ first⟩,
@@ -461,15 +537,30 @@ elab "storage_file " file:str : term => do
 
 def realIdentityBytes := storage_file "src/float-identity.ll"
 def complexIdentityBytes := storage_file "src/float-complex-identity.ll"
+def real32IdentityBytes := storage_file "src/float32-identity.ll"
+def complex32IdentityBytes := storage_file "src/float32-complex-identity.ll"
 
 set_option maxRecDepth 65536 in
-theorem real_identity_verified : realIdentityBytes = (affineIdentity false).print := by
+theorem real_identity_verified : realIdentityBytes = (affineIdentity .f64).print := by
   apply storageBytes_eq
   · as_aux_lemma => rfl
   · repeat' (apply consLines; case line => as_aux_lemma => rfl)
     rfl
 set_option maxRecDepth 65536 in
-theorem complex_identity_verified : complexIdentityBytes = (affineIdentity true).print := by
+theorem complex_identity_verified : complexIdentityBytes = (affineIdentity .complexF64).print := by
+  apply storageBytes_eq
+  · as_aux_lemma => rfl
+  · repeat' (apply consLines; case line => as_aux_lemma => rfl)
+    rfl
+
+set_option maxRecDepth 65536 in
+theorem real32_identity_verified : real32IdentityBytes = (affineIdentity .f32).print := by
+  apply storageBytes_eq
+  · as_aux_lemma => rfl
+  · repeat' (apply consLines; case line => as_aux_lemma => rfl)
+    rfl
+set_option maxRecDepth 65536 in
+theorem complex32_identity_verified : complex32IdentityBytes = (affineIdentity .complexF32).print := by
   apply storageBytes_eq
   · as_aux_lemma => rfl
   · repeat' (apply consLines; case line => as_aux_lemma => rfl)
@@ -494,6 +585,32 @@ def gemmCoefficients : StorageModule.Code :=
      ⟨.gemm, matrices ++ [1, 2,0,0,0,3,0, 1,0,two,0,0,0]⟩, expect thirty] ++
     ([3,2,1,0].map fun id => ⟨.drop, [id]⟩), 0⟩
 
+/-- A 2×3 matrix with every element 1+2i times a three-element column
+with every element 3-4i. The bilinear sum in each row is 33+6i. -/
+def tensorColumn : StorageModule.Code :=
+  let matrix := [0,0,2,3,2,0]
+  let column := [1,0,3,1,3,0]
+  let output := [2,0,2,1,2,0]
+  let unit := 2^23
+  let three := 128 * unit + 2^22
+  let minusFour := 2^31 + 129 * unit
+  let thirtyThree := 132 * unit + 2^18
+  let six := 129 * unit + 2^22
+  let expect := fun row => VastitasKernel.MidIR.StorageEffects.Call.mk .expect (output ++ [row,0,3,thirtyThree,six])
+  ⟨header,[⟨.allocate,[0,3,6]⟩, ⟨.allocate,[1,3,3]⟩, ⟨.allocate,[2,3,2]⟩,
+    ⟨.fill,matrix ++ [3,127 * unit,128 * unit]⟩, ⟨.fill,column ++ [3,three,minusFour]⟩,
+    ⟨.gemm,[3] ++ matrix ++ [0] ++ column ++ [0] ++ output ++ List.replicate 13 0⟩,
+    expect 0, expect 1, ⟨.drop,[2]⟩, ⟨.drop,[1]⟩, ⟨.drop,[0]⟩],0⟩
+
+def tensorColumnBytes := storage_file "src/tensor-column.ll"
+
+set_option maxRecDepth 65536 in
+theorem tensor_column_verified : tensorColumnBytes = tensorColumn.print := by
+  apply storageBytes_eq
+  · as_aux_lemma => rfl
+  · repeat' (apply consLines; case line => as_aux_lemma => rfl)
+    rfl
+
 def gemmCoefficientBytes := storage_file "src/gemm-coefficients.ll"
 
 set_option maxRecDepth 65536 in
@@ -514,6 +631,8 @@ def checkedFiles : List (String × ByteArray) :=
   [("exit-status.ll", forExit exit_status_verified),
    ("folded-arithmetic.ll", forExit folded_arithmetic_verified),
    ("boxed-program.ll", forProgram boxed_program_verified),
+   ("boxed-pairs.ll", forProgram boxed_pairs_verified),
+   ("singleton-power.ll", forProgram singleton_power_verified),
    ("borrowed-operator.ll", forProgram borrowed_operator_verified),
    ("uncalled-operator.ll", forProgram uncalled_operator_verified),
    ("boxed-arithmetic.ll", forExact boxed_arithmetic_verified),
@@ -522,16 +641,22 @@ def checkedFiles : List (String × ByteArray) :=
    ("unary-table.ll", forLookup unary_table_verified),
    ("closure-unit.ll", forLookup closure_unit_verified),
    ("gemm-coefficients.ll", forStorage gemm_coefficients_verified),
+   ("tensor-column.ll", forStorage tensor_column_verified),
    ("float-identity.ll", forStorage real_identity_verified),
    ("float-complex-identity.ll", forStorage complex_identity_verified),
+   ("float32-identity.ll", forStorage real32_identity_verified),
+   ("float32-complex-identity.ll", forStorage complex32_identity_verified),
    ("opposite-s3.ll", forCode opposite_s3_verified),
    ("finite-iso.ll", forCode finite_iso_verified),
    ("finite-kleisli.ll", forCode finite_kleisli_verified),
    ("kleisli-callback.ll", forCode kleisli_callback_verified),
    ("kleisli-forward.ll", forCode kleisli_forward_verified),
+   ("kleisli-forward-linux-x86_64.ll", forCode kleisli_forward_linux_verified),
    ("structured-lookup.ll", forCode structured_lookup_verified),
    ("structured-lookup-linux-x86_64.ll", forCode structured_lookup_linux_verified),
+   ("finite-projection.ll", forCode finite_projection_verified),
    ("static-selection.ll", forCode static_selection_verified),
+   ("literal-comparison.ll", forCode literal_comparison_verified),
    ("s3-composition.ll", forBinary s3_composition_verified),
    ("static-call.ll", forCall static_call_verified)]
 
@@ -547,6 +672,10 @@ private def checkEntry (file : String) (bytes : List UInt8)
 def main (args : List String) : IO Unit := do
   let root :: expected := args | throw (IO.userError "expected corpus directory and filenames")
   let files := Vastitas.LLVMCorpus.checkedFiles
+  let power := Vastitas.LLVMCorpus.singletonPower
+  unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.singletonPowerBytes == some power &&
+      power.entryValue == some ((3^256 : Int) / 7) do
+    throw (IO.userError "singleton-power.ll: wrong runtime operations or full quotient")
   let borrowed := Vastitas.LLVMCorpus.borrowedOperator
   unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.borrowedOperatorBytes == some borrowed &&
       borrowed.entryValue == some 42 do
@@ -555,6 +684,16 @@ def main (args : List String) : IO Unit := do
   unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.uncalledOperatorBytes == some uncalled &&
       uncalled.entryValue == some 7 do
     throw (IO.userError "uncalled-operator.ll: wrong retained functions or entry result")
+  let pairs := Vastitas.LLVMCorpus.boxedPairs
+  let pairText := String.fromUTF8! ⟨Vastitas.LLVMCorpus.pairBytes.toArray⟩
+  unless VastitasKernel.LLVM.ExactProgram.parse pairText.toUTF8.data.toList == some pairs && pairs.entryValue == some 42 do
+    throw (IO.userError "boxed-pairs.ll: incorrect pair functions or full integer")
+  for (before,after) in [("call ptr @vastitas_int_pair_second_v1(ptr %v4)", "call ptr @vastitas_nat_pair_second_v1(ptr %v4)"),
+      ("call ptr @vq_f1(ptr %v3)", "call ptr @vq_f1(ptr %v1)"),
+      ("call void @vastitas_release_v1(ptr %v4)", "call void @vastitas_retain_v1(ptr %v4)")] do
+    let changed := pairText.replace before after
+    if changed == pairText || (VastitasKernel.LLVM.ExactProgram.parse changed.toUTF8.data.toList).isSome then
+      throw (IO.userError "boxed-pairs.ll: accepted an invalid component, argument type or release")
   let program := Vastitas.LLVMCorpus.boxedProgram
   let moduleText := String.fromUTF8! ⟨Vastitas.LLVMCorpus.programBytes.toArray⟩
   unless VastitasKernel.LLVM.ExactProgram.parse moduleText.toUTF8.data.toList == some program do
@@ -574,12 +713,19 @@ def main (args : List String) : IO Unit := do
   checkEntry "finite-kleisli.ll" Vastitas.LLVMCorpus.kleisliBytes Vastitas.LLVMCorpus.Kleisli.code 0
   checkEntry "kleisli-callback.ll" Vastitas.LLVMCorpus.kleisliCallbackBytes Vastitas.LLVMCorpus.KleisliCallback.code 42
   checkEntry "kleisli-forward.ll" Vastitas.LLVMCorpus.kleisliForwardBytes Vastitas.LLVMCorpus.KleisliCallback.forwarded 42
+  checkEntry "kleisli-forward-linux-x86_64.ll" Vastitas.LLVMCorpus.kleisliForwardLinuxBytes
+    Vastitas.LLVMCorpus.KleisliCallback.forwardedLinux 42
   checkEntry "structured-lookup.ll" Vastitas.LLVMCorpus.structuredLookupBytes Vastitas.LLVMCorpus.StructuredLookup.code 42
   checkEntry "structured-lookup-linux-x86_64.ll" Vastitas.LLVMCorpus.structuredLookupLinuxBytes
     Vastitas.LLVMCorpus.StructuredLookup.linuxCode 42
+  checkEntry "finite-projection.ll" Vastitas.LLVMCorpus.projectionBytes Vastitas.LLVMCorpus.projectionCode 42
   checkEntry "static-selection.ll" Vastitas.LLVMCorpus.staticSelectionBytes Vastitas.LLVMCorpus.StaticSelection.code 42
-  for (code,bytes) in [(Vastitas.LLVMCorpus.affineIdentity false, Vastitas.LLVMCorpus.realIdentityBytes),
-      (Vastitas.LLVMCorpus.affineIdentity true, Vastitas.LLVMCorpus.complexIdentityBytes),
+  checkEntry "literal-comparison.ll" Vastitas.LLVMCorpus.literalComparisonBytes Vastitas.LLVMCorpus.literalComparisonCode 42
+  for (code,bytes) in [(Vastitas.LLVMCorpus.affineIdentity .f64, Vastitas.LLVMCorpus.realIdentityBytes),
+      (Vastitas.LLVMCorpus.affineIdentity .complexF64, Vastitas.LLVMCorpus.complexIdentityBytes),
+      (Vastitas.LLVMCorpus.affineIdentity .f32, Vastitas.LLVMCorpus.real32IdentityBytes),
+      (Vastitas.LLVMCorpus.affineIdentity .complexF32, Vastitas.LLVMCorpus.complex32IdentityBytes),
+      (Vastitas.LLVMCorpus.tensorColumn, Vastitas.LLVMCorpus.tensorColumnBytes),
       (Vastitas.LLVMCorpus.gemmCoefficients, Vastitas.LLVMCorpus.gemmCoefficientBytes)] do
     let some parsed := VastitasKernel.LLVM.StorageModule.parse bytes
       | throw (IO.userError "storage entry: cannot parse the complete entry")

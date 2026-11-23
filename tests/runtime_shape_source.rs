@@ -687,3 +687,124 @@ resource fn main() -> Int {
     let output = Command::new(program).output().unwrap();
     assert_eq!(common::ran(&output), common::exits(42));
 }
+
+#[test]
+fn runtime_product_coefficient_matches_the_literal_in_the_declaring_function() {
+    let source = source(false, 2, 3, 2, 1).replace(
+        "overwrite, NativeFast);",
+        "overwrite, NativeFast, alpha=f64(1.0));",
+    );
+    let mut wire = request(&fixture(&source));
+    assert_eq!(kernel(&wire, "check")["ok"], true);
+    let changed = source.replace("alpha=f64(1.0)", "alpha=f64(1.5)");
+    assert_ne!(source, changed);
+    wire["root_source"]["text"] = json!(changed);
+    let rejected = kernel(&wire, "check");
+    common::assert_wire_rejected(&rejected, "E_RESOURCE_SOURCE");
+    let line = rejected["diagnostics"][0]["span"]["line"].as_u64().unwrap() as usize;
+    assert!(
+        changed
+            .lines()
+            .nth(line - 1)
+            .unwrap()
+            .contains("alpha=f64(1.5)")
+    );
+}
+
+#[test]
+fn runtime_ownership_checks_physical_slots_layout_and_cleanup() {
+    let source = source(false, 2, 3, 2, 1);
+    let wire = request(&fixture(&source));
+    assert_eq!(kernel(&wire, "check")["ok"], true);
+    for (old, new) in [
+        ("data_a: F64<RR>[cap_a]", "data_a: F32<CC>[cap_a]"),
+        ("data_a: F64<RR>[cap_a]", "data_a: F64<RR>[cap_b]"),
+        (
+            "runtime_layout(m, k, lda, false)",
+            "runtime_layout(k, m, lda, false)",
+        ),
+        (
+            "runtime_layout(m, k, lda, false)",
+            "runtime_layout(m, k, ldb, false)",
+        ),
+        (
+            "runtime_layout(m, k, lda, false)",
+            "runtime_layout(m, k, lda, true )",
+        ),
+        ("init_a = write(data_a)", "init_a = write(data_b)"),
+        ("init_a = write(data_a)", "init_a = read (data_a)"),
+        ("runtime_release(init_a)", "runtime_release(init_b)"),
+        (
+            "runtime_move data_a -> moved_a",
+            "runtime_move data_b -> moved_a",
+        ),
+        (
+            "runtime_move data_a -> moved_a",
+            "runtime_move data_a -> moved_c",
+        ),
+        ("runtime_drop(data_b)", "runtime_drop(data_c)"),
+    ] {
+        let changed = source.replacen(old, new, 1);
+        assert_ne!(changed, source);
+        assert_eq!(changed.len(), source.len());
+        let mut stale = wire.clone();
+        stale["root_source"]["text"] = json!(changed);
+        let rejected = kernel(&stale, "check");
+        common::assert_wire_rejected(&rejected, "E_RESOURCE_SOURCE");
+        let line = rejected["diagnostics"][0]["span"]["line"].as_u64().unwrap() as usize;
+        assert!(changed.lines().nth(line - 1).unwrap().contains(new));
+    }
+}
+
+#[test]
+fn runtime_function_ports_replay_paths_extents_access_and_initialization() {
+    let source = source(false, 1, 1, 1, 0);
+    let wire = request(&fixture(&source));
+    let genuine = kernel(&wire, "check");
+    assert_eq!(genuine["ok"], true, "{genuine}");
+    for (written, changed) in [
+        ("RealSmooth, m>", "RealSmooth, k>"),
+        ("profiles::RealSmooth, m>", "profiles::FakeSmooth, m>"),
+        ("RuntimeBasis<u>", "RuntimeBasis<v>"),
+        ("RuntimeMap<bv, bu, read>", "RuntimeMap<bu, bv, read>"),
+        ("write> initializes", "write>            "),
+    ] {
+        let replacement = source.replacen(written, changed, 1);
+        assert_ne!(source, replacement);
+        assert_eq!(source.len(), replacement.len());
+        let mut stale = wire.clone();
+        stale["root_source"]["text"] = json!(replacement);
+        let response = kernel(stale, "check");
+        common::assert_wire_rejected(&response, "E_RESOURCE_SOURCE");
+        let line = response["diagnostics"][0]["span"]["line"].as_u64().unwrap() as usize;
+        assert!(replacement.lines().nth(line - 1).unwrap().contains(changed));
+    }
+}
+
+#[test]
+fn runtime_spaces_and_views_replay_their_physical_extent_and_endpoints() {
+    let source = source(false, 1, 1, 1, 0);
+    let wire = request(&fixture(&source));
+    assert_eq!(kernel(&wire, "check")["ok"], true);
+    for (from, to) in [
+        (
+            "linear(profiles::RealSmooth, m)",
+            "linear(profiles::RealSmooth, k)",
+        ),
+        ("runtime_basis bu = basis(u)", "runtime_basis bu = basis(v)"),
+        (
+            "runtime_map left = view(a, bv, bu)",
+            "runtime_map left = view(a, bu, bv)",
+        ),
+    ] {
+        let changed = source.replacen(from, to, 1);
+        assert_ne!(changed, source);
+        assert_eq!(source.len(), changed.len());
+        let mut stale = wire.clone();
+        stale["root_source"]["text"] = json!(changed);
+        let response = kernel(stale, "check");
+        common::assert_wire_rejected(&response, "E_RESOURCE_SOURCE");
+        let line = response["diagnostics"][0]["span"]["line"].as_u64().unwrap() as usize;
+        assert!(changed.lines().nth(line - 1).unwrap().contains(to));
+    }
+}

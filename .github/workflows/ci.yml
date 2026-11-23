@@ -124,11 +124,17 @@ jobs:
             /stdlib/
             /monad/
             /llvm/fixtures/
+            /llvm/src/borrowed-operator.ll
+            /llvm/src/float-identity.ll
+            /llvm/src/float-complex-identity.ll
+            /llvm/src/float32-identity.ll
+            /llvm/src/float32-complex-identity.ll
             /llvm/runtime/
             /llvm/check_exact_native.py
             /nature/
             /scripts/
             /lean-kernel/
+            /experiments/compiler_validation/llvm/results/macos-arm64/unary-table.json
             /experiments/compiler_validation/reduction/
             /docs/appendix/grammar.md
             /Cargo.toml
@@ -168,6 +174,8 @@ jobs:
           python3 scripts/check_boundaries.py
       - name: Checked-IR, dispatch, and function regressions
         run: bash scripts/check_kernel_regressions.sh
+      - name: Reparse handwritten indexed wire fixtures with the public frontend
+        run: python3 scripts/check_indexed_regression_sources.py
       - name: Declaration-driven Core native regressions
         run: bash scripts/check_indexed_native.sh
       - name: Checked storage native adapter and failure cleanup (no BLAS)
@@ -250,10 +258,11 @@ jobs:
       - uses: ./.github/actions/setup-elan
       - name: Build the independent resource checker
         run: lake -d lean-kernel build vastitas-kernel storage-native-fixture
-      - name: Compare fixed-width scalar adapters against the Lean reference
+      - name: Compare scalar and fixed-order dot adapters against the Lean reference
         run: |
           lake -d lean build VastitasOracle.BinaryFloat
           python3 scripts/check_float_kernels.py
+          python3 scripts/check_dot_kernel.py --prefix "$RUNNER_TEMP/vastitas-openblas"
       - name: Calibrate stock Lean allocation observation (no timing)
         run: |
           python3 experiments/stock_allocation_capabilities/run.py --out "$RUNNER_TEMP/vastitas-stock-capabilities" --cc cc
@@ -406,6 +415,8 @@ jobs:
           ref: 46024e005996495c65ef609368e11ab39c4222e3 # v0.1.2
           path: .ci-tools/axiom-audit
           persist-credentials: false
+      - name: Compare reviewed constructor mappings with the compiled Oracle
+        run: python3 scripts/check_midir_coverage.py --check-lowerings
       - name: Build and run the external axiom auditor
         run: |
           cp lean/lean-toolchain .ci-tools/axiom-audit/lean-toolchain

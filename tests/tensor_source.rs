@@ -565,3 +565,27 @@ fn tensor_native_executes_rank_three_permutation_bilinear_products_and_empty_axe
         assert_eq!(common::ran(&run), common::exits(0));
     }
 }
+
+#[test]
+fn tensor_axes_groupings_and_contraction_operands_replay_the_written_view() {
+    let wire = captured(&fixture(REAL, COMPLEX));
+    assert_eq!(kernel(&wire, "check")["ok"], true);
+    common::assert_stale_module_rejected(
+        &wire,
+        "/src/real/mod.vast",
+        &[
+            ("input_t, bu, bvd, bw", "input_t, bw, bvd, bu"),
+            ("axes(0, 2, 1), 2", "axes(0, 1, 2), 2"),
+            ("axes(0, 2, 1), 2", "axes(0, 2, 1), 1"),
+            ("pack3(t, destination)", "pack3(t, destinatioo)"),
+            ("contract3(packed, b, c", "contract3(packed, c, b"),
+        ],
+    );
+    let source = REAL.replace(
+        "view2(input_b, bv, bxd)",
+        "view2(input_b, bv, bxd, axes(00, 1,), 01)",
+    );
+    assert_ne!(source, REAL);
+    let expanded = kernel(captured(&fixture(&source, COMPLEX)), "check");
+    assert_eq!(expanded["ok"], true, "{expanded}");
+}

@@ -62,14 +62,23 @@ time limits during elaboration. Their peak RSS was 936,968,192 and
 ## Decomposed source admission
 
 The staged experiment follows the actual signed-literal request through the
-source and namespace checkers. Reproduce its resource bounds with
+source and namespace checkers. Run the physical source replay with the same
+limits as the complete artifact job.
 
 ```sh
-python3 experiments/compiler_validation/official_exit/run.py --staged --timeout 55 --memory 2048
+python3 experiments/compiler_validation/official_exit/run.py --staged --timeout 120 --memory 2500
 ```
 
 [Source.lean](Source.lean) identifies the entire decoded `ResourceSource.Program`,
 including every expression span, and proves acceptance of its public envelope.
+Its layout equality connects the captured request to the physical checks.
+[PhysicalScan.lean](PhysicalScan.lean) locates the singleton in the file.
+[PhysicalDeclaration.lean](PhysicalDeclaration.lean) parses its signature, body and
+signed integer at that location. [PhysicalReplay.lean](PhysicalReplay.lean)
+combines this result with the flat manifest check and the empty cell and product
+inventories. Each module elaborates and undergoes independent `leanchecker`
+replay in a separate process under the same limits. The lexer uses a proved
+byte-to-character lookup for this ASCII fixture.
 [NamespaceGates.lean](NamespaceGates.lean) establishes unique owners and emitted
 symbol names for all 25 declarations, the root package lookup and the
 full wire charge of 34 units. One declaration is `main`. The other 24 come
@@ -193,13 +202,16 @@ and `MidIR.Module.execute`. Both modules contain the same source owner, symbol
 
 [SignedArtifact.lean](SignedArtifact.lean) identifies the artifact returned by
 `ExitFunction.compile`. [PublicArtifact.lean](PublicArtifact.lean) recovers
-the exact result of `Emission.check wire target true`. The final `Observes`
+the exact result of `Emission.check wire target true`. The kernel theorem
+`Emission.check_literal` selects the literal branch from the checked request,
+the compiler result and the parser equation. The fixture checks the parser on all
+374 retained bytes. The final `Observes`
 theorem uses the accepted request, the Core entry evaluation at every
 sufficient fuel, the two MidIR observations and all 374 bytes of the retained
 LLVM module. The modeled `main` returns status 255. Reproduce the run with
 
 ```sh
-python3 experiments/compiler_validation/official_exit/run.py --artifact --timeout 100 --memory 2048
+python3 experiments/compiler_validation/official_exit/run.py --artifact --timeout 120 --memory 2500
 ```
 
 The certificate covers one signed-literal program on the retained arm64 target.
@@ -213,6 +225,13 @@ module elaborated in 26.54 seconds with 1,726,005,248 bytes peak RSS. Its
 official replay took 15.20 seconds with 1,919,614,976 bytes peak RSS.
 The report records each proof source digest and the inventory digest of the
 frozen local imports.
+
+The [35-module run with composed emission](results/macos-arm64-composed-artifact.json)
+at `9f9fbc48` checked the signed 126-byte source and the complete 374-byte
+LLVM module. All 35 elaborations and 35 Official replays passed with 120 seconds
+and 2,500 MiB per process. Final elaboration took 0.81 seconds and 1,043,890,176
+bytes peak RSS. Final replay took 1.14 seconds and 914,489,344 bytes. The
+largest phase was `RevisionBound` at 2,387,263,488 bytes.
 
 The [live public comparison](results/macos-arm64-live.json) records the current
 default compiler binaries. The [frozen toolpair comparison](results/macos-arm64-pinned-live.json)

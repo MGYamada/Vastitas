@@ -1,5 +1,5 @@
 mod common;
-use common::{Scratch, cli, flat_module, kernel, request, success};
+use common::{Scratch, cli, kernel, request, success};
 use serde_json::{Value, json};
 
 const BASE: &str = r#"
@@ -232,48 +232,22 @@ fn hierarchy_and_contract_changes_revalidate_the_entire_assembly() {
     rejects(&s, "E_CONTRACT_RESULT");
 }
 
-/// The root module of the request of the flat unit `source`, in which every
-/// function and generic is public.
-fn raw_module(source: &str) -> Value {
-    flat_module(&mut request(source, "edit-raw.vast")).take()
+fn captured_program(s: &Scratch) -> Value {
+    let mut wire = s.captured("app/Vastitas.toml", common::CURRENT_PROTOCOL);
+    wire["packages"]
+        .as_array_mut()
+        .unwrap()
+        .sort_by_key(|package| match package["name"].as_str().unwrap() {
+            "app" => 0,
+            "addon" => 1,
+            "base" => 2,
+            name => panic!("unexpected fixture package {name}"),
+        });
+    wire
 }
-const RAW_MAIN: &str = "fn main() -> Int { 42 }";
 
 fn raw_program() -> Value {
-    let span = json!({"start":0,"end":0,"line":1,"column":1});
-    let mut base = raw_module(
-        "fn choose(x, y) domain((Int, Int)); fn choose(x: Number, y: Number) -> Int { 0 }",
-    );
-    base["grants"] = json!([{"name":"integers","target":["choose"],"grantee_package":"addon","grantee_path":[],
-        "region":[["Int","Int"]],"span":span,"public":true}]);
-    let mut addon = raw_module("");
-    let mut method = raw_module("fn choose(x,y) domain(); fn choose(x: Int,y: Int) -> Int { x+y }")
-        ["methods"][0]
-        .take();
-    method["name"] = json!("base::choose");
-    addon["contributions"] = json!([{"name":"sum","target":["base","choose"],"methods":[method],"span":span,"public":true}]);
-    let mut app = raw_module(RAW_MAIN);
-    // A handwritten protocol request with real, ordered lexical locations.
-    let text = format!(
-        "{RAW_MAIN}\nassemble base::choose {{ borrow base::integers as edit {{ apply addon::sum; }} }}"
-    );
-    let line_start = RAW_MAIN.len() + 1;
-    let place = |start: usize, end: usize| json!({"start":line_start+start,"end":line_start+end,"line":2,"column":start+1});
-    app["assembly"] = json!({"span":place(0,77),"source":[
-        {"kind":"family","target":["base","choose"],"span":place(0,23)},
-        {"kind":"borrow","grant":["base","integers"],"label":"edit","span":place(24,55)},
-        {"kind":"apply","contributions":[["addon","sum"]],"span":place(56,73)},
-        {"kind":"close","span":place(74,75)}, {"kind":"close","span":place(76,77)}],
-      "events":[
-        {"op":"borrow","grant":["base","integers"],"loan":"edit","span":place(24,55)},
-        {"op":"apply","contribution":["addon","sum"],"loan":"edit","span":place(56,73)},
-        {"op":"return","loan":"edit","span":place(74,75)},
-        {"op":"seal","target":["base","choose"],"span":place(76,77)}]});
-    json!({"version":common::CURRENT_PROTOCOL,"file":"edit-raw.vast","root":"/app/Vastitas.toml","root_source":{"offset":0,"text":text},"packages":[
-        {"source":"/app/Vastitas.toml","name":"app","version":"0.1.0","edition":"2026","modules":[app],"dependencies":[{"alias":"base","target":"/base/Vastitas.toml"},{"alias":"addon","target":"/addon/Vastitas.toml"}]},
-        {"source":"/addon/Vastitas.toml","name":"addon","version":"0.1.0","edition":"2026","modules":[addon],"dependencies":[{"alias":"base","target":"/base/Vastitas.toml"}]},
-        {"source":"/base/Vastitas.toml","name":"base","version":"0.1.0","edition":"2026","modules":[base],"dependencies":[]}
-    ]})
+    captured_program(&fixture(BASE, ADDON, EVENTS))
 }
 
 #[test]
@@ -348,12 +322,9 @@ fn omitted_assembly_keeps_all_declaration_and_unapplied_body_audits() {
         );
         rejects(&s, "E_OWNER");
     }
-    let mut raw = raw_program();
-    raw["packages"][0]["modules"][0]
-        .as_object_mut()
-        .unwrap()
-        .remove("assembly");
-    raw["root_source"]["text"] = json!(RAW_MAIN);
+    let s = fixture(BASE, ADDON, "");
+    s.write("app/main.vast", "fn main() -> Int { 42 }");
+    let mut raw = captured_program(&s);
     assert_eq!(kernel(&raw, "check")["ok"], true);
     raw["packages"][1]["modules"][0]["contributions"][0]["methods"][0]["return_type"] =
         json!({"kind":"named","name":"Bool"});

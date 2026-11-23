@@ -155,9 +155,20 @@ private def cases : List (String × Json × String) := [
   let direct := editModule direct "base" [] fun m => editAt (dropField m "transfers") "grants" 0 fun grant =>
     (dropField grant "delegable").setObjVal! "grantee_path" (toJson ["ops"])
   let direct := editModule direct "addon" [] (fun m => dropField m "delegations")
+  checkBad "removed declarations still occur in the physical dependencies" direct "E_ASSEMBLY"
+  let files := get direct "root_source"
+  let rows := (values files "files").map fun row => Id.run do
+    let .ok text := (get row "text").getStr? | return row
+    let text := text.replace "addon delegable" "addon::ops     "
+    let lines := (text.splitOn "\n").map fun line =>
+      if line.startsWith "pub transfer " || line.startsWith "pub delegation " then
+        String.ofList (List.replicate line.length ' ')
+      else line
+    return row.setObjVal! "text" (toJson (String.intercalate "\n" lines))
+  let direct := direct.setObjVal! "root_source" (files.setObjVal! "files" (toJson rows))
   checkGood "a direct exclusive edit" direct 42
   checkBad "a direct edit's unapplied body" (contributionMethod direct "base" []
     (·.setObjVal! "return_type" (named "Bool"))) "E_TYPE"
-  IO.println s!"public authority: three accepted/executable cases, {cases.length + 3} rejected inputs under both check/emit policies passed"
+  IO.println s!"public authority: three accepted/executable cases, {cases.length + 4} rejected inputs under both check/emit policies passed"
 
 end VastitasPublicTest.AuthorityRegression

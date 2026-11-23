@@ -24,23 +24,31 @@ CASES = [
     Sample("exit-status", HERE / "fixtures/ExitStatus.vast", "exit_status"),
     Sample("folded-arithmetic", HERE / "fixtures/FoldedArithmetic.vast", "folded_arithmetic"),
     Sample("boxed-program", HERE / "fixtures/BoxedProgram.vast", "boxed_program"),
+    Sample("boxed-pairs", HERE / "fixtures/BoxedPairs.vast", "boxed_pairs"),
+    Sample("singleton-power", HERE / "fixtures/SingletonPower.vast", "singleton_power"),
     Sample("borrowed-operator", HERE / "fixtures/borrowed-operator/Vastitas.toml", None),
     Sample("uncalled-operator", HERE / "fixtures/uncalled-operator/Vastitas.toml", None),
     Sample("boxed-arithmetic", HERE / "fixtures/BoxedArithmetic.vast", "boxed_arithmetic"),
     Sample("assembled-bool", HERE / "fixtures/AssembledBool.vast", "assembled_bool"),
     Sample("structured-lookup", HERE / "fixtures/StructuredLookup.vast", "structured_lookup"),
     Sample("structured-lookup-linux-x86_64", HERE / "fixtures/StructuredLookup.vast", "structured_lookup", "linux-x86_64"),
+    Sample("finite-projection", HERE / "fixtures/FiniteProjection.vast", "finite_projection"),
     Sample("static-selection", HERE / "fixtures/StaticSelection.vast", "static_selection"),
+    Sample("literal-comparison", HERE / "fixtures/LiteralComparison.vast", "literal_comparison"),
     Sample("empty-lookup", HERE / "fixtures/EmptyLookup.vast", "empty_lookup"),
     Sample("closure-unit", HERE / "fixtures/ClosureUnit.vast", "closure_unit"),
+    Sample("tensor-column", HERE / "fixtures/tensor-column/Vastitas.toml", None),
     Sample("gemm-coefficients", ROOT / "examples/packages/numerical/gemm-coefficients/Vastitas.toml", None),
     Sample("float-identity", ROOT / "examples/packages/float-identity/Vastitas.toml", None),
     Sample("float-complex-identity", ROOT / "examples/packages/float-complex-identity/Vastitas.toml", None),
+    Sample("float32-identity", HERE / "fixtures/float32-identity/Vastitas.toml", None),
+    Sample("float32-complex-identity", HERE / "fixtures/float32-complex-identity/Vastitas.toml", None),
     Sample("opposite-s3", HERE / "fixtures/opposite-s3/Vastitas.toml", None),
     Sample("finite-iso", HERE / "fixtures/finite-iso/Vastitas.toml", None),
     Sample("finite-kleisli", ROOT / "examples/packages/finite-kleisli/Vastitas.toml", None),
     Sample("kleisli-callback", HERE / "fixtures/kleisli-callback/Vastitas.toml", None),
     Sample("kleisli-forward", HERE / "fixtures/kleisli-forward/Vastitas.toml", None),
+    Sample("kleisli-forward-linux-x86_64", HERE / "fixtures/kleisli-forward/Vastitas.toml", None, "linux-x86_64"),
     Sample("unary-table", EXPERIMENT / "TableComparison.vast", "table_fixture"),
     Sample("s3-composition", HERE / "fixtures/S3Composition.vast", "s3_composition"),
     Sample("static-call", EXPERIMENT / "CallComparison.vast", "call_fixture"),
@@ -49,8 +57,15 @@ CASES = [
 
 def check_boxed_operators(command, target_args, expected, work):
     package = {"name": "std", "source": "vastitas:compat:operators", "version": "2026.0.0"}
-    sites = [{"core": 0, "id": {"module": ["operator"], "name": name, "package": package}, "key": key}
-             for name, key in [("sub", ["Nat", "Nat"]), ("div", ["Nat", "Int"]), ("add", ["Int", "Int"])]]
+    sites = [
+        {"core": 0, "id": {"module": ["operator"], "name": name, "package": package},
+         "key": key, "method": {"ordinal": ordinal, "result": result}}
+        for name, key, ordinal, result in [
+            ("sub", ["Nat", "Nat"], 0, "Nat"),
+            ("div", ["Nat", "Int"], 1, "Int"),
+            ("add", ["Int", "Int"], 1, "Int"),
+        ]
+    ]
     source = work / "main.vast"
     original = source.read_text(encoding="utf-8")
     alternate = original.replace("n - 5", "std::operator::sub(n, 5)").replace(
@@ -65,6 +80,14 @@ def check_boxed_operators(command, target_args, expected, work):
             raise ValueError("named calls and operators must select the same protected owners and ordered keys")
         if subprocess.check_output([*command, *target_args], cwd=ROOT) != expected:
             raise ValueError("changing the operator spelling changed the boxed LLVM library")
+
+    revision["pure"]["operator_sites"][1]["method"]["ordinal"] = 2
+    receipt = work / "swapped-division.json"
+    receipt.write_text(json.dumps(revision), encoding="utf-8")
+    forged = subprocess.run([*command, *target_args, "--expect-function-revision", receipt],
+                            cwd=ROOT, capture_output=True)
+    if forged.returncode == 0 or forged.stdout or b"E_FUNCTION_REVISION" not in forged.stderr:
+        raise ValueError("mixed division produced LLVM with the reversed key's method ordinal")
 
 
 def check_static_revision(command, target_args, expected, work):
@@ -236,7 +259,7 @@ def main():
                 check_structured_targets(command, targets, work)
             elif name == "kleisli-callback":
                 check_callback_revision(command, target_args, expected, work)
-            elif name == "kleisli-forward":
+            elif source == HERE / "fixtures/kleisli-forward/Vastitas.toml":
                 check_forward_revision(command, target_args, expected, work)
             print(f"{name}: {len(expected)} bytes matched")
 

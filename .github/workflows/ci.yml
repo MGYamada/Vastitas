@@ -124,11 +124,7 @@ jobs:
             /stdlib/
             /monad/
             /llvm/fixtures/
-            /llvm/src/borrowed-operator.ll
-            /llvm/src/float-identity.ll
-            /llvm/src/float-complex-identity.ll
-            /llvm/src/float32-identity.ll
-            /llvm/src/float32-complex-identity.ll
+            /llvm/src/
             /llvm/runtime/
             /llvm/check_exact_native.py
             /nature/

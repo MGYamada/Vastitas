@@ -1,4 +1,5 @@
 import VastitasKernel.LLVM.ExactProgram
+import VastitasKernel.LLVM.ExactFlowProgram
 import VastitasKernel.LLVM.StorageProgram
 import VastitasKernel.LLVM.ExactFunction
 import VastitasKernel.LLVM.CallFunction
@@ -21,6 +22,9 @@ inductive Output (json : Json) (header : TargetHeader) where
   | exactProgram {main : Bool} {req : Wire.CheckedInput json main}
       (a : ExactProgram.Artifact req header) (text : String)
       (parsed : ExactProgram.parse text.toUTF8.data.toList = some a.model)
+  | exactFlow {main : Bool} {req : Wire.CheckedInput json main}
+      (a : ExactFlow.Artifact req header) (text : String)
+      (parsed : ExactFlow.parse text.toUTF8.data.toList = some a.model)
   | exactLibrary {req : Wire.CheckedInput json false}
       (a : ExactFunction.Artifact req header) (text : String)
       (parsed : ExactLibrary.parse text.toUTF8.data.toList = some a.model)
@@ -47,10 +51,11 @@ inductive Output (json : Json) (header : TargetHeader) where
       (parsed : FiniteModule.parse text.toUTF8.data.toList = some a.model)
 
 def Output.text {json header} : Output json header → String
-  | .storage _ s _ | .exactProgram _ s _ | .exactLibrary _ s _ | .lookup _ s _ | .binary _ s _ | .forwarding _ s _ | .executable _ s _ | .folded _ s _ | .dispatch _ s _ | .finite _ s _ => s
+  | .exactFlow _ s _ | .storage _ s _ | .exactProgram _ s _ | .exactLibrary _ s _ | .lookup _ s _ | .binary _ s _ | .forwarding _ s _ | .executable _ s _ | .folded _ s _ | .dispatch _ s _ | .finite _ s _ => s
 
 def Output.kind {json header} : Output json header → String
   | .storage a .. => if a.model.calls.any (·.target == .gemm) then "storage-gemm-program" else "storage-program"
+  | .exactFlow .. => "boxed-control-flow"
   | .exactProgram .. => "boxed-exact-program"
   | .exactLibrary .. => "boxed-exact-library"
   | .lookup .. => "unary-lookup"
@@ -89,16 +94,19 @@ private def app {json main} (req : Wire.CheckedInput json main) (header : Target
   else scalarApp req header <|> (do
     let a ← FiniteProgram.compile req header
     let ⟨s, parsed⟩ ← checkedText a.model FiniteModule.print FiniteModule.parse
-    return .finite a s parsed) <|> do
+    return .finite a s parsed) <|> (do
     let a ← ExactProgram.compile req header
     let ⟨s, parsed⟩ ← checkedText a.model ExactProgram.Code.print ExactProgram.parse
-    return .exactProgram a s parsed
+    return .exactProgram a s parsed) <|> do
+    let a ← ExactFlow.compile req header
+    let ⟨s, parsed⟩ ← checkedText a.model ExactFlow.Code.print ExactFlow.parse
+    return .exactFlow a s parsed
 
 private def library {json} (req : Wire.CheckedInput json false) (header : TargetHeader) :
     Option (Output json header) := do
   match (UnaryFunction.checkedCore req).functions with
   | [f] =>
-    if f.returnType matches .pure .int | .pure .nat | .pure (.pair _) then
+    if f.returnType matches .pure .int | .pure .nat | .pure .bool | .pure (.pair _) then
       let a ← ExactFunction.compile req header
       let ⟨s,parsed⟩ ← checkedText a.model ExactLibrary.Code.print ExactLibrary.parse
       return .exactLibrary a s parsed

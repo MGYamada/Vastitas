@@ -6,6 +6,8 @@ import VastitasOracle.DispatchFunction
 import VastitasKernel.LLVM.FiniteModule
 import VastitasOracle.StorageProgram
 import VastitasKernel.LLVM.ExactProgram
+import VastitasKernel.LLVM.ExactFlowParse
+import VastitasOracle.FlowCertificate.Subject
 import VastitasKernel.LLVM.FiniteExecution
 
 /-! Closed statements about the checked-in LLVM files. Each statement embeds the contents of its
@@ -53,6 +55,39 @@ elab "corpus_bytes " file:str : term => do
 
 def boxedBytes := corpus_bytes "src/boxed-arithmetic.ll"
 
+def assembledComparison : ExactFlow.Code :=
+  let predicate (a b : Nat) : ExactFlow.Func := ⟨.bool, #[
+    ⟨[.int,.int],[.exact (.compare .int .lt a b)],.ret 2⟩]⟩
+  let entry : ExactFlow.Func := ⟨.int, #[
+    ⟨[],[.exact (.int (-(2^128 + 1))),.exact (.int (-1)),.invoke 0 [0,1]],.branch 2 ⟨1,[]⟩ ⟨2,[]⟩⟩,
+    ⟨[],[.exact (.int 42)],.jump ⟨3,[0]⟩⟩, ⟨[],[.exact (.int 7)],.jump ⟨3,[0]⟩⟩, ⟨[.int],[],.ret 0⟩]⟩
+  ⟨header,#[predicate 0 1,entry,predicate 1 0],1⟩
+
+/-- Embed the literal header octets and body lines separately. Re-encoding must
+reproduce the entire file before either literal enters the closed theorem. -/
+elab "corpus_module_lines " file:str : term => do
+  let source := System.FilePath.mk (← readThe Lean.Core.Context).fileName
+  let some dir := source.parent | throwError "corpus needs a source directory"
+  let bytes ← IO.FS.readBinFile (dir / file.getString)
+  let some text := String.fromUTF8? bytes | throwError "expected UTF-8 assembly"
+  let triple :: layout :: "" :: body := text.splitOn "\n" | throwError "expected a target header"
+  let "" :: reversed := body.reverse | throwError "expected a final newline"
+  let header := (triple ++ "\n" ++ layout ++ "\n").toUTF8
+  let lines := reversed.reverse
+  unless header ++ ("\n" ++ String.intercalate "\n" lines ++ "\n").toUTF8 == bytes do
+    throwError "LLVM lines did not reproduce the source bytes"
+  return Lean.toExpr (header.data.toList, lines)
+
+private def comparisonText : List UInt8 × List String := corpus_module_lines "src/assembled-comparison.ll"
+
+def assembledComparisonBytes :=
+  comparisonText.1 ++ ("\n" ++ String.intercalate "\n" comparisonText.2 ++ "\n").toUTF8.data.toList
+
+set_option maxRecDepth 8192 in
+theorem assembled_comparison_verified : assembledComparisonBytes = assembledComparison.print :=
+  (VastitasOracle.FlowCertificate.printedLines assembledComparison comparisonText.1 comparisonText.2
+    rfl (by with_unfolding_all rfl)).symm
+
 def boxedProgram : ExactProgram.Code :=
   ⟨header,#[
     ⟨[.int],.int,[],0⟩,
@@ -66,6 +101,68 @@ def programBytes := corpus_bytes "src/boxed-program.ll"
 set_option maxRecDepth 65536 in
 set_option maxHeartbeats 2000000 in
 theorem boxed_program_verified : programBytes = boxedProgram.print := by rfl
+
+def orderedCalls : ExactProgram.Code :=
+  let subtract := fun refs => ExactProgram.Function.mk [.int,.int] .int
+    [.primitive (.apply (.int .sub) refs)] 2
+  let entry : ExactProgram.Function := ⟨[],.int,[
+    .primitive (.int 9), .primitive (.int 4), .invoke 0 [0,1],
+    .primitive (.int 3), .primitive (.int 1), .invoke 0 [3,4],
+    .invoke 1 [2,5], .primitive (.int 20), .primitive (.apply (.int .add) [6,7])],8⟩
+  ⟨header, #[subtract [0,1], subtract [0,1], entry, subtract [1,0]], 2⟩
+
+def orderedCallBytes := corpus_bytes "src/ordered-calls.ll"
+
+set_option maxRecDepth 65536 in
+set_option maxHeartbeats 2000000 in
+theorem ordered_calls_verified : orderedCallBytes = orderedCalls.print := by rfl
+
+def assembledNegation : ExactProgram.Code :=
+  ⟨header, #[
+    ⟨[.int], .int, [.primitive (.apply .neg [0])], 1⟩,
+    ⟨[.int], .int, [.invoke 0 [0]], 1⟩,
+    ⟨[], .int, [.primitive (.int (2^128 + 43)), .invoke 1 [0]], 1⟩,
+    ⟨[.int], .int, [], 0⟩], 2⟩
+
+def negationBytes := corpus_bytes "src/assembled-negation.ll"
+
+set_option maxRecDepth 65536 in
+set_option maxHeartbeats 2000000 in
+theorem assembled_negation_verified : negationBytes = assembledNegation.print := by rfl
+
+theorem assembled_negation_result : assembledNegation.entryValue = some (-(2^128 + 43)) := by rfl
+
+def assembledConversion : ExactProgram.Code :=
+  ⟨header, #[
+    ⟨[.nat], .int, [.primitive (.apply .natToInt [0])], 1⟩,
+    ⟨[], .int, [.primitive (.nat (2^128 + 43)), .invoke 0 [0]], 1⟩,
+    ⟨[.nat], .int, [.primitive (.int 0)], 1⟩], 1⟩
+
+def conversionBytes := corpus_bytes "src/assembled-conversion.ll"
+
+set_option maxRecDepth 65536 in
+set_option maxHeartbeats 2000000 in
+theorem assembled_conversion_verified : conversionBytes = assembledConversion.print := by rfl
+
+theorem assembled_conversion_result : assembledConversion.entryValue = some (2^128 + 43) := by rfl
+
+/-- Both scalar methods construct the pair in argument order. The assembled
+method calls the second projection and its retained sibling calls the first. -/
+def selectedProjection : ExactProgram.Code :=
+  let project := fun field => ExactProgram.Function.mk [.pair .int] .int
+    [.primitive (.apply (.project .int field) [0])] 1
+  let select := fun target => ExactProgram.Function.mk [.int,.int] .int
+    [.primitive (.apply (.pair .int) [0,1]), .invoke target [2]] 3
+  let entry : ExactProgram.Function := ⟨[],.int,[.primitive (.int 7), .primitive (.int 19), .invoke 2 [0,1]],2⟩
+  ⟨header, #[project true, project false, select 1, entry, select 0], 3⟩
+
+def selectedProjectionBytes := corpus_bytes "src/selected-projection.ll"
+
+set_option maxRecDepth 65536 in
+set_option maxHeartbeats 2000000 in
+theorem selected_projection_verified : selectedProjectionBytes = selectedProjection.print := by rfl
+
+theorem selected_projection_result : selectedProjection.entryValue = some 19 := by rfl
 
 def boxedPairs : ExactProgram.Code :=
   let op := fun code refs => ExactProgram.Instruction.primitive (.apply code refs)
@@ -127,6 +224,15 @@ def uncalledOperatorBytes := corpus_bytes "src/uncalled-operator.ll"
 set_option maxRecDepth 65536 in
 set_option maxHeartbeats 2000000 in
 theorem uncalled_operator_verified : uncalledOperatorBytes = uncalledOperator.print := by rfl
+
+def integerPredicate : ExactLibrary.Code :=
+  ⟨header,[.int,.int],.bool,[.int 256,.apply (.int .sub) [0,2],.compare .int .le 3 1],4⟩
+
+def integerPredicateBytes := corpus_bytes "src/integer-predicate.ll"
+
+set_option maxRecDepth 65536 in
+set_option maxHeartbeats 2000000 in
+theorem integer_predicate_verified : integerPredicateBytes = integerPredicate.print := by rfl
 
 def boxedModel : ExactLibrary.Code :=
   ⟨header,[.nat,.int],.int,[.nat 5,.apply (.nat .sub) [0,2],.apply .natIntDiv [3,1],
@@ -485,6 +591,9 @@ private def forBinary {bytes model} (_ : BinaryTable.parse bytes = some model) :
 private def forDispatch {bytes model} (_ : DispatchBool.parse bytes = some model) : ByteArray :=
   ⟨bytes.toArray⟩
 
+private def forFlow {bytes : List UInt8} {code : ExactFlow.Code}
+    (_ : bytes = code.print) : ByteArray := ⟨bytes.toArray⟩
+
 private def forProgram {bytes : List UInt8} {code : ExactProgram.Code}
     (_ : bytes = code.print) : ByteArray := ⟨bytes.toArray⟩
 
@@ -630,11 +739,17 @@ private def forCode {bytes : List UInt8} {code : FiniteModule.Code}
 def checkedFiles : List (String × ByteArray) :=
   [("exit-status.ll", forExit exit_status_verified),
    ("folded-arithmetic.ll", forExit folded_arithmetic_verified),
+   ("assembled-comparison.ll", forFlow assembled_comparison_verified),
    ("boxed-program.ll", forProgram boxed_program_verified),
+   ("ordered-calls.ll", forProgram ordered_calls_verified),
+   ("assembled-negation.ll", forProgram assembled_negation_verified),
+   ("assembled-conversion.ll", forProgram assembled_conversion_verified),
    ("boxed-pairs.ll", forProgram boxed_pairs_verified),
+   ("selected-projection.ll", forProgram selected_projection_verified),
    ("singleton-power.ll", forProgram singleton_power_verified),
    ("borrowed-operator.ll", forProgram borrowed_operator_verified),
    ("uncalled-operator.ll", forProgram uncalled_operator_verified),
+   ("integer-predicate.ll", forExact integer_predicate_verified),
    ("boxed-arithmetic.ll", forExact boxed_arithmetic_verified),
    ("assembled-bool.ll", forDispatch assembled_bool_verified),
    ("empty-lookup.ll", forLookup empty_lookup_verified),
@@ -676,6 +791,16 @@ def main (args : List String) : IO Unit := do
   unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.singletonPowerBytes == some power &&
       power.entryValue == some ((3^256 : Int) / 7) do
     throw (IO.userError "singleton-power.ll: wrong runtime operations or full quotient")
+  let ordered := Vastitas.LLVMCorpus.orderedCalls
+  unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.orderedCallBytes == some ordered &&
+      ordered.entryValue == some 23 do
+    throw (IO.userError "ordered-calls.ll: different nested operands, target or integer result")
+  unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.negationBytes ==
+      some Vastitas.LLVMCorpus.assembledNegation do
+    throw (IO.userError "assembled-negation.ll: different negation or selected method")
+  unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.conversionBytes ==
+      some Vastitas.LLVMCorpus.assembledConversion do
+    throw (IO.userError "assembled-conversion.ll: different conversion, fallback or call target")
   let borrowed := Vastitas.LLVMCorpus.borrowedOperator
   unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.borrowedOperatorBytes == some borrowed &&
       borrowed.entryValue == some 42 do
@@ -684,6 +809,9 @@ def main (args : List String) : IO Unit := do
   unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.uncalledOperatorBytes == some uncalled &&
       uncalled.entryValue == some 7 do
     throw (IO.userError "uncalled-operator.ll: wrong retained functions or entry result")
+  unless VastitasKernel.LLVM.ExactProgram.parse Vastitas.LLVMCorpus.selectedProjectionBytes ==
+      some Vastitas.LLVMCorpus.selectedProjection do
+    throw (IO.userError "selected-projection.ll: different construction, field or method")
   let pairs := Vastitas.LLVMCorpus.boxedPairs
   let pairText := String.fromUTF8! ⟨Vastitas.LLVMCorpus.pairBytes.toArray⟩
   unless VastitasKernel.LLVM.ExactProgram.parse pairText.toUTF8.data.toList == some pairs && pairs.entryValue == some 42 do
@@ -706,6 +834,20 @@ def main (args : List String) : IO Unit := do
     let changed := moduleText.replace before after
     unless changed != moduleText && (VastitasKernel.LLVM.ExactProgram.parse changed.toUTF8.data.toList).isNone do
       throw (IO.userError "boxed-program.ll: accepted a damaged call, startup or ownership instruction")
+  let flow := Vastitas.LLVMCorpus.assembledComparison
+  let bytes := Vastitas.LLVMCorpus.assembledComparisonBytes
+  unless VastitasKernel.LLVM.ExactFlow.parse bytes == some flow && flow.entryValue == some 42 do
+    throw (IO.userError "assembled-comparison.ll: wrong typed branch, phi or full result")
+  let text := (String.fromUTF8? ⟨bytes.toArray⟩).get!
+  for (old,new) in [("[ %b1v0, %e1_3 ]", "[ %b1v0, %e2_3 ]"), ("icmp ne i32", "icmp eq i32"),
+      ("@vq_f0(ptr %b0v0, ptr %b0v1)", "@vq_f0(i32 %b0v0, ptr %b0v1)"),
+      ("call void @vastitas_retain_v1(ptr %b1v0)", "call void @vastitas_release_v1(ptr %b1v0)")] do
+    let damaged := text.replace old new
+    unless damaged != text && (VastitasKernel.LLVM.ExactFlow.parse damaged.toUTF8.data.toList).isNone do
+      throw (IO.userError s!"assembled-comparison.ll: damaged control flow accepted at {old}")
+  unless VastitasKernel.LLVM.ExactLibrary.parse Vastitas.LLVMCorpus.integerPredicateBytes ==
+      some Vastitas.LLVMCorpus.integerPredicate do
+    throw (IO.userError "integer-predicate.ll: different typed comparison or release schedule")
   unless VastitasKernel.LLVM.ExactLibrary.parse Vastitas.LLVMCorpus.boxedBytes == some Vastitas.LLVMCorpus.boxedModel do
     throw (IO.userError "boxed-arithmetic.ll: different typed call graph or ownership schedule")
   checkEntry "opposite-s3.ll" Vastitas.LLVMCorpus.oppositeBytes Vastitas.LLVMCorpus.OppositeS3.code 42

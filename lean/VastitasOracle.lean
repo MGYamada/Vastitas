@@ -76,10 +76,17 @@ import VastitasOracle.IndexedSource
 import VastitasOracle.ExactLibrary
 import VastitasOracle.BoxedCertificate
 import VastitasOracle.ExactProgram
+import VastitasOracle.FlowCertificate
 import VastitasOracle.MidIRRegression
+import VastitasOracle.ConversionCoverage
+import VastitasOracle.PairCoverage
+import VastitasOracle.UnaryCoverage
 import VastitasOracle.LiteralCoverage
 import VastitasOracle.FiniteOpcodeCoverage
+import VastitasOracle.StaticCallCoverage
 import VastitasOracle.BindingCoverage
+import VastitasOracle.BranchCoverage
+import VastitasOracle.BinaryCoverage
 import VastitasOracle.PackageLink
 import VastitasOracle.FiniteLookupLayout
 import VastitasOracle.FiniteHom

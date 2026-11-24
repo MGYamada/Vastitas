@@ -136,6 +136,8 @@ def run(args):
         report["inputs"] = {name: digest(HERE / name) for name in (
             "Cargo.toml", "Cargo.lock", "src/main.rs", "shim.c", "RuntimeProbe.lean", "program.ll.in",
             "Comparison.lean", "FamilyComparison.lean", "OppositeComparison.lean", "GemmComparison.lean", "run.py", "measure.py")}
+        predicate_source = Path("llvm/fixtures/ComparisonMethodControl.lean")
+        report["inputs"][str(predicate_source)] = digest(ROOT / predicate_source)
         family_source = Path("tests/fixtures/FamilyComparison.vast")
         report["inputs"][str(family_source)] = digest(ROOT / family_source)
         adapter = Path("src/driver/llvm_backend.rs")
@@ -155,16 +157,19 @@ def run(args):
         archive = blas / "lib/libopenblas.a"
         report["openblas"] = {"version": BLAS_VERSION, "archive_sha256": digest(archive),
                               "header_sha256": digest(blas / "include/cblas.h")}
-        report["emitter_comparison"] = emitter_comparison(lean)
+        report["emitter_comparison"] = emitter_comparison(lean, {"external_call": "def emitSimpleExternalCall"})
         features = json.loads(capture([str(lean_bin), "--features"], env=env))
         report["emitter_comparison"]["toolchain_features"] = features
         suites = report["emitter_comparison"]["fixtures"] = {}
         with tempfile.TemporaryDirectory(prefix="vastitas-lean-llvm-") as temporary:
             comparison = Path(temporary)
-            for stem in ("Comparison", "FamilyComparison", "OppositeComparison", "GemmComparison"):
+            fixtures = {name: HERE / (name + ".lean") for name in
+                        ("Comparison", "FamilyComparison", "OppositeComparison", "GemmComparison")}
+            fixtures["IntegerPredicateComparison"] = ROOT / predicate_source
+            for stem, fixture in fixtures.items():
                 suite = suites[stem] = {"emitted": False, "disassembled": False}
                 source = stem + ".lean"
-                shutil.copyfile(HERE / source, comparison / source)
+                shutil.copyfile(fixture, comparison / source)
                 if stem == "FamilyComparison":
                     measured("lean_family_results", [lean_bin, "--run", source], comparison)
                     suite["reference_results_checked"] = True

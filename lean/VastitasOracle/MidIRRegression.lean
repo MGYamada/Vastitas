@@ -44,6 +44,125 @@ private def choose : Core.Function :=
         return false
   return true)
 
+/- Lowering the operand of int(...) may change the active block. Read the
+post-join Nat, including a value too large for a machine integer. -/
+#eval VastitasKernel.RegressionSupport.check "MidIR Nat conversion"
+    "both branch values reach the conversion; forged Bool, duplicate and non-dominating operands fail" (Id.run do
+  let nat : Result := ⟨.pure .nat, none⟩
+  let large := 2^128 + 43
+  let body := Term.natToInt (.branch (.variable 1 bool) (.natural large) (.natural 0) nat)
+  let source : Core.Function := ⟨0, owner "convert", [⟨1, bool⟩], .pure .int, body, {}⟩
+  let m : Core.Module := ⟨⟨env, [], []⟩, [source], none⟩
+  let .ok checked := Typing.checkModule m false | return false
+  let [f] := checked.module.functions | return false
+  let some opt := VastitasKernel.MidIR.lowerFunction env ⟨0, []⟩ f | return false
+  let some exe := opt.execute env | return false
+  let some join := opt.blocks[3]? | return false
+  let #[op] := join.ops | return false
+  unless join.params == #[.nat] && op.code.tag == "nat_to_int.v1" && op.args == [⟨3,0⟩] do return false
+  for b in [true, false] do
+    let args := [Value.boolean b]
+    let some values := bindArguments f.parameters args | return false
+    let expected := some (Value.integer (if b then Int.ofNat large else 0))
+    unless eval checked.module 8 values body == expected && run env opt args == expected &&
+      run env exe args == expected do return false
+  for args in [[], [⟨0,0⟩], [⟨3,0⟩, ⟨3,0⟩], [⟨1,0⟩]] do
+    let forged := {opt with blocks := opt.blocks.set! 3 {join with ops := #[{op with args}]}}
+    if (forged.execute env).isSome then return false
+  return true)
+
+/- Both pair operands introduce a join. The second projection must read
+the pair constructed from those two SSA results, in their original order. -/
+#eval VastitasKernel.RegressionSupport.check "MidIR pair operands"
+    "distinct joins preserve field order, signed heap values and pair element types" (Id.run do
+  let int : Result := ⟨.pure .int, none⟩
+  let large : Int := 2^128 + 43
+  let branch := fun symbol x y => Term.branch (.variable symbol bool) (.integer x) (.integer y) int
+  for first in [true, false] do
+    let pair := Term.pair .int (branch 1 (-large) 7) (branch 2 19 large)
+    let source : Core.Function := ⟨0, owner "field", [⟨1,bool⟩, ⟨2,bool⟩], .pure .int, .project .int first pair, {}⟩
+    let m : Core.Module := ⟨⟨env, [], []⟩, [source], none⟩
+    let .ok checked := Typing.checkModule m false | return false
+    let some opt := VastitasKernel.MidIR.lowerFunction env ⟨0,[]⟩ source | return false
+    let some exe := opt.execute env | return false
+    let some join := opt.blocks[6]? | return false
+    let #[make, read] := join.ops | return false
+    unless make.code.tag == "int_pair.v1" && make.args == [⟨3,0⟩, ⟨6,0⟩] &&
+        read.args == [⟨6,1⟩] && read.code.tag == (if first then "int_pair_first.v1" else "int_pair_second.v1") do
+      return false
+    for a in [true, false] do
+      for b in [true, false] do
+        let args := [Value.boolean a, .boolean b]
+        let some values := bindArguments source.parameters args | return false
+        let expected := some (Value.integer (if first then (if a then -large else 7) else (if b then 19 else large)))
+        unless eval checked.module 12 values source.body == expected && run env opt args == expected &&
+            run env exe args == expected do return false
+    for bad in [#[{make with args := [⟨3,0⟩]}, read],
+        #[make, {read with code := .exactOp (.project .nat first)}],
+        #[make, {read with args := [⟨6,0⟩]}]] do
+      if ({opt with blocks := opt.blocks.set! 6 {join with ops := bad}}.execute env).isSome then return false
+  return true)
+
+open VastitasKernel.MidIR in
+#eval VastitasKernel.RegressionSupport.check "MidIR conditional method"
+    "the taken predecessor supplies its own integer, even when exchanging two SSA slots still typechecks" (Id.run do
+  let int : Result := ⟨.pure .int, none⟩
+  let large : Int := 2^128 + 43
+  let body := Term.scope (.branch (.variable 4 bool) (scopedIntParameter 5) (scopedIntParameter 6) int)
+  let f : Core.Function := ⟨0, owner "choose", [⟨4,bool⟩,⟨5,int⟩,⟨6,int⟩], int.type, body, {}⟩
+  let m : Core.Module := ⟨⟨env, [], []⟩, [f], none⟩
+  let .ok checked := Typing.checkModule m false | return false
+  let some source := checked.module.functions.head? | return false
+  let some opt := lowerFunction env ⟨0, []⟩ source | return false
+  let some exe := opt.execute env | return false
+  unless opt.blocks == parameterBranch .optimization && exe.blocks == parameterBranch .execution do return false
+  let some left := opt.blocks[1]? | return false
+  let some right := opt.blocks[2]? | return false
+  let withLeft := opt.blocks.set! 1 {left with term := .jump ⟨3,⟨1⟩,[⟨0,2⟩]⟩}
+  let swapped := {opt with blocks := withLeft.set! 2 {right with term := .jump ⟨3,⟨2⟩,[⟨0,1⟩]⟩}}
+  unless validFunction env swapped do return false
+  for choice in [true, false] do
+    let args := [Value.boolean choice, .integer large, .integer (-19)]
+    let some values := bindArguments source.parameters args | return false
+    let expected := some (Value.integer (if choice then large else -19))
+    unless eval checked.module 12 values source.body == expected && run env opt args == expected &&
+        run env exe args == expected && run env swapped args != expected do return false
+  for invalid in [Terminator.jump ⟨3,⟨2⟩,[⟨0,1⟩]⟩, .jump ⟨3,⟨1⟩,[⟨0,0⟩]⟩, .jump ⟨3,⟨1⟩,[]⟩] do
+    if ({opt with blocks := opt.blocks.set! 1 {left with term := invalid}}.execute env).isSome then return false
+  return true)
+
+#eval VastitasKernel.RegressionSupport.check "MidIR unary operators"
+    "a negated guard and signed literals reach boxed negation through their join" (Id.run do
+  let int : Result := ⟨.pure .int, none⟩
+  let large : Int := 2^128 + 43
+  let signed := Term.unary .neg (.integer large) int
+  let cond := Term.unary .not (.variable 1 bool) bool
+  let body := Term.unary .neg (.branch cond signed (.integer 7) int) int
+  let f : Core.Function := ⟨0, owner "negate", [⟨1, bool⟩], int.type, body, {}⟩
+  let m : Core.Module := ⟨⟨env, [], []⟩, [f], none⟩
+  let .ok checked := Typing.checkModule m false | return false
+  let some opt := VastitasKernel.MidIR.lowerFunction env ⟨0, []⟩ f | return false
+  let some exe := opt.execute env | return false
+  let some entry := opt.blocks[0]? | return false
+  let some yes := opt.blocks[1]? | return false
+  let some join := opt.blocks[3]? | return false
+  let #[guardOp] := entry.ops | return false
+  let #[folded] := yes.ops | return false
+  let #[neg] := join.ops | return false
+  unless guardOp.code == .boolNot && folded.code == .integer (-large) && folded.args.isEmpty &&
+      neg.code == .exactOp .neg && neg.args == [⟨3,0⟩] do return false
+  for b in [true, false] do
+    let args := [Value.boolean b]
+    let some values := bindArguments f.parameters args | return false
+    let expected := some (Value.integer (if b then -7 else large))
+    unless eval checked.module 8 values body == expected && run env opt args == expected &&
+        run env exe args == expected do return false
+  for bad in [{neg with code := .boolNot}, {neg with args := []}, {neg with args := [⟨3,0⟩, ⟨3,0⟩]}] do
+    if ({opt with blocks := opt.blocks.set! 3 {join with ops := #[bad]}}.execute env).isSome then return false
+  let unsupported := {f with body := .unary .neg (.natural 1) int}
+  if (Typing.checkModule {m with functions := [unsupported]} false).isOk then return false
+  return true)
+
 /- Argument order remains observable even when both formal types are the
 same nominal carrier. Run the exact checked Core and both linked phases. -/
 #eval VastitasKernel.RegressionSupport.check "MidIR static call regression"
@@ -86,5 +205,26 @@ number cannot authorize a duplicate key or let a call substitute its sibling. -/
     id := ⟨owner "caller"⟩, coreId := 2, specialization := ⟨0,[]⟩
     blocks := #[⟨#[.bool],#[⟨.call forged,[⟨0,0⟩]⟩],.ret ⟨0⟩ ⟨0,1⟩⟩] }
   return !(VastitasKernel.MidIR.validSymbols { module with functions := #[first,second,caller] }))
+
+/- The signed and natural orders use the full operand. A nominal tag needs
+its own sort on both sides; equality is the only relation on those tags. -/
+open VastitasKernel.MidIR in
+#eval VastitasKernel.RegressionSupport.check "MidIR comparison operands"
+    "reject mixed integers, ordered finite tags, wrong arities and a foreign sort" (Id.run do
+  let compare := fun (k : Comparison) (t : VastitasKernel.MidIR.Ty) (args : List Value) =>
+    denote env (.compare (p := .optimization) k t) args
+  let big : Nat := 2^128 + 1
+  unless compare .lt .nat [.natural big,.natural (big+256)] == some (.boolean true) &&
+      compare .ge .int [.integer (-(Int.ofNat big)),.integer (-(Int.ofNat big))] == some (.boolean true) do
+    return false
+  let other := FiniteSort.carrier (owner "Other")
+  let tag := Value.finiteTag carrier "blue"
+  return (compare .lt .nat [.integer 1,.natural 2]).isNone &&
+    (compare .eq .int [.integer 1]).isNone && (compare .eq .int [.integer 1,.integer 1,.integer 1]).isNone &&
+    (compare .eq (.finite carrier) [tag,.finiteTag other "blue"]).isNone &&
+    (compare .gt (.finite carrier) [tag,tag]).isNone &&
+    !(Opcode.compare (p := .execution) .le .bool).valid env &&
+    !(Opcode.compare (p := .execution) .lt (.finite carrier)).valid env &&
+    !(Opcode.compare (p := .execution) .eq (.pair .nat)).valid env)
 
 end VastitasOracle.MidIR.Regression

@@ -1,6 +1,6 @@
 # Lean-verified LLVM IR corpus
 
-The corpus contains 30 complete LLVM assembly files from edition 2026 Vastitas source. Lean proves parser acceptance for eight files and equality with a canonical model printout for the other 22. Replay parses each of those 22 files and evaluates its executable models. The structured lookup and direct Kleisli operand each have macOS arm64 and x86-64 Linux files. The other samples target macOS arm64. [Files](../src/) · [Concrete proofs](../Corpus.lean)
+The corpus contains 37 complete LLVM assembly files from edition 2026 Vastitas source. Lean proves parser acceptance for eight files and equality with a canonical model printout for the other 29. Replay parses each of those 29 files and evaluates its executable models. The structured lookup and direct Kleisli operand each have macOS arm64 and x86-64 Linux files. The other samples target macOS arm64. [Files](../src/) · [Concrete proofs](../Corpus.lean)
 
 ## Modules
 
@@ -9,10 +9,16 @@ The corpus contains 30 complete LLVM assembly files from edition 2026 Vastitas s
 | [exit-status.ll](../src/exit-status.ll) · 374 bytes | [ExitStatus.vast](../fixtures/ExitStatus.vast) | A signed literal, −(2¹²⁸+1), stays unbounded through both MidIR phases. At the C entry point its residue modulo 256 gives `ret i32 u0xFF`. | `exit_status_verified` |
 | [folded-arithmetic.ll](../src/folded-arithmetic.ll) · 374 bytes | [FoldedArithmetic.vast](../fixtures/FoldedArithmetic.vast) | The source selects division for the ordered operands `(Nat, Int)`. Its Euclidean quotient for 7 and −3 is −2. Adding 12 gives the constant returned by `ret i32 u0x0A`. | `folded_arithmetic_verified` |
 | [boxed-program.ll](../src/boxed-program.ll) · 1,830 bytes | [BoxedProgram.vast](../fixtures/BoxedProgram.vast) | Four functions pass a borrowed heap integer through an identity, doubling and mixed division. The hosted entry initializes the runtime and consumes the owned result. | `boxed_program_verified` |
+| [ordered-calls.ll](../src/ordered-calls.ll) · 2,311 bytes | [OrderedCalls.vast](../fixtures/OrderedCalls.vast) | Two nested calls supply the left and right operands of an assembled subtraction method. The entry returns 23. | `ordered_calls_verified` |
+| [assembled-conversion.ll](../src/assembled-conversion.ll) · 1,376 bytes | [AssembledConversion.vast](../fixtures/AssembledConversion.vast) | An assembled `Nat → Int` method returns 2¹²⁸ + 43. Its sibling of the same signature returns zero. | `assembled_conversion_verified` |
+| [assembled-negation.ll](../src/assembled-negation.ll) · 1,389 bytes | [AssembledNegation.vast](../fixtures/AssembledNegation.vast) | The selected method negates a boxed integer larger than 2¹²⁸. The module retains the identity sibling. | `assembled_negation_verified` |
+| [selected-projection.ll](../src/selected-projection.ll) · 1,968 bytes | [SelectedProjection.vast](../fixtures/SelectedProjection.vast) | The assembled scalar method constructs `pair(7, 19)` and calls the second-field function. Its retained sibling calls the first. | `selected_projection_verified` |
 | [boxed-pairs.ll](../src/boxed-pairs.ll) · 4,157 bytes | [BoxedPairs.vast](../fixtures/BoxedPairs.vast) | Five functions construct and project homogeneous integer pairs. The selected method returns the large negative integer in its first field. Swapping the fields gives 42 at the entry. | `boxed_pairs_verified` |
 | [singleton-power.ll](../src/singleton-power.ll) · 1,977 bytes | [SingletonPower.vast](../fixtures/SingletonPower.vast) | One function squares a boxed integer eight times, divides by seven and passes the owned quotient to the hosted entry. | `singleton_power_verified` |
 | [borrowed-operator.ll](../src/borrowed-operator.ll) · 2,051 bytes | [Borrowed operator package](../fixtures/borrowed-operator/Vastitas.toml) | The caller borrows an edit grant on the imported family. Its selected implementation adds 40 and 2. The module also contains four unselected specializations of the method that returns zero. | `borrowed_operator_verified` |
 | [uncalled-operator.ll](../src/uncalled-operator.ll) · 1,829 bytes | [Uncalled operator package](../fixtures/uncalled-operator/Vastitas.toml) | The entry returns 7. Sealing the borrowed family retains its addition method and four fallback specializations. | `uncalled_operator_verified` |
+| [assembled-comparison.ll](../src/assembled-comparison.ll) · 2,382 bytes | [ComparisonMethod.vast](../fixtures/ComparisonMethod.vast) | The selected method compares two boxed integers and returns an `i32` Boolean. A branch passes 42 or 7 to a pointer `phi`. Each taken edge retains its boxed arguments and releases its owned temporaries. | `assembled_comparison_verified` |
+| [integer-predicate.ll](../src/integer-predicate.ll) · 873 bytes | [IntegerPredicate.vast](../fixtures/IntegerPredicate.vast) | Subtracts 256 from the first boxed integer, compares it with the second, releases both owned temporaries and returns a 32-bit Boolean. | `integer_predicate_verified` |
 | [boxed-arithmetic.ll](../src/boxed-arithmetic.ll) · 1,021 bytes | [BoxedArithmetic.vast](../fixtures/BoxedArithmetic.vast) | The two borrowed arguments determine the result. The function subtracts 5 from the Nat, divides by the Int, adds the quotient to itself, releases three intermediate references and returns an owned Int. | `boxed_arithmetic_verified` |
 | [assembled-bool.ll](../src/assembled-bool.ll) · 688 bytes | [AssembledBool.vast](../fixtures/AssembledBool.vast) | `main` calls the selected Boolean method and branches on the result. The two incoming edges supply 42 and 7 to the `phi`. The selected contribution returns its argument. The nonselected method also has a definition and returns false. | `assembled_bool_verified` |
 | [literal-comparison.ll](../src/literal-comparison.ll) · 924 bytes | [LiteralComparison.vast](../fixtures/LiteralComparison.vast) | The selected method distinguishes −(2¹²⁸+1) from −1. The fallback compares 0 with 256. Both pairs share their low byte. The two Boolean results survive in separate methods. | `literal_comparison_verified` |
@@ -38,7 +44,7 @@ The corpus contains 30 complete LLVM assembly files from edition 2026 Vastitas s
 | [s3-composition.ll](../src/s3-composition.ll) · 2,621 bytes | [S3Composition.vast](../fixtures/S3Composition.vast) | Two independently checked ordinals index the composition on six permutations. Row 1, column 2 gives ordinal 4. Reversing the inputs gives 3. | `s3_composition_verified` |
 | [static-call.ll](../src/static-call.ll) · 709 bytes | [CallComparison.vast](../../experiments/compiler_validation/llvm/CallComparison.vast) | The module defines the lookup and a second export, `@vq_forward`. Its single `call i32 @vq_lookup(i32 %tag)` passes the original tag and returns the result. | `static_call_verified` |
 
-Each file can be read or assembled independently. The 22 entry modules export `i32 @main()`. Four unary libraries export `i32 @vq_lookup(i32)`. The binary library exports `i32 @vq_lookup2(i32, i32)`. The call example also exports `i32 @vq_forward(i32)`. The boxed library exports `ptr @vq_exact(ptr, ptr)`. Its signature comment identifies the mathematical argument and result types.
+Each file can be read or assembled independently. The 29 entry modules export `i32 @main()`. Four unary libraries export `i32 @vq_lookup(i32)`. The binary library exports `i32 @vq_lookup2(i32, i32)`. The call example also exports `i32 @vq_forward(i32)`. The two exact libraries export `ptr @vq_exact(ptr, ptr)` for arithmetic and `i32 @vq_exact(ptr, ptr)` for the predicate. Their signature comments identify the mathematical argument and result types.
 
 The printer spells each target-header byte as an LLVM hexadecimal escape (for example, `\61` is `a`). Within the switch, `u0x0002` is the unsigned ordinal 2. The `i32 -1` at `%miss` has the unsigned value 4,294,967,295.
 
@@ -199,6 +205,18 @@ call arguments. Lean 4.35.0's external-call emitter also follows parameter
 order. The tensor axes and nonconjugating product are Vastitas source and
 storage checks. [Pinned argument emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L679) · [Complete bytes proof](../Corpus.lean)
 
+Changing the linear implementation of the column fixture from complex to real
+while keeping its complex buffers produces `E_TENSOR` before LLVM emission.
+With matching real buffers and literals, the complete module is 3,314 bytes.
+The first integer after the arena in the single `vq_storage_gemm` call changes
+from 3 (`F32<CC>`) to 2 (`F32<RR>`). On macOS arm64 the LLVM 23.1.4 and
+Lean/C executables linked with sequential LP64 OpenBLAS 0.3.34 both passed
+the two cell checks in each program. The complex product gives 33+6i per cell and the
+real product gives 9. Lean 4.35.0's `emitSimpleExternalCall` pairs parameters
+with arguments in order and constructs the call type from the non-erased
+parameters. In these Vastitas modules the storage ABI spells the representation
+as an `i64` argument. [Physical declaration and ABI regression](../../tests/indexed_definition_source.rs) · [Pinned external-call emitter](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L683)
+
 The GEMM coefficient fixture has two read-only input buffers. For the Linux
 x86-64 target the original source and a dimension spelled `0001` produce identical 4,317-byte
 modules. Rebinding the left map to the second input changes exactly one ordered
@@ -265,6 +283,119 @@ compiler reported that bitcode output requires a build with `-DLLVM=ON`.
 [Public regression](../../tests/llvm_preview.rs)
 [Boxed pairs](../src/boxed-pairs.ll) · [Binding proofs](../../lean/VastitasOracle/BindingCoverage.lean) · [Lean variable declarations](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L979-L1007) · [Lean block emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1153-L1164)
 
+For the nested call `pick(delta(9, 4), delta(3, 1))`, both calls to `delta`
+use the same function address. The selected method receives their SSA results
+as `@vq_f1(ptr %v2, ptr %v5)`. Lean 4.35.0's `emitFullApp` resolves the
+function ID, traverses its argument array in order, loads each slot and passes
+those values to `LLVM.buildCall2`. For the retained 2,311 bytes, both the
+Official and Fast boxed-program certificates verified the result 23. On macOS
+arm64, LLVM 23.1.4 assembled, verified and compiled this file. With the final addition of 20, the
+linked program returned 23. Swapping the two arguments or removing the applied
+method returned 17 in each case. Lean/C controls produced the same three
+results. The installed Lean compiler requires an LLVM-enabled build for the
+upstream bitcode comparison. [Public call regression](../../tests/llvm_preview.rs) · [Call proofs](../../lean/VastitasOracle/StaticCallCoverage.lean) · [Pinned emitFullApp](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L755-L774)
+
+The assembled conversion takes a borrowed heap `Nat`. Its shim retains that
+reference before the consuming `lean_nat_to_int` call. The caller releases the
+original after the selected method returns. The fallback accepts the same
+argument and returns zero. LLVM 23.1.4 compiled both variants on macOS arm64.
+A native probe compared each full integer before exit-status projection and
+rejected a value larger by 256. Lean 4.35.0’s `emitInc` emits the reference
+count increment requested by Lean IR. For the control `Int.ofNat` on a
+borrowed parameter, Lean’s generated C called `lean_inc` immediately before
+`lean_nat_to_int`; Clang 23.1.4 compiled the control and it returned status
+43. [Checked conversion](../src/assembled-conversion.ll) · [Vastitas runtime shim](../runtime/exact.c) · [Lean reference-count emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L610-L624)
+
+For every natural argument, the scoped conversion method returns the same
+unbounded integer through its retained Core call and both checked MidIR
+module invokers. When the operand is a branch, the Core-to-MidIR regression
+selects a Nat block parameter before emitting the conversion. Both branch
+outcomes pass. Validation rejects missing, mistyped, duplicated and
+non-dominating operands. The public LLVM preview currently rejects this
+branch-inside-conversion program. [Conversion proofs](../../lean/VastitasOracle/ConversionCoverage.lean) · [Branch regression](../../lean/VastitasOracle/MidIRRegression.lean)
+
+Lean 4.35.0’s `emitJmp` checks join arity, stores incoming values in the
+join parameter slots and emits a branch. For the control
+`Int.ofNat (if pickHigh then high else low)` with borrowed operands, the
+generated C retained and converted the chosen argument in each arm. Clang
+23.1.4 at `-O1` emitted a pointer phi before the return. Its verified,
+linked object selected the correct full integer in both directions for five
+pairs, from 0 and 256 to 2¹⁰²⁴ + 43 and 2¹⁰²⁴ + 299. The installed Lean
+toolchain rejected direct bitcode emission because it was built without
+LLVM support. [Pinned join emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1050-L1059)
+
+In the four-file ordered-calls package, the dependency’s `same_base(0, 1)`
+constrains an indexed family. Swapping these positions changes the function
+revision while preserving both operands of `@vq_f1(ptr %v2, ptr %v5)` and the
+complete module. Both inputs produced the same 2,311 bytes and a 2,256-byte
+macOS arm64 object with LLVM 23.1.4. Both linked executables returned 23.
+In a second comparison the dependency declared a package with a field
+`Tag(7)`. Changing the unused field to `Tag(8)` changed the checked function
+revision and preserved the same 2,311 bytes. The static LLVM 23.1.4 adapter
+produced a 2,176-byte macOS arm64 object in each run. Both linked programs
+returned 23. In a source that packs the witness, changing the index requires
+the corresponding field type in the packing function. [Physical package checks](../../tests/indexed_definition_source.rs) · [Publication theorem](../../lean/VastitasOracle/BoxedCertificate.lean)
+
+In Lean 4.35.0, `emitSimpleExternalCall` skips erased
+parameters when building both the argument types and the call. As a control,
+two Lean wrappers called the same external subtraction function with a static
+`Type` argument of `Nat` or `Int` and two `UInt64` operands. Compiling the
+generated C with Clang 23.1.4 produced `i64 @vast_family_sub(i64, i64)` in
+both wrappers, with the operands in source order. This comparison covers
+argument erasure and order. The Vastitas certificate checks the boxed integer
+program against its own runtime ABI. [Certificate regression](../../experiments/compiler_validation/boxed_certificate/regression.py) · [Lean external call emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L671)
+
+On macOS arm64 the assembled negation calls `vastitas_int_neg_v1` with one borrowed
+pointer. The caller releases its temporary after the method returns. Switching to the
+identity method changes 1,389 bytes to 1,274 and invalidates the original function revision.
+LLVM 23.1.4 and the generated Lean/C control returned −(2¹²⁸ + 43) and 2¹²⁸ + 43
+for the two methods. The native probe checks the boxed integers before conversion to exit
+statuses 213 and 43. In Lean 4.35.0, `emitSimpleExternalCall` constructs the external
+function type and forwards its retained operands in order. The generated C for the exported
+control calls `lean_int_neg` and then drops its owned argument. Clang 23.1.4, `llvm-as`,
+`opt` and `llc` reproduced both results from that control.
+[Lean control](../fixtures/AssembledNegationControl.lean) · [Pinned external call](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L672)
+
+The spectral action fixture reads the ordered entry of `J − 2I` for a two-dimensional
+Jordan block. Its Lean/C executable returned 1, then 7 after editing the upper-right
+coefficient, and 0 after interchanging the basis names. The boxed LLVM preview reports
+`E_UNSUPPORTED` for this operation. On macOS arm64 the separate Lean 4.35.0
+matrix control produced the same three results after C emission, Clang 23.1.4 IR
+generation, assembly, verification, object emission and linking. The control's generated
+C selects the row and column using `lean_ctor_get`. Lean's `emitProj` passes the field
+index to this same accessor. [Vastitas source](../../tests/fixtures/spectral-action-source.vast)
+· [Lean control](../fixtures/SpectralActionControl.lean)
+· [Pinned projection emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L795-L811)
+
+The selected-projection module calls the versioned boxed pair shim and its first- or second-field entry.
+The linked method proof covers both integer sorts and every argument value.
+Removing the assembly's `apply` selects the sibling that reads field zero.
+[Checked pair method](../fixtures/SelectedProjection.vast) · [Linked projection theorem](../../lean/VastitasOracle/PairCoverage.lean)
+
+The physical primitive comparison covers a used coordinate as well. In the
+frames package, `frame_component(Coords, 0)` and `frame_component(Coords, 1)`
+selected 7 and 19 from the same frame vector on the Lean/C native path.
+The public LLVM preview returned `E_UNSUPPORTED` for this frame program.
+Lean 4.35.0's `emitProj` passes the static field index to `lean_ctor_get`.
+In a separate two-field `Nat × Nat` control, Lean-generated C used indices
+0 and 1. Clang 23.1.4 at `-O1` lowered the payload reads to byte offsets 8
+and 16 on macOS arm64. The assembled and verified module linked and returned
+the same two coordinates. The control compares field selection. Frame layout
+and the mathematical interpretation of its coordinates belong to the Vastitas
+checker. [Lean field projection control](../fixtures/SelectedProjectionControl.lean) · [Physical primitive regressions](../../tests/indexed_definition_source.rs) · [Pinned Lean projection emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L796-L810)
+
+For the first frame vector `(1, s)` and a Gram matrix with rows `(g, 1)` and
+`(1, 1)`, its first Gram entry is `(g + s) + s * (1 + s)`. The Vastitas
+Lean/C executable returned 2, 3 and 5 for `(g, s) = (2, 0), (3, 0), (2, 1)`.
+These runs change the physical metric entry or the physical frame column.
+A separate Lean 4.35.0 function on two `Int` parameters generated three calls
+to `lean_int_add` and one to `lean_int_mul`. On macOS arm64, Clang 23.1.4
+emitted the LLVM module from its generated C. LLVM assembled and verified
+that module, and the linked control returned the same three results. In the
+Lean emitter, standard external calls construct a function type from retained
+arguments in order. The Vastitas LLVM preview reports `E_UNSUPPORTED` for the
+used frame operation. [Native frame regression](../../tests/indexed_definition_source.rs) · [Lean external call emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L682)
+
 The two-object isomorphism module passes the two arrows to the composition
 functions in opposite orders. Its nested conditions join the exit values 42,
 7 and 9 using two LLVM phi nodes. Lean 4.35.0's `emitJmp` stores join
@@ -282,6 +413,15 @@ Lean 4.35.0 emits `switch` for tagged cases and stores join arguments on a
 jump. Its pinned binary reports no LLVM backend feature.
 [Lean tagged cases](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1090-L1137) · [Lean join arguments](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1050-L1060)
 
+Two valid affine isomorphisms can exchange their forward and inverse maps.
+A Cartesian square can also select a second declaration of the same inverse
+map. With an entry returning 10, all three source variants reproduce the 374
+bytes of the folded-arithmetic module. Mixing the physical source and decoded
+witness from different variants fails before emission. The witnesses are
+checked during elaboration and leave no calls in this closed entry. In Lean
+4.35.0, `emitMainFn` calls the program and unboxes its exit status.
+[LLVM file](../src/folded-arithmetic.ll) · [Public source regression](../../tests/affine_geometry.rs) · [Lean main emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1577-L1590)
+
 An edition-2026 package declaring an exact complex affine plane and returning
 the integer 42 emits the same complete module as the constant entry alone.
 On the retained macOS target it has 374 bytes and ends in `ret i32 u0x2A`.
@@ -289,3 +429,80 @@ The declarations select a mathematical model during checking. This example
 exercises their erasure from a closed entry. Lean 4.35.0's hosted main obtains
 the result of a call and unboxes its status. [Public regression](../../tests/exact_affine_models.rs)
 · [Lean's main function](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1583)
+
+
+### A conditional that returns a parameter
+
+The assembled `choose(flag, left, right)` passes either the second or third parameter
+to a single integer block argument. The optimization and execution MidIR modules each
+contain four blocks for this method. The joined reference depends on the incoming edge.
+Exchanging the two integer references still satisfies the SSA type checker and changes
+the result. The Lean proof preserves their positions in the original scoped and ascribed
+Core arms. The public replay checks the exact called target and revision and compares
+the full Core integer with both MidIR observations. [Source](../fixtures/ConditionalMethod.vast) · [Public replay](../fixtures/ConditionalMethodReplay.lean)
+
+With the contribution applied, the two branches returned 2¹²⁸ + 43 and −19. The default
+method returned −19 on the same true input. Their Lean/C native exit statuses on macOS
+arm64 were 43, 237 and 237. The macOS arm64 objects generated from the boxed Vastitas LLVM modules returned
+the same three full integers. In each conditional the selected edge carries the
+borrowed integer to the pointer `phi` and transfers its ownership to the join. In the pinned Lean distribution, `lean --features` returned `[]`
+and `lean -b` reported that LLVM support was disabled. For the independent control,
+Clang 23.1.4 compiled the generated Lean C at `-O0`. Its LLVM IR branches on an
+8-bit Boolean, releases the unselected boxed integer and returns the selected pointer
+through a stack slot. Upstream `emitJmp` checks the argument count, stores each argument
+in the join parameter's slot and branches to the join. [Lean control](../fixtures/ConditionalMethodControl.lean) · [Pinned jump emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1050-L1060)
+
+
+### Comparisons on integer parameters
+
+The assembled `before(x, y)` compares its two parameters in their written
+order. Removing its contribution makes the default method compare them in
+reverse order. The public replay covers six comparisons for each of Nat and
+Int, including equal arguments and distinct integers with identical low bytes.
+It checks the selected callee, SSA operand order, common function revision
+and complete Core and MidIR observations. The macOS Lean/C executables returned
+42 and 7 for the two selections with either numeric type. The hosted LLVM corpus example retains both methods, calls the selected
+comparison and branches on the returned 32-bit Boolean. The native macOS
+qualification observed the full integers 42 and 7 for the two selections.
+[Source](../fixtures/ComparisonMethod.vast) · [Public replay](../fixtures/ComparisonMethodReplay.lean)
+
+For a direct call with arguments, Lean 4.35.0's `emitFullApp` resolves the
+IR function ID, loads the arguments in order and passes the function type and
+values to `LLVM.buildCall2`. Vastitas prints a local symbol such as `@vq_f0`.
+The proof reads each caller's direct calls from its parsed LLVM instructions,
+then recovers the original Core symbols and their occurrence counts through
+both SSA phases. For a dispatch target it also identifies the source caller
+and the method selected by assembly at the published revision.
+[Lean direct-call emitter](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L755-L773) · [Vastitas call correspondence](../../lean/VastitasOracle/FlowCertificate.lean)
+
+On macOS arm64, Lean 4.35.0 and nanoda 0.4.19 checked the same export for
+the selected comparison. It covers two physical files, three retained
+functions, the integer result 42 and all 2,382 LLVM bytes. Lean's external
+kernel replay took 4.96 seconds and peaked at 551 MiB RSS. Nanoda checked
+5,936 declarations in 11.24 seconds and peaked at 3,378 MiB RSS. These
+measurements cover the verifier processes. Certificate generation and native
+execution have separate costs. [Certificate replay](../../experiments/compiler_validation/boxed_certificate/README.md)
+
+Lean 4.35.0's external-call emitter builds the function type and call from
+the ordered, retained parameters. In the generated C control, greater-than
+reverses the operands of `lean_nat_dec_lt` or `lean_int_dec_lt`.
+Greater-than-or-equal similarly reverses the less-than-or-equal call.
+On macOS arm64, Clang 23.1.4 emitted two pointer operands and an 8-bit
+Boolean result. The native control passed 24 cases for each type, with
+operands up to 1,025 bits. Direct upstream bitcode emission is disabled in the
+pinned Lean installation. The native qualification runs these 48 generated-C
+comparisons on both hosts. Its separate upstream emission record attempts
+source-to-bitcode and disassembly when the installed Lean exposes LLVM.
+[Native qualification](../check_exact_native.py) · [Upstream qualification](../../experiments/compiler_validation/llvm/run.py) · [Lean comparison control](../fixtures/ComparisonMethodControl.lean) · [Pinned external-call emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L673)
+
+
+For a single exported straight-line function, the Vastitas LLVM ABI passes
+each integer as a borrowed pointer. The comparison shim calls the pinned
+Lean runtime and widens its Boolean to `uint32_t`. Clang 23.1.4 emitted a
+`zeroext` return attribute for a C `uint8_t` on both macOS arm64 and Linux
+x86-64. A C `uint32_t` has the plain LLVM return type `i32` on both targets.
+For `a - 256 <= b`, the library releases the subtraction result and the
+literal after the comparison. The C caller receives 0 or 1 directly. On macOS, LLVM 23.1.4 assembled and verified the 897-byte Linux-targeted variant and emitted a 1,344-byte x86-64 ELF object.
+The qualification compiles all twelve Nat/Int predicates and checks the
+two input reference counts, including cases with aliased heap integers.
+[Complete LLVM file](../src/integer-predicate.ll) · [Caller and ownership probe](../fixtures/IntegerPredicateProbe.c)

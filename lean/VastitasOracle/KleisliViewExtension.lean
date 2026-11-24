@@ -12,48 +12,6 @@ open Core.Semantics
 
 set_option maxRecDepth 4096
 
-private theorem bind_ok {a : Except ε α} {next : α → Except ε β}
-    (ok : (a >>= next) = .ok value) : ∃ x, a = .ok x ∧ next x = .ok value := by
-  cases a with
-  | error e => contradiction
-  | ok x => exact ⟨x,rfl,ok⟩
-
-/-- Finite discovery and sealing replace the prepared table, preserving the header declarations. -/
-private theorem prepared_env {decls : Core.Declarations} {pp : PreparedProgram}
-    (ok : prepareProgram source decls lifted disp excluded = .ok pp) :
-    pp.input.body.declarations = decls := by
-  unfold prepareProgram at ok
-  obtain ⟨ordinary, fromOrdinary, rest⟩ := bind_ok ok
-  have initial : ordinary.input.body.declarations = decls := by
-    obtain ⟨_,_,h⟩ := bind_ok fromOrdinary
-    obtain ⟨⟨_,_⟩,_,h⟩ := bind_ok h
-    obtain ⟨⟨_,_⟩,_,h⟩ := bind_ok h
-    cases h
-    rfl
-  by_cases no : source.finiteFunctions.isEmpty = true
-  · simp only [no, ite_true] at rest
-    cases rest
-    exact initial
-  · simp only [no] at rest
-    obtain ⟨_,_,h⟩ := bind_ok rest
-    obtain ⟨⟨_,_,_⟩,_,h⟩ := bind_ok h
-    obtain ⟨⟨_,_,_⟩,_,h⟩ := bind_ok h
-    obtain ⟨_,_,h⟩ := bind_ok h
-    obtain ⟨_,_,h⟩ := bind_ok h
-    obtain ⟨_,_,h⟩ := bind_ok h
-    obtain ⟨⟨_,_,_⟩,_,h⟩ := bind_ok h
-    cases h
-    exact initial
-
-/-- Lowering the executable pass places its input declarations in the emitted module. -/
-private theorem pass_env {pp : PreparedProgram} (ok : lowerPass pp false = .ok pass) :
-    pass.module.declarations = pp.input.body.declarations := by
-  unfold lowerPass at ok
-  simp only [Bool.false_and, Bool.false_eq_true, ite_false] at ok
-  obtain ⟨⟨_,_⟩,_,h⟩ := bind_ok ok
-  cases h
-  rfl
-
 /-- A named view and its underlying Monad give the same static model slot.
 Every successful instantiation of the extension body at this key evaluates
 to the mathematical extension in the executable Core of the same revision. -/
@@ -98,8 +56,8 @@ theorem public_extend {json : Lean.Json} (input : ResourceSource.Wire.CheckedInp
     change Indexed.FiniteMonads.model (FiniteCategories.view env) base fields = some m at found
     simp [FiniteSort.monad?, monadDecl, found]
   have environment : program.executable.core.module.declarations = checked.resolved.declarations := by
-    rw [program.executable.coreInput, pass_env program.executable.reconstructed]
-    exact prepared_env program.prepareFrom
+    rw [program.executable.coreInput, IndexedFunctions.pass_env program.executable.reconstructed]
+    exact IndexedFunctions.prepared_env program.prepareFrom
   refine ⟨revision, selected, explicitOwner, base, fields, schemaMem, baseMem, monadMem, m, model, c, laws, ?_⟩
   intro x y f t inputs output body ps res term instantiated values arg fuel
   exact FiniteMonadExtend.eval_instantiated_extend c f model t inputs output body instantiated

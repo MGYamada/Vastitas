@@ -102,7 +102,7 @@ jobs:
 
   compiler-without-mathlib:
     name: Native compiler (${{ matrix.os }}, no mathlib)
-    timeout-minutes: ${{ matrix.os == 'macos-latest' && 45 || 30 }}
+    timeout-minutes: ${{ matrix.os == 'macos-latest' && 60 || 30 }}
     strategy:
       fail-fast: false
       matrix:
@@ -124,11 +124,7 @@ jobs:
             /stdlib/
             /monad/
             /llvm/fixtures/
-            /llvm/src/borrowed-operator.ll
-            /llvm/src/float-identity.ll
-            /llvm/src/float-complex-identity.ll
-            /llvm/src/float32-identity.ll
-            /llvm/src/float32-complex-identity.ll
+            /llvm/src/
             /llvm/runtime/
             /llvm/check_exact_native.py
             /nature/
@@ -165,7 +161,7 @@ jobs:
       - name: Build the standalone Lean kernel
         run: lake -d lean-kernel build vastitas-kernel
       - name: Check the 20,000-function watchdog in isolation
-        run: cargo test --locked --test compiler kernel_checks_twenty_thousand_functions_within_the_watchdog -- --exact --test-threads=1
+        run: cargo test --locked --test compiler kernel_checks_twenty_thousand_functions_within_the_watchdog -- --ignored --exact --test-threads=1
       - name: Compare boxed LLVM libraries and executables with generated Lean controls
         run: python3 llvm/check_exact_native.py --lean-clang
       - name: Check dependency boundary
@@ -319,7 +315,7 @@ jobs:
           VASTITAS_TEST_NATIVE_CC: ${{ runner.os == 'Linux' && 'cc' || '' }}
         run: |
           cargo test --locked --test examples --test numerical_source --test tensor_source --test tree_source \
-            --test cached_packing --test diagonal_metrics --test runtime_shape_source -- --ignored
+            --test cached_packing --test diagonal_metrics --test runtime_shape_source --test indexed_definition_source -- --ignored
       - name: Current public numerical harness entries and native results
         run: |
           if [ "$RUNNER_OS" = Linux ]; then
@@ -335,9 +331,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    # macOS runs the complete corpus after a cold build, followed by three
-    # per-input certificate suites. Keep time for those suites on slower runners.
-    timeout-minutes: ${{ matrix.os == 'macos-latest' && 120 || 45 }}
+    # Both hosts run the corpus and three complete per-input suites after a cold
+    # build. The certificate runner limits each individual worker to 120 seconds.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

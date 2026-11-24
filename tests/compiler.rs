@@ -1,6 +1,6 @@
 //! End-to-end tests require `lake -d lean-kernel build vastitas-kernel` first.
 mod common;
-use common::{Run, Scratch, assert_rejected, cli, exits, kernel, shows, success as assert_success};
+use common::{Run, Scratch, assert_rejected, cli, exits, shows, success as assert_success};
 use serde_json::{Value, json};
 use std::fs;
 use std::process::Output;
@@ -334,27 +334,29 @@ fn shared_and_repeated_dependencies_have_a_valid_native_order() {
     assert_rejected(forged, "E_RECURSION");
 }
 
-#[test]
-fn kernel_checks_twenty_thousand_functions_within_the_watchdog() {
+fn check_call_graphs(count: usize) {
     use std::fmt::Write;
 
-    const COUNT: usize = 20_000;
     for (shared, reversed, lambda) in [
         (false, false, false),
         (false, false, true),
         (false, true, true),
         (true, false, true),
     ] {
-        let mut declarations = Vec::new();
-        for i in 0..COUNT - 1 {
-            let callee = if shared { COUNT - 1 } else { i + 1 };
-            declarations.push(format!("fn f{i}(x: Int) -> Int {{ f{callee}(x) }}"));
+        let mut source = String::new();
+        for ordinal in 0..count {
+            let i = if reversed {
+                count - 1 - ordinal
+            } else {
+                ordinal
+            };
+            if i + 1 == count {
+                writeln!(source, "fn f{i}(x: Int) -> Int {{ x }}").unwrap();
+            } else {
+                let callee = if shared { count - 1 } else { i + 1 };
+                writeln!(source, "fn f{i}(x: Int) -> Int {{ f{callee}(x) }}").unwrap();
+            }
         }
-        declarations.push(format!("fn f{}(x: Int) -> Int {{ x }}", COUNT - 1));
-        if reversed {
-            declarations.reverse();
-        }
-        let mut source = declarations.join("\n");
         if lambda {
             writeln!(
                 source,
@@ -364,12 +366,26 @@ fn kernel_checks_twenty_thousand_functions_within_the_watchdog() {
         } else {
             writeln!(source, "\nfn main() -> Int {{ f0(42) }}").unwrap();
         }
-        let response = kernel(request(&source), "check");
+        let output = common::check_wire_file(&source, "scale.vast");
+        assert_success(&output);
+        let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(response["version"], common::CURRENT_PROTOCOL);
         assert_eq!(
             response["ok"], true,
             "shared={shared}, reversed={reversed}, lambda={lambda}: {response}"
         );
     }
+}
+
+#[test]
+fn kernel_checks_call_graph_shapes() {
+    check_call_graphs(128);
+}
+
+#[test]
+#[ignore = "mandatory isolated scale test in native CI"]
+fn kernel_checks_twenty_thousand_functions_within_the_watchdog() {
+    check_call_graphs(20_000);
 }
 
 #[test]

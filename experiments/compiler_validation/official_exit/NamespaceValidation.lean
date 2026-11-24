@@ -15,7 +15,7 @@ theorem validated : Namespace.validate idx = .ok () := by
 theorem declarationsFromParts (p : Indexed.Source.Program) (r : Indexed.Source.Resolved)
     (count : ¬ p.owned.length > 4096) (ns : Namespace.validate p.indexed = .ok ())
     (owners : Namespace.UniqueOwners p.indexed) (lowered : Indexed.Source.lower p = .ok r)
-    (refs : Indexed.Source.ReferencesValid p.indexed r) (ids : r.declarations.ids = p.declarationIds)
+    (refs : Indexed.Source.ReferencesValid p.indexed r) (ids : p.SameTableIds r.declarations)
     (dataValid : Indexed.Core.validDeclarations r.declarations = true)
     (geometryValid : r.geometry.all (·.valid r.declarations) = true) :
     ∃ c, Indexed.Source.checkDeclarations p = .ok c ∧ c.resolved = r := by
@@ -39,7 +39,7 @@ result and its remaining data audits, preserving that very result. -/
 theorem declarationsFromLower (r : Indexed.Source.Resolved)
     (lowered : Indexed.Source.lower headers = .ok r)
     (refs : Indexed.Source.ReferencesValid headers.indexed r)
-    (ids : r.declarations.ids = headers.declarationIds)
+    (ids : headers.SameTableIds r.declarations)
     (dataValid : Indexed.Core.validDeclarations r.declarations = true)
     (geometryValid : r.geometry.all (·.valid r.declarations) = true) :
     ∃ c, Indexed.Source.checkDeclarations headers = .ok c ∧ c.resolved = r :=

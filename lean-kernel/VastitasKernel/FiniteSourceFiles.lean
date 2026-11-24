@@ -1,4 +1,4 @@
-import VastitasKernel.AffineDeclarationText
+import VastitasKernel.IndexedRecordText
 import VastitasKernel.ExactModelSource
 import VastitasKernel.MethodBodyText
 
@@ -65,10 +65,9 @@ def indexedKeyword : Source.Body → String
   | .categorySchema | .functorSchema | .isoSchema | .natTransSchema | .monadSchema | .kleisliSchema .. => "schema"
   | .finiteCategory .. | .finiteOpposite .. | .finiteFunctor .. | .finiteIso ..
   | .finiteNatTrans .. | .finiteMonad .. | .finiteKleisli .. => "instance"
-  | .exactGeometry (.cauchyQQ) | .exactGeometry (.complexPairs ..) => "carrier"
-  | .exactGeometry (.realMeadow ..) | .exactGeometry (.complexMeadow ..) => "meadow"
-  | .exactGeometry (.affine ..) | .affine .. | .affineFiber .. | .affineLocalization .. | .smoothAffine .. => "affine"
-  | .exactGeometry (.identity ..) | .morphism .. => "morphism"
+  | .exactGeometry c => ExactModelSource.keyword c
+  | .affine .. | .affineFiber .. | .affineLocalization .. | .smoothAffine .. => "affine"
+  | .morphism .. => "morphism"
   | .marker => "marker"
   | .implementation .. => "implementation"
   | .classification .. => "classification"
@@ -108,7 +107,11 @@ inductive DeclarationSyntax where
   | abstractType (declaration : Namespace.AbstractType)
   | subtype (declaration : RawSubtype)
   | indexed (declaration : Form)
-  | indexedHeader (keyword name : String) (fields : Option (List ExactLexeme))
+  | indexedOperands (declaration : Source.Declaration)
+  | indexedMetricOrFrame (declaration : Source.Declaration)
+  | indexedPrimitive (name : String) (binding : Source.Primitive)
+  | indexedFamily (name : String) (family : Source.Family)
+  | indexedHeader (keyword name : String) (fields : List ExactLexeme)
   | affine (declaration : Source.Declaration)
   | function (declaration : FunctionSource.Function)
   /-- Ordinary singleton and the top-level statement indices observed in main. -/
@@ -121,17 +124,102 @@ structure Item where
   isPublic : Bool
   syntax_ : DeclarationSyntax
 
+private def coefficientToken : CoefficientKind → ExactLexeme
+  | .real => .ident "real"
+  | .complex => .ident "complex"
+
+private def representationTokens : Source.Representation → List ExactLexeme
+  | .affineDescriptor => [.ident "affine_descriptor"]
+  | .scalarBase setting coeff =>
+    let settingToken : ExactLexeme := match setting with | .scheme => .ident "scheme" | .smooth => .ident "smooth"
+    [.ident "scalar_base", .punctuation '(', settingToken, .punctuation ',', coefficientToken coeff, .punctuation ')']
+  | .linearDescriptor base coeff =>
+    [.ident "linear_descriptor", .punctuation '(', ref base, .punctuation ',', coefficientToken coeff, .punctuation ')']
+  | .presentedAffine .rational => [.ident "presented_affine", .punctuation '(', .ident "rational", .punctuation ')']
+  | .smoothAffine => [.ident "smooth_affine"]
+
+def implementationFields (marker : Source.Path) (representation : Source.Representation)
+    (capabilities : List Capability) : List ExactLexeme :=
+  let capabilityToken : Capability → ExactLexeme
+    | .origin => .ident "origin"
+    | .dimension => .ident "dim"
+  [.punctuation '(', ref marker, .punctuation ','] ++ representationTokens representation ++
+    [.punctuation ')', .ident "capabilities"] ++ tuple (capabilities.map capabilityToken)
+
+def classificationFields (parents domain : List Source.Path) : List ExactLexeme :=
+  [.punctuation '{', .ident "parents"] ++ tuple (parents.map ref) ++ [.punctuation ';', .ident "domain"] ++
+    tuple (domain.map ref) ++ [.punctuation ';', .punctuation '}']
+
+private def boundIndexTokens : Source.BoundIndex → List ExactLexeme
+  | .witness => [.ident "witness"]
+  | .global path => application "global" [path]
+  | .domain path => application "domain" [path]
+  | .marker path => application "marker" [path]
+  | .natural n => [.boundNatural n]
+
+def packageFields (cases : List Source.PackageShape) : List ExactLexeme :=
+  let fieldTokens (field : Source.BoundApplication) :=
+    [ref field.family, .punctuation '('] ++ listLexemes (field.indices.map boundIndexTokens) ')' ++ [.punctuation ';']
+  let caseTokens (shape : Source.PackageShape) :=
+    [.ident "case", .punctuation '(', ref shape.witnessType.domain, .punctuation ',', ref shape.witnessType.marker,
+     .punctuation ')', .punctuation '{'] ++ shape.fields.flatMap fieldTokens ++ [.punctuation '}']
+  [.punctuation '{'] ++ cases.flatMap caseTokens ++ [.punctuation '}']
+
+private def familyParameter : Source.Parameter → List ExactLexeme
+  | .domain => [.ident "domain"]
+  | .marker => [.ident "marker"]
+  | .natural => [.ident "natural"]
+  | .object domain => application "object" [domain]
+  | .frame family => application "frame" [family]
+
+private def familyConstraint (rule : Constraint) : List ExactLexeme :=
+  let slots (name : String) (args : List Nat) : List ExactLexeme :=
+    [.ident name, .punctuation '('] ++ (args.map ExactLexeme.constraintSlot).intersperse (.punctuation ',') ++ [.punctuation ')']
+  match rule with
+  | .sameObject i j => slots "same_object" [i,j]
+  | .sameBase i j => slots "same_base" [i,j]
+  | .over i j => slots "over" [i,j]
+  | .structural i j => slots "structural" [i,j]
+  | .canonical i => slots "canonical" [i]
+
+/-- Metric, evidence and frame payloads share ordered polynomial and path replay. -/
+@[simp] def metricOrFrame : Source.Body → Bool
+  | .metric .. | .evidence .. | .frame .. => true
+  | _ => false
+
 def indexedSyntax (d : Source.Declaration) : DeclarationSyntax :=
   if AffineDeclarationText.applies d then .affine d else
     match form d with
     | some shape => .indexed shape
-    | none =>
+    | none => Id.run do
+      if let .family family := d.body then return .indexedFamily d.name family
+      if let .primitive binding := d.body then return .indexedPrimitive d.name binding
+      if metricOrFrame d.body then return .indexedMetricOrFrame d
       let fields := match d.body with
+        | .exactGeometry c => some (ExactModelSource.fields c)
         | .marker | .baseDimension => some []
+        | .implementation marker representation capabilities => some (implementationFields marker representation capabilities)
+        | .classification parents domain => some (classificationFields parents domain)
+        | .package cases => some (packageFields cases)
         | .global implementation =>
           some [.punctuation '(', .reference implementation.path implementation.span, .punctuation ')']
         | _ => none
-      .indexedHeader (indexedKeyword d.body) d.name fields
+      return match fields with
+        | some tokens => .indexedHeader (indexedKeyword d.body) d.name tokens
+        | none => .indexedOperands d
+
+/-- A declaration routed to the record parser always has an implemented grammar.
+An added or misrouted constructor must also satisfy this exhaustive check. -/
+theorem indexedOperands_supported (d : Source.Declaration)
+    (routed : indexedSyntax d = .indexedOperands d) : (IndexedRecordText.grammar d.body).isSome = true := by
+  cases h : d.body <;>
+    simp [indexedSyntax, AffineDeclarationText.applies, form, metricOrFrame, h] at routed <;>
+    first | rfl | rename_i convention; cases convention; rfl
+
+theorem metricOrFrame_syntax (d : Source.Declaration) (selected : metricOrFrame d.body = true) :
+    indexedSyntax d = .indexedMetricOrFrame d ∧ d.body.category = 0 := by
+  cases h : d.body <;> simp [h, metricOrFrame] at selected <;>
+    simp [indexedSyntax, AffineDeclarationText.applies, form, Source.Body.category, h]
 
 def declarations (program : ResourceSource.Program) : List Item :=
   program.packages.flatMap fun pkg => pkg.modules.flatMap fun m =>
@@ -167,7 +255,7 @@ def Item.kind (item : Item) : SiteKind :=
   | .namespaceImport _ => .namespaceImport
   | .abstractType _ | .subtype _ => .hierarchy
   | .indexed _ => .indexed
-  | .indexedHeader .. => .indexedHeader
+  | .indexedHeader .. | .indexedFamily .. | .indexedMetricOrFrame .. | .indexedOperands .. | .indexedPrimitive .. => .indexedHeader
   | .affine _ => .affine
   | .function _ => .finiteFunction
   | .singleton .. => .singleton
@@ -178,7 +266,7 @@ def Item.inFile (item : Item) (index entry : Nat) : Bool :=
   index == entry || item.packageSource != flatPackageId.source ||
     match item.syntax_ with
     | .singleton f _ | .function f => f.name != "main"
-    | .indexed _ | .indexedHeader .. | .affine _ | .namespaceImport _ | .namespaceModule _ | .abstractType _ | .subtype _ => true
+    | .indexed _ | .indexedHeader .. | .indexedFamily .. | .indexedMetricOrFrame .. | .indexedOperands .. | .indexedPrimitive .. | .affine _ | .namespaceImport _ | .namespaceModule _ | .abstractType _ | .subtype _ => true
 
 private def readTokens (file : File) (before : Cursor) (tokens : List ExactLexeme)
     (report : Span → String → Diagnostic := errorAt) : Except Diagnostic Cursor :=
@@ -252,6 +340,20 @@ private def endHierarchy (file : File) (first : Token) (cursor : Cursor) (span :
   let end_ ← readTokens file cursor [.punctuation ';'] report
   unless sameSpan file first end_ span do throw (report first.span "selector declaration span differs from its source")
 
+private def replayFamily (file : File) (first : Token) (name : String) (family : Source.Family) (span : Span) :
+    Except Diagnostic Unit := do
+  let report := sourceError .indexedHeader
+  let head := [.ident "family", .ident name, .punctuation '('] ++ listLexemes (family.parameters.map familyParameter) ')' ++
+    [.punctuation '=', .ident (Source.representationText family.representation)]
+  let after ← readTokens file first.after head report
+  let next ← (file.next after).mapError (report span)
+  let optional := match family.representation with | .frameMap | .frameFiber _ => family.constraints.isEmpty | _ => false
+  let tail := if optional && (next.kind matches .symbol ';') then [] else
+    [.ident "constraints", .punctuation '('] ++ listLexemes (family.constraints.map familyConstraint) ')'
+  let ending ← readTokens file after (tail ++ [.punctuation ';']) report
+  unless (first.kind matches .word "indexed") && sameSpan file first ending span do
+    throw (report first.span "indexed family extent differs from the physical source")
+
 def replay (file : File) (before : Cursor) (item : Item) : Except Diagnostic Unit := do
   let first ← (file.next before).mapError (errorAt item.span)
   match item.syntax_ with
@@ -264,15 +366,16 @@ def replay (file : File) (before : Cursor) (item : Item) : Except Diagnostic Uni
     let after ← readTokens file before [.ident "subtype", .ident s.scalar, .subtypeMark,
       ← selectorPath (item.packageSource == flatPackageId.source) s.target] (sourceError .hierarchy)
     endHierarchy file first after item.span
+  | .indexedOperands d => IndexedRecordText.check file first (indexedKeyword d.body) d
+  | .indexedMetricOrFrame d => AffineDeclarationText.checkMetricOrFrame file first d
+  | .indexedPrimitive name binding => AffineDeclarationText.checkPrimitive file first name binding item.span
+  | .indexedFamily name family => replayFamily file first name family item.span
   | .indexed shape => replayIndexed file first shape item.span
   | .indexedHeader keyword name fields =>
     let report := sourceError .indexedHeader
     let after ← readTokens file before [.ident "indexed", .ident keyword, .ident name] report
-    let last ← match fields with
-      | some tokens => do
-        let cursor ← readTokens file after tokens report
-        (file.next cursor).mapError (report item.span)
-      | none => (indexedEnd file first).mapError (report item.span)
+    let cursor ← readTokens file after fields report
+    let last ← (file.next cursor).mapError (report item.span)
     unless (last.kind matches .symbol ';') && {first.span with «end» := last.span.end} == item.span do
       throw (report last.span "indexed declaration differs from its physical extent")
   | .affine d => AffineDeclarationText.check file first d
@@ -375,5 +478,58 @@ theorem check_sound {layout : PhysicalSources.Layout} {sites : Sites} {items : L
   split at h
   · exact ⟨by assumption, checkAll_sound h⟩
   · contradiction
+
+/-- A file-backed package has one implicit public root module. Its span covers
+the first token of its physical root file, or the EOF token for an empty file. -/
+def RootCorresponds (layout : PhysicalSources.Layout) (roots : Std.TreeMap String Nat)
+    (pkg : ResourceSource.Package) : Prop :=
+  ∃ root i file first,
+    pkg.modules.filter (fun m => m.pureModule.module.path.isEmpty) = [root] ∧
+    roots.get? pkg.id.source = some i ∧ layout.files[i]? = some file ∧
+    (File.mk file.text file.offset).next {} = .ok first ∧
+    root.pureModule.module.isPublic = true ∧ root.pureModule.module.span = first.span
+
+private def checkRoot (layout : PhysicalSources.Layout) (roots : Std.TreeMap String Nat)
+    (pkg : ResourceSource.Package) : Except Diagnostic (PLift (RootCorresponds layout roots pkg)) := do
+  let issue := fun (span : Span) (why : String) =>
+    ({code := "E_MODULE_SOURCE", span, message := s!"package {pkg.id.name}: {why}"} : Diagnostic)
+  let some ⟨i, hi⟩ := (roots.get? pkg.id.source).attach | throw (issue {} "missing physical root module")
+  let some ⟨file, hf⟩ := layout.files[i]?.attach | throw (issue {} "missing root module file")
+  match ht : (File.mk file.text file.offset).next {} with
+  | .error why => throw (issue ⟨file.offset,file.offset,1,1⟩ why)
+  | .ok first =>
+    match hr : pkg.modules.filter (fun m => m.pureModule.module.path.isEmpty) with
+    | [root] =>
+      if h : root.pureModule.module.isPublic = true ∧ root.pureModule.module.span = first.span then
+        return ⟨root, i, file, first, hr, hi, hf, ht, h⟩
+      throw (issue first.span "root module must be public and carry the span of its first token")
+    | _ => throw (issue first.span "expected one root module")
+
+private def checkRootsIn (layout : PhysicalSources.Layout) (roots : Std.TreeMap String Nat) :
+    List ResourceSource.Package → Except Diagnostic Unit
+  | [] => pure ()
+  | pkg :: rest => do
+    let _ ← checkRoot layout roots pkg
+    checkRootsIn layout roots rest
+
+def checkRoots (layout : PhysicalSources.Layout) (roots : Std.TreeMap String Nat)
+    (program : ResourceSource.Program) : Except Diagnostic Unit :=
+  if program.root == flatPackageId.source then pure () else checkRootsIn layout roots program.packages
+
+theorem checkRoots_sound {layout roots program} (checked : checkRoots layout roots program = .ok ())
+    (disk : program.root ≠ flatPackageId.source) {pkg : ResourceSource.Package}
+    (member : pkg ∈ program.packages) : RootCorresponds layout roots pkg := by
+  simp only [checkRoots, beq_eq_false_iff_ne.mpr disk, Bool.false_eq_true, ↓reduceIte] at checked
+  generalize program.packages = packages at checked member
+  induction packages with
+  | nil => contradiction
+  | cons first rest ih =>
+    cases h : checkRoot layout roots first with
+    | error err => simp [checkRootsIn, h, bind, Except.bind] at checked
+    | ok proof =>
+      simp [checkRootsIn, h, bind, Except.bind] at checked
+      rcases List.mem_cons.mp member with rfl | later
+      · exact proof.down
+      · exact ih checked later
 
 end VastitasKernel.FiniteSourceFiles

@@ -1353,8 +1353,8 @@ frontend writes it. On the local macOS host, three-run medians for a forward
 chain of 2,000 / 4,000 / 8,000 functions were 0.161 / 0.458 / 1.645 seconds
 without a lambda and 0.165 / 0.446 / 1.775 with one.
 These are observations, not timing guarantees or a proof of total compiler
-complexity. The integration suite also checks 20,000 functions in both modes
-under its 60-second watchdog.
+complexity. Native CI checks 20,000 functions with and without a lambda in its isolated
+60-second kernel watchdog. The regular integration test runs the same graph shapes at 128 functions.
 
 ## Exact geometric references
 

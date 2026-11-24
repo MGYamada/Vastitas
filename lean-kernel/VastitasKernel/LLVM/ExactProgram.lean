@@ -31,8 +31,7 @@ private def fnName (i : Nat) := s!"@vq_f{i}"
 private def scope (i : Nat) := s!"{i}_"
 
 private def declaration : Instruction → Option String
-  | .primitive s => some ("declare ptr " ++ symbol s.callee ++ "(" ++
-    String.intercalate ", " (List.replicate s.argCount "ptr") ++ ")")
+  | .primitive s => some s.declaration
   | .invoke .. => none
 
 private def body (f : Function) (id : Nat) : List String := Id.run do
@@ -64,12 +63,13 @@ def Code.print (c : Code) : List UInt8 :=
   c.header.print ++ ("\n" ++ String.intercalate "\n" c.bodyLines ++ "\n").toUTF8.data.toList
 
 private def typed (c : Code) (i : Nat) (f : Function) : Bool := Id.run do
-  unless f.params.length + f.ops.length ≤ 4096 do return false
+  unless f.params.length + f.ops.length ≤ 4096 && !f.params.contains .bool && f.output != .bool do return false
   let mut slots := (f.params.map Kind.type).toArray
   for op in f.ops do
     match op with
     | .primitive (.nat _) => slots := slots.push .nat
     | .primitive (.int _) => slots := slots.push .int
+    | .primitive (.compare ..) => return false
     | .primitive (.apply op refs) =>
       unless refs.mapM (slots[·]?) == some op.operands do return false
       slots := slots.push op.result
@@ -173,6 +173,7 @@ private def evalFn (functions : Array Function) : Nat → Nat → List Value →
       let v ← match op with
         | .primitive (.nat n) => pure (.natural n)
         | .primitive (.int n) => pure (.integer n)
+        | .primitive (.compare ..) => failure
         | .primitive (.apply op refs) => liftM (do Evaluation.exactValue op (← refs.mapM (values[·]?)))
         | .invoke idx refs => evalFn functions depth idx (← liftM (refs.mapM (values[·]?)))
       -- Every operand has already passed this bound before multiplication.

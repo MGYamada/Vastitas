@@ -12,12 +12,6 @@ namespace VastitasOracle.MidIR
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.MidIR
 open VastitasKernel.Indexed.Core.Semantics
 
-private def fits : VastitasKernel.MidIR.Ty → Value → Bool
-  | .unit, .unit => true
-  | .bool, .boolean _ => true
-  | .finite c, .finiteTag d _ => c == d
-  | _, _ => false
-
 /-- Read the ordered nominal arguments of a table, including the owner and
 endpoints of each Hom fiber. Arity mismatches have no value. -/
 def lookupKey : List FiniteSort → List Value → Option (List String)
@@ -98,9 +92,7 @@ def denote {p : Phase} (env : Environment) (op : Opcode p) (args : List Value)
   | .call target => resolve target args
   | .compare k t => do
     let [a, b] := args | none
-    guard (fits t a && fits t b)
-    let equal := decide (a = b)
-    return .boolean (match k with | .eq => equal | .ne => !equal)
+    Evaluation.compareValues k t a b
 
 /-- Resolving a tag to an ordinal in its checked nominal sort preserves its
 logical value, including the endpoints of a Hom sort. Covers every operand
@@ -234,16 +226,23 @@ theorem checked_invoke {p : Phase} (m : Module p) (depth : Nat) :
     funext target args
     simp only [Evaluation.invoke, invoke, ih, checked_runWith]
 
+/-- A one-operand block reads the incoming SSA slot and returns the result of
+its instruction, including an invalid operand's missing result. -/
+theorem runWith_single_operand {p : Phase} (resolve : Resolver) (env : Environment)
+    (f : MidIR.Function p) (op : Opcode p) (type : VastitasKernel.MidIR.Ty) (arg : Value)
+    (shape : f.blocks = #[⟨#[type], #[⟨op,[⟨0,0⟩]⟩], .ret ⟨0⟩ ⟨0,1⟩⟩]) :
+    runWith env f resolve [arg] = denote env op [arg] resolve := by
+  unfold runWith
+  rw [shape]
+  cases h : denote env op [arg] resolve <;>
+    simp [runGraph, Evaluation.runGraph.go, observeBlock, observeOp, guard, h]
+
 /-- The single unary lookup block reads its argument and returns the result
 of the lookup. The statement also covers a missing logical result. -/
 theorem runWith_unary (resolve : Resolver) {p : Phase} (env : Environment) (s : UnaryLookup) (f : MidIR.Function p)
     (shape : f.blocks = #[s.block p]) (arg : Value) :
     runWith env f resolve [arg] = lookupValue env s.site [arg] := by
-  unfold runWith
-  rw [shape]
-  cases found : lookupValue env s.site [arg] <;> cases p <;>
-    simp [runGraph, Evaluation.runGraph.go, observeBlock, observeOp, UnaryLookup.block,
-      UnaryLookup.code, denote, guard, found]
+  cases p <;> exact runWith_single_operand resolve env f _ _ arg shape
 
 theorem run_unary {p : Phase} (env : Environment) (s : UnaryLookup) (f : MidIR.Function p)
     (shape : f.blocks = #[s.block p]) (arg : Value) :
@@ -251,14 +250,20 @@ theorem run_unary {p : Phase} (env : Environment) (s : UnaryLookup) (f : MidIR.F
 
 /-- A two-argument SSA block passes its incoming values to its operation in
 parameter order and returns precisely the value of that operation. -/
+theorem runWith_binary {p : Phase} (resolve : Resolver) (env : Environment) (f : MidIR.Function p) (op : Opcode p)
+    (a b : VastitasKernel.MidIR.Ty) (row col : Value)
+    (shape : f.blocks = #[⟨#[a,b], #[⟨op,[⟨0,0⟩,⟨0,1⟩]⟩], .ret ⟨0⟩ ⟨0,2⟩⟩]) :
+    runWith env f resolve [row,col] = denote env op [row,col] resolve := by
+  unfold runWith
+  rw [shape]
+  cases h : denote env op [row,col] resolve <;>
+    simp [runGraph, Evaluation.runGraph.go, observeBlock, observeOp, Std.HashMap.getElem?_insert, guard, h]
+
 theorem run_binary {p : Phase} (env : Environment) (f : MidIR.Function p) (op : Opcode p)
     (a b : VastitasKernel.MidIR.Ty) (row col : Value)
     (shape : f.blocks = #[⟨#[a,b], #[⟨op,[⟨0,0⟩,⟨0,1⟩]⟩], .ret ⟨0⟩ ⟨0,2⟩⟩]) :
-    run env f [row,col] = denote env op [row,col] := by
-  unfold run
-  rw [shape]
-  cases h : denote env op [row,col] <;>
-    simp [runGraph, Evaluation.runGraph.go, observeBlock, observeOp, Std.HashMap.getElem?_insert, guard, h]
+    run env f [row,col] = denote env op [row,col] :=
+  runWith_binary _ env f op a b row col shape
 
 /-- The second argument can also occur first in the opcode's actual SSA operands. -/
 theorem run_binary_swapped {p : Phase} (env : Environment) (f : MidIR.Function p) (op : Opcode p)
@@ -309,6 +314,19 @@ theorem runWith_callBranch {p : Phase} (env : Environment) (resolve : Resolver) 
     runWith env f resolve [] = some (.integer (if choice then yes else no)) := by
   cases choice <;> simp [runWith, shape, runGraph, Evaluation.runGraph.go, observeBlock, observeOp,
     denote, guard, selected]
+
+/-- The two branch arguments occupy distinct entry slots. Their types agree,
+so reversing them can change the observed value without breaking the SSA types. -/
+theorem runWith_parameterBranch {p : Phase} (env : Environment) (resolve : Resolver)
+    (f : MidIR.Function p) (choice : Bool) (y n : Int)
+    (shape : f.blocks = #[
+      ⟨#[.bool,.int,.int], #[], .branch ⟨0,0⟩ ⟨1,⟨0⟩,[]⟩ ⟨2,⟨0⟩,[]⟩⟩,
+      ⟨#[], #[], .jump ⟨3,⟨1⟩,[⟨0,1⟩]⟩⟩,
+      ⟨#[], #[], .jump ⟨3,⟨2⟩,[⟨0,2⟩]⟩⟩,
+      ⟨#[.int], #[], .ret ⟨3⟩ ⟨3,0⟩⟩]) :
+    runWith env f resolve [.boolean choice,.integer y,.integer n] =
+      some (.integer (if choice then y else n)) := by
+  cases choice <;> simp [runWith, shape, runGraph, Evaluation.runGraph.go, observeBlock, Std.HashMap.getElem?_insert, Std.HashMap.getElem_insert, Ref.mk.injEq, guard]
 
 /-- A successful, pointwise translation preserves the observations of the
 whole array. The same lemma applies to instruction sequences and to blocks. -/

@@ -46,7 +46,7 @@ theorem owned_origin (program : Source.Program) (owner : DeclId) (declaration : 
 theorem declared_id_origin (program : Source.Program) (owner : DeclId)
     (member : owner ∈ program.declarationIds) :
     ∃ declaration, (owner, declaration) ∈ program.owned := by
-  simp only [Source.Program.declarationIds, List.mem_flatMap, List.mem_map, List.mem_filter] at member
+  simp only [Source.Program.declarationIds, Source.Program.idsIn, List.mem_flatMap, List.mem_map, List.mem_filter] at member
   obtain ⟨_, _, entry, ⟨entryMember, _⟩, same⟩ := member
   subst owner
   exact ⟨entry.2, entryMember⟩

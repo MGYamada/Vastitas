@@ -38,6 +38,33 @@ inductive Parameter where
   | frame (family : Path)
   deriving Repr, Inhabited
 
+/-- Edition spelling shared by the physical source checker and diagnostics. -/
+def representationText : FamilyRepresentation → String
+  | .token => "token"
+  | .point => "point"
+  | .morphism => "morphism"
+  | .relative => "relative"
+  | .smooth => "smooth"
+  | .fiber .tangent => "tangent"
+  | .fiber .cotangent => "cotangent"
+  | .tape => "tape"
+  | .metricForm => "metric_form"
+  | .frame => "frame"
+  | .frameFiber .tangent => "frame_vector"
+  | .frameFiber .cotangent => "frame_covector"
+  | .frameMap => "frame_map"
+  | .reading => "reading"
+  | .physicalMetric => "physical_metric"
+  | .freeModule => "free_module"
+  | .endomorphism => "endomorphism"
+  | .spectrum => "spectrum"
+  | .branch => "branch"
+  | .transitionAverage => "transition_average"
+  | .model => "model"
+  | .calibration => "calibration"
+  | .dataset => "dataset"
+  | .comparison => "comparison"
+
 structure Family where
   parameters : List Parameter
   constraints : List Indexed.Constraint
@@ -481,9 +508,19 @@ def Body.category : Body → Nat
 
 /-- Match the three ordered tables in Core.Declarations without sorting IDs or
 discarding duplicates. The namespace audit rejects cross-category collisions. -/
-def Program.declarationIds (p : Program) : List DeclId :=
-  [0, 1, 2].flatMap fun category =>
-    (p.owned.filter fun (_, declaration) => declaration.body.category == category).map Prod.fst
+def Program.idsIn (p : Program) (category : Nat) : List DeclId :=
+  (p.owned.filter fun (_, declaration) => declaration.body.category == category).map Prod.fst
+
+def Program.declarationIds (p : Program) : List DeclId := [0, 1, 2].flatMap p.idsIn
+
+/-- Each ordered Core table has exactly the owners belonging to its source category. -/
+def Program.SameTableIds (p : Program) (core : Core.Declarations) : Prop :=
+  (core.indexed.map Entry.id, core.packages.map Core.NamedPackage.id, core.primitives.map Core.NamedPrimitive.id) =
+    (p.idsIn 0, p.idsIn 1, p.idsIn 2)
+
+instance (p : Program) (core : Core.Declarations) : Decidable (p.SameTableIds core) := by
+  unfold Program.SameTableIds
+  infer_instance
 
 structure Reference where
   scope : Namespace.Scope

@@ -84,12 +84,8 @@ pub fn assert_wire_rejected(response: &Value, code: &str) {
     assert!(response.get("lean_source").is_none(), "{response}");
     assert_source_names(&response["diagnostics"].to_string());
 }
-/// Runs `command` against a capture backend and returns the exact wire request
-/// the frontend sent. The stub answers with a protocol-`version` failure and
-/// has no acceptance authority; callers mutate the captured wire and submit it
-/// to the real kernel. The captured request must use `version`.
 #[track_caller]
-pub fn captured_wire(mut command: impl std::borrow::BorrowMut<Command>, version: u64) -> Value {
+fn capture_wire(mut command: impl std::borrow::BorrowMut<Command>, version: u64) -> Scratch {
     use std::os::unix::fs::PermissionsExt;
     let capture = Scratch::empty("capture");
     let stub = capture.write(
@@ -109,6 +105,16 @@ pub fn captured_wire(mut command: impl std::borrow::BorrowMut<Command>, version:
         !stderr.contains("incompatible backend protocol version"),
         "captured request does not use protocol {version}: {stderr}"
     );
+    capture
+}
+
+/// Runs `command` against a capture backend and returns the exact wire request
+/// the frontend sent. The stub answers with a protocol-`version` failure and
+/// has no acceptance authority; callers mutate the captured wire and submit it
+/// to the real kernel. The captured request must use `version`.
+#[track_caller]
+pub fn captured_wire(command: impl std::borrow::BorrowMut<Command>, version: u64) -> Value {
+    let capture = capture_wire(command, version);
     let wire: Value = serde_json::from_slice(&fs::read(capture.0.join("wire.json")).unwrap())
         .expect("captured wire request");
     assert_eq!(wire["version"], version, "captured protocol version");
@@ -125,6 +131,18 @@ pub fn request(source: &str, filename: &str) -> Value {
     let mut command = scratch.cli();
     command.args(["check", filename]);
     captured_wire(command, CURRENT_PROTOCOL)
+}
+/// Replay the frontend's unchanged wire file under the kernel watchdog. Large
+/// scale fixtures do not need a mutable JSON tree in the test process.
+#[track_caller]
+pub fn check_wire_file(source: &str, filename: &str) -> Output {
+    let scratch = Scratch::empty("scale check");
+    scratch.write(filename, source);
+    let mut command = scratch.cli();
+    command.args(["check", filename]);
+    let capture = capture_wire(command, CURRENT_PROTOCOL);
+    let file = fs::File::open(capture.0.join("wire.json")).unwrap();
+    kernel_with_stdin(&["check"], Stdio::from(file), None)
 }
 /// The root module of the request of a flat unit ([`request`]): its
 /// functions, generics, methods and abstract declarations.
@@ -181,6 +199,10 @@ pub fn kernel_bytes(mode: &str, input: Vec<u8>) -> Output {
 }
 
 fn kernel_bytes_with_args(args: &[&str], input: Vec<u8>) -> Output {
+    kernel_with_stdin(args, Stdio::piped(), Some(input))
+}
+
+fn kernel_with_stdin(args: &[&str], stdin: Stdio, input: Option<Vec<u8>>) -> Output {
     let path = kernel_path();
     assert!(
         path.is_file(),
@@ -188,13 +210,15 @@ fn kernel_bytes_with_args(args: &[&str], input: Vec<u8>) -> Output {
     );
     let mut child = Command::new(path)
         .args(args)
-        .stdin(Stdio::piped())
+        .stdin(stdin)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    let mut stdin = child.stdin.take().unwrap();
-    let writer = std::thread::spawn(move || stdin.write_all(&input));
+    let writer = input.map(|bytes| {
+        let mut stdin = child.stdin.take().unwrap();
+        std::thread::spawn(move || stdin.write_all(&bytes))
+    });
     let mut stdout = child.stdout.take().unwrap();
     let reader = std::thread::spawn(move || {
         let mut bytes = Vec::new();
@@ -219,7 +243,7 @@ fn kernel_bytes_with_args(args: &[&str], input: Vec<u8>) -> Output {
         }
         std::thread::sleep(Duration::from_millis(10));
     };
-    let write_result = writer.join().unwrap();
+    let write_result = writer.map(|writer| writer.join().unwrap()).transpose();
     let stdout = reader.join().unwrap();
     let stderr = errors.join().unwrap();
     let Some(status) = status else {

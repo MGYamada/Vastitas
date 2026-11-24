@@ -118,8 +118,12 @@ has a size bound on intermediate integers. The entry uses the residue modulo
 A library may also export one straight-line function over `Nat` and `Int`.
 For example, `pub fn difference(a: Nat, b: Nat) -> Nat { a - b }`
 generates a call to the saturating subtraction routine. The exported symbol
-is `vq_exact`. Its ABI uses borrowed Lean objects for arguments and returns
-one owned object. The signature comment gives the argument and result kinds.
+is `vq_exact`. Pass integers and pairs as borrowed Lean objects. A returned
+object carries one owned reference. For a Boolean parameter or result, the
+foreign ABI uses a C `uint32_t` with value 0 or 1. A straight-line export
+can forward a Boolean parameter. All six comparisons on
+two `Nat` or two `Int` values call the runtime on the complete integers.
+The signature comment gives the argument and result kinds.
 The checker ties every arithmetic site to its selected method, reconstructs
 the SSA operands from the printed module and checks the retain/release calls.
 This library form supports expressions, local bindings and explicit `int`

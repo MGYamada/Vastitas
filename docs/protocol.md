@@ -169,32 +169,78 @@ A mismatch yields `E_AFFINE_SOURCE`; a changed polynomial points to the
 beginning of the expression. A typed `indexed morphism` also replays the family,
 each endpoint path and the defining operation. A smooth identity used for
 numerical interpretation must have the literal `identity` at that declaration.
+An `indexed iso` replays its forward and inverse paths in order. An
+`indexed cartesian` replays both legs of the square, its fiber and its inverse.
+Each path must match its original spelling and span, even for an unused witness.
+
+An `indexed implementation` replays the marker, representation and ordered
+capability list. The five representation forms include the scalar setting
+and coefficient kind, the base path of a linear descriptor, and the rational
+field of a presented affine object. An `indexed classification` replays the
+parent and domain lists separately, in source order. Both forms check the full
+span of each path. After resolving the paths in the declaring namespace,
+the kernel checks that these entries occur in order in the exact Core
+environment supplied to code generation. This includes unused declarations
+in dependency packages.
+
+An `indexed family` replays its ordered parameters, representation and
+constraints. The checker resolves `object(path)` and `frame(path)` at their
+written spans in the declaring module. It compares each slot in
+`same_object`, `same_base`, `over`, `structural` and `canonical` before
+checking the family and its applications. Only `frame_vector`, `frame_covector`
+and `frame_map` may omit an empty `constraints()` clause. Unused families
+are present in the same Core environment as families used in function signatures.
+
+An `indexed package` replays each case's witness domain and marker, its ordered
+fields, and each field's family and complete index list. The physical check
+compares qualified paths at their UTF-8 byte spans, recognizes the scoped
+`witness` token and compares decimal natural indices at arbitrary precision.
+The public checker resolves those cases in the declaring scope and finds the
+same named package in the Core declaration table.
+
+An `indexed primitive` replays its operation and every argument against the
+original file. Lean compares qualified paths and their spans, nested object
+types, coordinate names, ordered polynomial expressions, pullback modes and
+bounded decimal indices. Named selectors such as `using`, `frame` and
+`spectrum` must occur in the positions specified by the operation. After
+elaboration, the indexed, package and primitive tables each retain their own
+ordered source owners. Looking up a primitive in the final Core returns its
+elaborated binding, including resolved coordinate slots and frame data.
 
 #### Indexed declaration coverage in edition 2026
 
-Of the 54 constructors of `Indexed.Source.Body`, 25 have their fields checked
-against physical source. These comprise 16 finite forms, five affine and
-morphism forms, one exact-geometry constructor with six variants, and
-`marker`, `baseDimension` and `global`. The public checker uses the decoded
-declarations from that same request to elaborate Core. The following 29
-constructors have item-boundary checks, but still need a comparison of their
-operands with the original file. The names below are Lean constructors.
+Lean compares the fields of all 54 constructors of `Indexed.Source.Body` with the
+original file, including declarations that no function calls. For a metric it
+checks the ordered Gram polynomials. For evidence it checks the requested kind
+and metric. A frame retains its columns and optional inverse.
 
-| Declaration group | Operands awaiting physical replay |
+The exact-model scan and the declaration inventory use the same grammar for
+real and complex carriers, their meadows, affine charts and identity morphisms.
+It preserves each qualified path and its span, the chart dimension and coordinate
+order. Lean proves by cases on `Indexed.Source.Body` that every declaration
+routed to the record parser has an implemented grammar.
+
+| Declaration group | Physical fields |
 | --- | --- |
-| Indexed definitions | `implementation`, `classification`, `family`, `package`, `primitive` |
-| Geometry witnesses | `iso`, `cartesian` |
-| Frames and metrics | `metric`, `evidence`, `frame` |
-| Physical dimensions | `quantity`, `reading`, `scale`, `physicalMetric` |
-| Spectral and transition data | `freeModule`, `endomorphism`, `spectrum`, `branch`, `transitionAverage` |
-| Physical models | `convention`, `model`, `calibration`, `dataset`, `comparison` |
-| Gluing and global geometry | `glued`, `cover`, `separated`, `manifold`, `projective` |
+| Quantities, readings, scales and physical metrics | Ordered paths and integer powers, coordinate names, magnitude, normalized scales, Gram monomials and optional value dimension |
+| Free modules, endomorphisms, spectra, simple branches and transition averages | Basis order, matrix rows, symmetry, fiber name, localization, witness and exponent, ordered transition endpoints, numerator and denominator |
+| Conventions, models, calibrations, datasets and comparisons | Model references, prepared and observed basis names, recorded text, measured rational values and uncertainties, coverage, ordered data points, fingerprint and verdict |
+| Glued objects, covers, separation, manifolds and projective claims | Ordered opens, transition maps and inverses, cover coefficients, dimensions, homogeneous coordinates and the ordered chart maps |
 
-For these groups a valid decoded declaration can still select different
-operands from the file. Closing the gap requires replay of the fields on the
-same public request, including unreferenced declarations. The issue also
-tracks correspondence for functions, resource operations and the resulting
-Core. [Edition, wire and compiler verification](v0.1.0-admission.md#edition-wire-and-compiler-verification)
+Lean reads `frac` literals before rational normalization. In a physical Gram
+monomial, literal coefficients may be interleaved with scale factors. The two
+ordered lists reconstruct the coefficient expression and its scale product as in
+the frontend. A recorded assumption, calibration reference or fingerprint must
+match the quoted source bytes. Missing fields and changed values yield
+`E_MODULE_SOURCE` at the first mismatched token or the start of its expression.
+
+For every declaration in the indexed-value table, the source owner selects the
+same completed entry in elaboration and returned Core. Publication of a boxed
+program preserves that lookup in both MidIR environments and binds the complete
+LLVM bytes and function revision. Indexed source coverage also includes the
+separate package and primitive tables described above. The finite edition's
+release evidence tracks executable lowering for each profile.
+[Release evidence](v0.1.0-admission.md#edition-wire-and-compiler-verification)
 
 A finite functor schema has `kind: "schema"` and `schema_kind: "finite_functor"`.
 Its instance has `kind: "instance"`, a schema path, and a `functor` record
@@ -303,10 +349,19 @@ file with a UTF-8 path uses the envelope’s `file` field. On Unix a
 non-UTF-8 path uses the original path bytes in a JSON array.
 
 The checker reconstructs every offset from the preceding UTF-8 byte
-lengths and the one-byte separator. For disk-backed packages it checks
-that the first input is the root manifest, every package manifest occurs,
-and the entry contains the root module’s source location. For every package
-the checker reads `package.name`, `package.version` and `package.edition`
+lengths and the one-byte separator. For disk-backed packages the first input
+is the root manifest. As Lean visits manifests and their declared modules,
+it records which file supplies the root of each package, including unused
+dependencies. Each package must have exactly one public root module. Its
+span must match the first token of that file in global byte offsets and
+file-local line and column. A file containing only whitespace or comments
+uses the zero-width token at end of file. A mismatch produces
+`E_MODULE_SOURCE` at the expected token. Flat inputs and their libraries
+share one synthetic public root at byte range `[0, 0)`, line 1, column 1,
+even when the first declaration follows a comment or occurs in a library.
+
+For every file-backed package the checker reads `package.name`,
+`package.version` and `package.edition`
 from the manifest at its recorded path. The first two fields must match the
 package ID used in function families and edit authority.
 Table headers, dotted keys and inline tables can all select these fields.
@@ -1612,14 +1667,25 @@ A declaration has `{kind,name,public,span,...}` with these additional fields:
 | Kind | Fields |
 | --- | --- |
 | `marker` | None |
-| `implementation` | `marker:TypePath`, `representation:"affine_descriptor"`, `capabilities:["origin"\|"dim"]` |
+| `implementation` | `marker:TypePath`, `representation:Representation`, `capabilities:["origin"\|"dim"]` |
 | `classification` | `parents:[TypePath]`, `domain:[TypePath]` |
 | `global` | `implementation:TypePath` |
 | `family` | `parameters:[Parameter]`, `constraints:[Constraint]`, `representation:"token"\|"point"\|"morphism"` |
 | `package` | `cases:[{witness_type:ObjectType,fields:[BoundApplication]}]` |
 | `primitive` | `binding:Primitive` |
 
-`TypePath` is `{path:[String],span}`; the path is unresolved and nonempty.
+`Representation` accepts the strings `"affine_descriptor"` and `"smooth_affine"`,
+or an object with exactly one of the following keys.
+
+| Key | Payload |
+| --- | --- |
+| `scalar_base` | `{setting,coefficient}` |
+| `linear_descriptor` | `{base:TypePath,coefficient}` |
+| `presented_affine` | `{field:"rational"}` |
+
+The setting is `"scheme"` or `"smooth"` and the coefficient is `"real"` or
+`"complex"`. A `TypePath` has the form `{path:[String],span}` and contains
+at least one unresolved name component.
 `ObjectType` is `{domain:TypePath,marker:TypePath}`.
 Parameter tags are `{kind:"domain"|"marker"|"natural"}` or
 `{kind:"object",domain:TypePath}`. Constraint tags are

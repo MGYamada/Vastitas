@@ -521,13 +521,14 @@ def package (j : Json) : Except String Package := do
 /-- Whether `packages`, with `root`, is the request that `packages::flat_request`
 writes for a flat unit: one package with the identity `flatPackageId`, which is
 the root, without dependencies or a `geometry_compat` export, whose one module
-is the public root module. -/
+is the public root module with the synthetic zero-width span at the origin. -/
 def flatRequest (root : String) (packages : List Package) : Bool :=
   match packages with
   | [pkg] => root == flatPackageId.source && pkg.id == flatPackageId && pkg.dependencies.isEmpty &&
       pkg.geometryCompat.isNone &&
       match pkg.modules with
-      | [m] => m.pureModule.module.path.isEmpty && m.pureModule.module.isPublic
+      | [m] => m.pureModule.module.path.isEmpty && m.pureModule.module.isPublic &&
+          m.pureModule.module.span == ({} : Span)
       | _ => false
   | _ => false
 
@@ -554,12 +555,9 @@ private def profileConflict (packages : List Package) : Except String Unit := do
   if let some pkg := packages.find? (·.geometryCompat.isSome) then
     throw s!"the field 'legacy_geometry' supplies the compatibility profile, so the package '{pkg.id.name}' cannot have a 'geometry_compat' export"
 
-/-- The request of the schema epoch `currentProtocol` (#533): every request is
-a package request, with the optional field `legacy_geometry`. Main reads the
-version before this decoder, and the decoder reads no other version. The
-reserved identities are checked on the request's packages, before the kernel
-adds the profile (`Program.profile`). -/
-private def decodedProgram (j : Json) : Except String Program := do
+/-- Decode the fields of the current wire epoch before checking package identities,
+the optional compatibility profile and the physical sources in `program`. -/
+def decodeFields (j : Json) : Except String Program := do
   fields j ["version", "file", "root", "root_source", "packages", "legacy_geometry", "expected_function_revision"]
   let version ← j.getObjValAs? Nat "version"
   if version != currentProtocol then throw s!"expected protocol {currentProtocol}"
@@ -567,11 +565,11 @@ private def decodedProgram (j : Json) : Except String Program := do
   let root ← str j "root"
   let geometry ← legacyGeometry j
   let packages ← (← array j "packages").mapM package
-  reservedIdentities root packages
-  if geometry then profileConflict packages
-  let raw : Program := {file, root, packages, legacyGeometry := geometry}
-  let names ← raw.valueFamilies.mapError (·.message)
-  return {raw with operatorValues := names}
+  return {file, root, packages, legacyGeometry := geometry}
+
+def operatorNames (raw : Program) : Except String (List String) := do
+  if raw.legacyGeometry then profileConflict raw.packages
+  raw.valueFamilies.mapError (·.message)
 
 abbrev physicalFileIndex := ManifestBindings.physicalFileIndex
 abbrev manifestFile? := ManifestBindings.manifestFile?
@@ -591,21 +589,33 @@ def exactSources (j : Json) (p : Program) : Except String Unit := do
   ExactModelSource.check layout p
 
 def program (j : Json) : Except String Program := do
-  let p ← decodedProgram j
+  let raw ← decodeFields j
+  reservedIdentities raw.root raw.packages
+  let names ← operatorNames raw
+  let p := {raw with operatorValues := names}
   exactSources j p
   return p
 
+theorem checks_of_program {j : Json} {p : Program} (h : program j = .ok p) :
+    reservedIdentities p.root p.packages = .ok () ∧ exactSources j p = .ok () := by
+  cases hd : decodeFields j with
+  | error msg => simp [program, hd, bind, Except.bind] at h
+  | ok raw =>
+    cases hr : reservedIdentities raw.root raw.packages with
+    | error msg => simp [program, hd, hr, bind, Except.bind] at h
+    | ok _ =>
+      cases hn : operatorNames raw with
+      | error msg => simp [program, hd, hr, hn, bind, Except.bind] at h
+      | ok names =>
+        cases hs : exactSources j {raw with operatorValues := names} with
+        | error msg => simp [program, hd, hr, hn, hs, bind, Except.bind] at h
+        | ok _ =>
+          have eq : {raw with operatorValues := names} = p := by
+            simpa [program, hd, hr, hn, hs, bind, Except.bind, pure, Except.pure] using h
+          exact eq ▸ ⟨hr, hs⟩
+
 theorem exactSources_of_program {j : Json} {p : Program} (h : program j = .ok p) :
-    exactSources j p = .ok () := by
-  cases hd : decodedProgram j with
-  | error msg => simp [program, hd, Bind.bind, Except.bind] at h
-  | ok parsed =>
-    cases hs : exactSources j parsed with
-    | error msg => simp [program, hd, hs, Bind.bind, Except.bind] at h
-    | ok u =>
-      cases u
-      have eq : parsed = p := by simpa [program, hd, hs, Bind.bind, Except.bind, Pure.pure, Except.pure] using h
-      exact eq ▸ hs
+    exactSources j p = .ok () := (checks_of_program h).2
 
 /-- The namespace work of the body passes that ran: those of the pure program
 and, when the program has resource fragments, the passes with them. Without
@@ -634,6 +644,53 @@ def RevisionMatches (json : Json) {p : Program} {requireMain : Bool}
 instance {json : Json} {p : Program} {requireMain : Bool} {checked : Checked p requireMain} :
     Decidable (RevisionMatches json checked) := by unfold RevisionMatches; split <;> infer_instance
 
+/-- Resolve a written implementation, classification or indexed family with the namespace used
+by the body checker. The entry carries its physical package and module owner. -/
+def definitionEntry? (index : Namespace.Indexed) (owner : Indexed.DeclId) :
+    Indexed.Source.Body → Option (Indexed.Source.ResolveM Indexed.Entry)
+  | .implementation marker repr caps => some (do
+    let markerId ← Indexed.Source.resolveId index owner.scope marker
+    let representation ← Indexed.Source.resolveRepresentation index owner.scope repr
+    return ⟨owner, .implementation markerId representation caps⟩)
+  | .classification parents domain => some (do
+    let parentIds ← parents.mapM (Indexed.Source.resolveId index owner.scope)
+    let implementations ← domain.mapM (Indexed.Source.resolveId index owner.scope)
+    return ⟨owner, .classification parentIds implementations⟩)
+  | .family family => some (do
+    let params ← family.parameters.mapM (Indexed.Source.resolveParameter index owner.scope)
+    return ⟨owner, .family ⟨params, family.constraints, family.representation⟩⟩)
+  | _ => none
+
+def writtenDefinitionActions {α : Type} (input : Program) (index : Namespace.Indexed)
+    (select : Namespace.Indexed → Indexed.DeclId → Indexed.Source.Body → Option (Indexed.Source.ResolveM α)) :
+    List (Namespace.Result α) :=
+  input.packages.flatMap fun pkg => pkg.modules.flatMap fun m => m.pureModule.declarations.filterMap fun d =>
+    let owner := (⟨⟨pkg.id, m.pureModule.module.path⟩, d.name⟩ : Indexed.DeclId)
+    (select index owner d.body).map fun action => action.run' []
+
+abbrev writtenDefinitions (input : Program) (index : Namespace.Indexed) :=
+  writtenDefinitionActions input index definitionEntry?
+
+def packageShape? (index : Namespace.Indexed) (owner : Indexed.DeclId) :
+    Indexed.Source.Body → Option (Indexed.Source.ResolveM Indexed.Core.NamedPackage)
+  | .package cases => some (do return ⟨owner, ← cases.mapM (Indexed.Source.resolveShape index owner.scope)⟩)
+  | _ => none
+
+def resolvedSublist {α : Type} [BEq α] (actions : List (Namespace.Result α)) (actual : List α) : Bool :=
+  match actions.mapM id with
+  | .ok entries => entries.isSublist actual
+  | .error _ => false
+
+def packageShapesMatch {input : Program} {main : Bool} (checked : Checked input main) : Bool :=
+  resolvedSublist (writtenDefinitionActions input checked.pureProgram.compiler.input.body.index packageShape?)
+    checked.pureProgram.compiled.core.module.declarations.packages
+
+/-- Check against the exact final Core consumed by emission. Other kinds of
+declarations and synthetic packages may occur between the physical entries. -/
+def definitionsMatch {input : Program} {main : Bool} (checked : Checked input main) : Bool :=
+  resolvedSublist (writtenDefinitions input checked.pureProgram.compiler.input.body.index)
+    checked.pureProgram.compiled.core.module.declarations.indexed
+
 structure CheckedInput (json : Json) (requireMain : Bool) where
   input : Program
   decoded : program json = .ok input
@@ -641,6 +698,8 @@ structure CheckedInput (json : Json) (requireMain : Bool) where
   accepted : ResourceSource.check input requireMain = .ok checked
   assemblySource : AssemblySource.Corresponds json checked.pureProgram.authority.headers.assembled.prepared.core.assembly
   editSources : EditSourceFiles.check json input = .ok ()
+  definitionEntries : definitionsMatch checked = true
+  packageShapes : packageShapesMatch checked = true
   revisionMatches : RevisionMatches json checked
   /-- The price of the request's JSON, in which the compatibility profile of
   `legacy_geometry` has no part, and the checked passes. -/
@@ -657,9 +716,11 @@ def check (json : Json) (requireMain : Bool) : Except Diagnostic (CheckedInput j
       match edits : EditSourceFiles.check json input with
       | .error diagnostic => .error diagnostic
       | .ok () =>
-        if h : RevisionMatches json result.value then
-          .ok ⟨input, decoded, result.value, result.accepted, assembly, edits, h, result.receipt⟩
-        else .error { code := "E_FUNCTION_REVISION", message := "supplied function revision differs from the checked input or its selected methods" }
+        if definitions : definitionsMatch result.value = true ∧ packageShapesMatch result.value = true then
+          if h : RevisionMatches json result.value then
+            .ok ⟨input, decoded, result.value, result.accepted, assembly, edits, definitions.1, definitions.2, h, result.receipt⟩
+          else .error { code := "E_FUNCTION_REVISION", message := "supplied function revision differs from the checked input or its selected methods" }
+        else .error { code := "E_MODULE_SOURCE", message := "source indexed definition differs from the returned Core" }
 
 /-- Public generation consumes the budgeted wire request's exact checked program. -/
 def emit (json : Json) : Except Diagnostic Codegen.Generated := do

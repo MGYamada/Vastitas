@@ -3,12 +3,16 @@
 from argparse import ArgumentParser, Namespace
 import filecmp
 import json
-from pathlib import Path
 import subprocess
+from pathlib import Path
+import sys
 import tempfile
 
 import verify
 from verify import fast, require
+
+sys.path.insert(0, str(verify.ROOT / "scripts"))
+from proof_worker import run_proof_worker
 
 
 def run(work, suite, frontend):
@@ -20,7 +24,7 @@ def run(work, suite, frontend):
                      mode="official", candidate=None, save_candidate=None, timeout=120,
                      target_triple=target["triple"], data_layout=target["layout"])
 
-    def check(label, mode, *, candidate=None, rejection=None):
+    def check(label, mode, *, candidate=None, rejection=None, keep_authority=False, keep_snapshot=False):
         private = work / label
         private.mkdir()
         args.mode, args.candidate = mode, candidate
@@ -32,6 +36,15 @@ def run(work, suite, frontend):
                 raise
             print(f"{label} rejected ({rejection})", flush=True)
             return report, None
+        finally:
+            # The generated export is already sealed. Keep the authority module
+            # only for the producer that elaborates the alternate proof terms.
+            for name in ("authority.ndjson", "generated.ndjson", "Certificate.olean"):
+                (private / name).unlink(missing_ok=True)
+            if not keep_authority:
+                (private / "Authority.olean").unlink(missing_ok=True)
+            if candidate is not None and not keep_snapshot:
+                (private / "sealed.ndjson").unlink(missing_ok=True)
         require(rejection is None, f"{label} accepted an invalid candidate")
         print(f"{label} passed ({report['bytes']} LLVM bytes, "
               f"{report['exported_declarations']} exported declarations)", flush=True)
@@ -54,11 +67,61 @@ def run(work, suite, frontend):
                 and checked["integer_result"] == "42", "wrong assembled pair method or entry value")
         require((pair_dir / "preview.ll").read_bytes() == (verify.ROOT / "llvm/src/boxed-pairs.ll").read_bytes(),
                 "pair certificate differs from the retained LLVM module")
+        (pair_dir / "sealed.ndjson").unlink()
+        magnitude = 2**128 + 43
+        for label, fixture, apply, functions, selected_result, default_result in [
+            ("selected-projection", "SelectedProjection", "apply second_field;", 5, 19, 7),
+            ("assembled-comparison", "ComparisonMethod", "apply ordered;", 3, 42, 7),
+            ("assembled-negation", "AssembledNegation", "apply reversing;", 4, -magnitude, magnitude),
+        ]:
+            body = (verify.ROOT / f"llvm/fixtures/{fixture}.vast").read_text()
+            require(body.count(apply) == 1, f"{label}: expected one selection")
+            source.write_text(body)
+            selected, _ = check(label, "official")
+            candidate = work / label / "sealed.ndjson"
+            peer, _ = check(f"{label}-fast", "fast", candidate=candidate)
+            retained = verify.ROOT / f"llvm/src/{label}.ll"
+            require(selected["integer_result"] == str(selected_result) and selected["functions"] == functions
+                    and selected["certificate"] == peer["certificate"]
+                    and (work / label / "preview.ll").read_bytes() == retained.read_bytes(),
+                    f"{label}: incorrect selected method, result or module")
+            source.write_text(body.replace(apply, ""))
+            default, _ = check(f"{label}-default", "official")
+            require(default["integer_result"] == str(default_result)
+                    and default["revision_sha256"] != selected["revision_sha256"], f"{label}: wrong default method")
+            check(f"{label}-stale", "fast", candidate=candidate, rejection="declaration environment differs")
+            candidate.unlink()
+            (work / f"{label}-default" / "sealed.ndjson").unlink()
+        conversion_source = (verify.ROOT / "llvm/fixtures/AssembledConversion.vast").read_text()
+        source.write_text(conversion_source)
+        converted, _ = check("conversion", "official")
+        conversion = work / "conversion"
+        conversion_replay, _ = check("conversion-fast", "fast", candidate=conversion / "sealed.ndjson")
+        require(converted["integer_result"] == str(2**128 + 43) and converted["functions"] == 3
+                and converted["certificate"] == conversion_replay["certificate"], "wrong assembled Nat conversion")
+        require((conversion / "preview.ll").read_bytes() ==
+                (verify.ROOT / "llvm/src/assembled-conversion.ll").read_bytes(), "different conversion module")
+        body = "{ int(x) }"
+        require(conversion_source.count(body) == 1, "expected one selected conversion body")
+        source.write_text(conversion_source.replace(body, "{ let y: Nat = x; int(y) }"))
+        bound, _ = check("conversion-bound-local", "official")
+        bound_dir = work / "conversion-bound-local"
+        require((bound_dir / "preview.ll").read_bytes() == (conversion / "preview.ll").read_bytes()
+                and bound["integer_result"] == converted["integer_result"]
+                and bound["revision_sha256"] != converted["revision_sha256"],
+                "the method-local binding must preserve the LLVM bytes and change the function revision")
+        source.write_text(conversion_source)
+        stale, _ = check("conversion-stale-body", "fast", candidate=bound_dir / "sealed.ndjson",
+                         rejection="declaration environment differs")
+        require(stale["revision_sha256"] == converted["revision_sha256"],
+                "stale replay must check the restored unbound method")
+        (conversion / "sealed.ndjson").unlink()
+        (bound_dir / "sealed.ndjson").unlink()
         check_borrowed_operator(work, args, check)
         return
 
-    official, _ = check("official", "official")
-    generated, roots = check("fast", "fast")
+    generated, roots = check("fast", "fast", keep_authority=True)
+    official, _ = check("official", "official", candidate=work / "fast/sealed.ndjson", keep_snapshot=True)
     for key in ("bytes", "llvm_sha256", "revision_sha256", "integer_result"):
         require(official[key] == generated[key], "modes disagree on " + key)
     require(official["functions"] == 4 and int(official["integer_result"]) == (-2 * (2**128 + 1)) // 3,
@@ -70,19 +133,22 @@ def run(work, suite, frontend):
     require(filecmp.cmp(work / "official/sealed.ndjson", work / "fast/sealed.ndjson", shallow=False),
             "both workers must receive the identical complete export")
 
+    (work / "official/sealed.ndjson").unlink()
+    (work / "fast/sealed.ndjson").unlink()
+
     # Elaborate independently valid proof terms in the producer directory. Only
-    # the NDJSON leaves it; verification regenerates Authority in a fresh directory.
+    # the NDJSON leaves it. Each verifier regenerates Authority in a fresh directory.
     producer = work / "fast"
     prefix = fast.pinned_tools()
     env = verify.environment(producer, prefix)
 
     def export(label, text):
         (producer / "Certificate.lean").write_text(text)
-        subprocess.run([prefix / "bin/lean", "-DwarningAsError=true", "-o", "Certificate.olean", "Certificate.lean"],
+        run_proof_worker([prefix / "bin/lean", "-DwarningAsError=true", "-o", "Certificate.olean", "Certificate.lean"],
                        cwd=producer, env=env, timeout=args.timeout, check=True, stdout=subprocess.DEVNULL)
         target = work / (label + ".ndjson")
         with target.open("xb") as out:
-            subprocess.run([prefix / "bin/leanexport", "Certificate", "--", *roots, verify.THEOREM],
+            run_proof_worker([prefix / "bin/leanexport", "Certificate", "--", *roots, verify.THEOREM],
                            cwd=producer, env=env, timeout=args.timeout, check=True, stdout=out)
         return target
 
@@ -97,6 +163,7 @@ def run(work, suite, frontend):
     other = export("other", verify.certificate().replace("theorem checked : obligation := " + verify.PROOF,
                                                          "theorem checked : True := True.intro"))
     check("other-statement", "fast", candidate=other, rejection="unexpected declaration or proof subject")
+    other.unlink()
     # Exercise the checker on a well-formed export with the correct subject but
     # an ill-typed witness. Its declaration references a valid expression index.
     with alt.open("rb") as src, (work / "invalid-term.ndjson").open("xb") as dst:
@@ -107,6 +174,7 @@ def run(work, suite, frontend):
                 line = (json.dumps(row, separators=(",", ":")) + "\n").encode()
             dst.write(line)
     rejected, _ = check("invalid-term", "fast", candidate=work / "invalid-term.ndjson", rejection="nanoda")
+    (work / "invalid-term.ndjson").unlink()
     worker = rejected["phases"][-1]
     require(worker["phase"] == "nanoda" and worker["exit_code"] > 0 and not worker["timed_out"],
             "the independent checker must reject the invalid proof itself")
@@ -128,9 +196,9 @@ def run(work, suite, frontend):
             verify.authority(revision, model, args.target_triple, args.data_layout, data, inputs))
         (altered / "Certificate.lean").write_text(verify.certificate())
         env = verify.environment(altered, prefix)
-        subprocess.run([prefix / "bin/lean", "-o", "Authority.olean", "Authority.lean"], cwd=altered,
+        run_proof_worker([prefix / "bin/lean", "-o", "Authority.olean", "Authority.lean"], cwd=altered,
                        env=env, timeout=args.timeout, check=True)
-        result = subprocess.run([prefix / "bin/lean", "-DwarningAsError=true", "Certificate.lean"], cwd=altered,
+        result = run_proof_worker([prefix / "bin/lean", "-DwarningAsError=true", "Certificate.lean"], cwd=altered,
                                 env=env, timeout=args.timeout, capture_output=True, text=True)
         require(result.returncode != 0 and diagnostic in result.stdout, f"{label} must fail its proof")
         print(f"{label} rejected by Lean", flush=True)
@@ -146,6 +214,7 @@ def run(work, suite, frontend):
     require(stale["llvm_sha256"] == official["llvm_sha256"] and stale["revision_sha256"] != official["revision_sha256"],
             "stale-source control must preserve exactly the emitted bytes")
 
+    alt.unlink()
     source.write_bytes((verify.ROOT / "llvm/fixtures/SingletonPower.vast").read_bytes())
     single, _ = check("singleton", "official")
     single_dir = work / "singleton"
@@ -159,7 +228,8 @@ def run(work, suite, frontend):
 
 def check_physical_inputs(work, args, source, check):
     """Compile the same helper through each loader and replay a stale proof."""
-    helper = "fn helper(x: Int) -> Int { x + x } // λ1"
+    # The same long source text passes through both the wire and the physical layout.
+    helper = 'fn helper(x: Int) -> Int { x + x } // "λ1" 🪐 e\u0301 \\end\r\n'
     library = work / "helper.vast"
     library.write_text(helper)
     source.write_text("fn main() -> Int { helper(21) }")
@@ -198,6 +268,62 @@ def check_physical_inputs(work, args, source, check):
         stale, _ = check(label + "-stale", "fast", candidate=image, rejection="declaration environment differs")
         require(baseline["llvm_sha256"] == stale["llvm_sha256"]
                 and baseline["revision_sha256"] != stale["revision_sha256"], f"{label} stale control differs")
+        image.unlink()
+
+    # A lawful field edit in a dependency can preserve every executable instruction.
+    source.write_bytes((verify.ROOT / "llvm/fixtures/OrderedCalls.vast").read_bytes())
+    library = dep / "main.vast"
+    declarations = """pub indexed marker A;
+pub indexed marker B;
+pub indexed implementation X(A, affine_descriptor) capabilities();
+pub indexed implementation Y(A, affine_descriptor) capabilities();
+pub indexed classification C { parents(); domain(X, Y); };
+pub indexed family Rel(object(C), object(C)) = token constraints(same_base(0, 1));
+pub indexed family Tag(natural) = token constraints();
+pub indexed package Hidden { case(Y, A) { Tag(7); } };
+pub indexed primitive chosen = descriptor(Y);
+"""
+    fixtures = verify.ROOT / "tests/fixtures"
+    groups = [
+        ("indexed-definitions", declarations, [
+            ("marker", "X(A,", "X(B,"),
+            ("domain", "domain(X, Y)", "domain(Y, X)"),
+            ("family-slot", "same_base(0, 1)", "same_base(1, 0)"),
+            ("package-index", "Tag(7);", "Tag(8);"),
+            ("primitive-argument", "descriptor(Y)", "descriptor(X)"),
+        ]),
+        ("metric-frames", (fixtures / "metric-frame-source.vast").read_text(), [
+            ("metric-gram", "gram((2, 0,)", "gram((3, 0,)"),
+            ("evidence-subject", "nondegenerate(Written)", "nondegenerate(Default)"),
+            ("frame-inverse", "(x, 1,),) inverse = columns((1, 0,), (-x, 1,)",
+                              "(y, 1,),) inverse = columns((1, 0,), (-y, 1,)"),
+        ]),
+        ("indexed-records", (fixtures / "indexed-record-source.vast").read_text(), [
+            ("scale-magnitude", "frac(1, 2) of Period", "frac(1, 3) of Period"),
+            ("module-basis", "basis(ground, excited)", "basis(excited, ground)"),
+            ("manifold-witness", "by(u -> South::y);", "by(u -> South::y + 0);"),
+        ]),
+    ]
+    retained = (verify.ROOT / "llvm/src/ordered-calls.ll").read_bytes()
+    for group, declarations, edits in groups:
+        library.write_text(declarations)
+        baseline, _ = check(group, "official")
+        compiled = work / group
+        candidate = compiled / "sealed.ndjson"
+        replay, _ = check(group + "-fast", "fast", candidate=candidate)
+        require(baseline["physical_inputs"] == 4 and baseline["integer_result"] == "23" and
+                baseline["certificate"] == replay["certificate"] and (compiled / "preview.ll").read_bytes() == retained,
+                f"{group} and the ordered calls must share one certificate")
+        for label, old, new in edits:
+            require(declarations.count(old) == 1, "expected one " + label + " field")
+            library.write_text(declarations.replace(old, new))
+            stale, _ = check(group + "-stale-" + label, "fast", candidate=candidate,
+                             rejection="declaration environment differs")
+            require(stale["revision_sha256"] != baseline["revision_sha256"] and
+                    (work / (group + "-stale-" + label) / "preview.ll").read_bytes() == retained,
+                    "a stale " + label + " must change the revision and preserve the LLVM bytes")
+        candidate.unlink()
+
 
 def check_borrowed_operator(work, args, check):
     args.source = None
@@ -233,6 +359,7 @@ def check_borrowed_operator(work, args, check):
     require(result.returncode != 0 and not result.stdout and b"E_FUNCTION_REVISION" in result.stderr,
             "a same-signature sibling must fail before any module bytes are published")
     print("same-family (Int, Int) sibling rejected by the public emitter", flush=True)
+    (compiled / "sealed.ndjson").unlink()
 
     args.manifest_path = verify.ROOT / "llvm/fixtures/uncalled-operator/Vastitas.toml"
     uncalled, _ = check("uncalled-operator", "official")

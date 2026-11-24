@@ -1,0 +1,7 @@
+fn delta(x: Int, y: Int) -> Int { x - y }
+fn pick(x: Int, y: Int) -> Int { y - x }
+contribution forward : pick {
+    fn pick(x: Int, y: Int) requires (HasEq) -> Int { x - y }
+}
+assemble pick { apply forward; }
+fn main() -> Int { pick(delta(9, 4), delta(3, 1)) + 20 }

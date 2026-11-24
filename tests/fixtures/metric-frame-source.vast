@@ -1,0 +1,12 @@
+pub indexed marker Coeff;
+pub indexed implementation Chart(Coeff, smooth_affine) capabilities();
+pub indexed classification Smooth { parents(); domain(Chart); };
+pub indexed family G(object(Smooth)) = metric_form constraints(canonical(0));
+pub indexed family F(object(Smooth)) = frame constraints(canonical(0));
+pub indexed affine Plane(Chart) = Affine(2)[x, y];
+pub indexed metric Default: G<Plane> = euclidean;
+pub indexed metric Written: G<Plane> = gram((2, 0,), (0, 1,),);
+pub indexed evidence Positive = riemannian(Written);
+pub indexed evidence Invertible = nondegenerate(Written);
+pub indexed frame Canon: F<Plane> = coordinates;
+pub indexed frame Moving: F<Plane> = columns((1, 0,), (x, 1,),) inverse = columns((1, 0,), (-x, 1,),);

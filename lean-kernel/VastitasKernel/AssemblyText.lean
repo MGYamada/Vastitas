@@ -185,6 +185,8 @@ inductive ExactLexeme where
   | punctuation (ch : Char)
   | reference (parts : List String) (span : Span)
   | dimension (value : Nat)
+  | boundNatural (value : Nat)
+  | constraintSlot (value : Nat)
   | separator
   | arrow
   | rowArrow
@@ -322,6 +324,8 @@ structure SourceChecks where
   fileIndex : Nat := 0
   bodies : Std.HashMap Nat MethodSite := {}
   finiteSites : Std.HashMap Nat FiniteSite := {}
+  /-- Physical file index of the implicit root module of each file-backed package. -/
+  packageRoots : Std.TreeMap String Nat := {}
   /-- First token outside the item grammar in the physical module inventory. -/
   unexpectedItem : Option Span := none
   /-- Repeated static-indexed functions form their own finite family. Repeated
@@ -376,6 +380,10 @@ def expectExact (f : File) (c : Cursor) : ExactLexeme → Except String Cursor
       | _ => pure next
     requireSymbol close ch
     return close.after
+  | .boundNatural value => f.expectNat c value "package index differs from its physical source"
+  | .constraintSlot value => do
+    unless value < UInt32.size do throw "constraint slot exceeds u32"
+    f.expectNat c value "constraint slot differs from the physical source"
   | .dimension value => do
     let t ← f.next c
     let .symbol digit := t.kind | throw "expected a decimal affine dimension"
@@ -402,6 +410,7 @@ private def indexedSite (f : File) (indexed : Token) : Except String SiteKind :=
   let kind ← f.next indexed.after
   match kind.kind with
   | .word "finite" | .word "table" | .word "schema" | .word "instance" => return .indexed
+  | .word "iso" | .word "cartesian" => return .affine
   | .word "affine" | .word "morphism" =>
     let name ← f.next kind.after
     let op ← f.next name.after

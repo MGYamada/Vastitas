@@ -814,10 +814,6 @@ fn strict_keywords_are_no_fiber_coordinates() {
             "{keyword}: {response}"
         );
     }
-    for name in ["lambda", "_t", "witness", "indexed", "eigen", "Ifs"] {
-        let response = with_fiber(name);
-        assert_eq!(response["ok"], true, "{name}: {response}");
-    }
     // The source: a strict keyword is no name, and the other words are.
     let at = |to: &str| {
         let source: String = main
@@ -833,7 +829,11 @@ fn strict_keywords_are_no_fiber_coordinates() {
         &source,
         &format!("main.vast:{row}:48: E_PARSE: expected an identifier"),
     );
-    for name in ["lambda", "witness"] {
+    for name in ["lambda", "_t", "witness", "indexed", "eigen", "Ifs"] {
+        let stale = with_fiber(name);
+        common::assert_wire_rejected(&stale, "E_MODULE_SOURCE");
+        assert_eq!(stale["diagnostics"][0]["span"]["line"], row);
+        assert_eq!(stale["diagnostics"][0]["span"]["column"], 48);
         let (source, _) = at(&format!(
             "indexed spectrum S: Spectrum<Plane> = eigen(H, {name});"
         ));

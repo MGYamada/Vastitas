@@ -30,7 +30,11 @@ theorem physicalEditsOfLayout {j : Json} (h : PhysicalSources.layout j = .ok ent
   simp only [EditSourceFiles.check, collected, h, Except.mapError, bind, Except.bind, scannedEntry, allItems]
   have flat : ManifestBindings.check entryLayout candidate = .ok () := by rfl
   rw [ite_eq_left (by rfl), flat, noCells, noProducts, noOwnership, noValues]
-  exact replayedDeclaration
+  change (do
+    FiniteSourceFiles.check entryLayout entrySites.finiteSites (FiniteSourceFiles.declarations candidate)
+    FiniteSourceFiles.checkRoots entryLayout entrySites.packageRoots candidate) = .ok ()
+  rw [replayedDeclaration]
+  rfl
 
 end VastitasQualification.ExitAdmission
 #print axioms VastitasQualification.ExitAdmission.physicalEditsOfLayout

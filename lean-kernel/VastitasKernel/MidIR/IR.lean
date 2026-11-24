@@ -22,7 +22,7 @@ inductive Ty where
   | int
   | pair (element : PairElem)
   | finite (carrier : FiniteSort)
-  deriving BEq, DecidableEq, Repr
+  deriving BEq, ReflBEq, LawfulBEq, DecidableEq, Repr
 
 def Ty.valid (env : Environment) : Ty → Bool
   | .unit | .bool | .nat | .int | .pair _ => true
@@ -92,8 +92,26 @@ def ExactOp.name : ExactOp → String
   | .project .int true => "int_pair_first" | .project .int false => "int_pair_second"
 
 inductive Comparison where
-  | eq | ne
+  | eq | ne | lt | le | gt | ge
   deriving DecidableEq, Repr
+
+def Comparison.tag : Comparison → String
+  | .eq => "exact.eq.v1" | .ne => "exact.ne.v1"
+  | .lt => "exact.lt.v1" | .le => "exact.le.v1"
+  | .gt => "exact.gt.v1" | .ge => "exact.ge.v1"
+
+/-- Only numerical operands have an order. Unit, Bool and nominal tags support equality. -/
+def Comparison.equality : Comparison → Bool → Option Bool
+  | .eq, same => some same
+  | .ne, same => some (!same)
+  | _, _ => none
+
+def Comparison.numbers {α : Type} [BEq α] [LT α] [LE α] [DecidableLT α] [DecidableLE α]
+    (k : Comparison) (a b : α) : Bool :=
+  match k with
+  | .eq => a == b | .ne => a != b
+  | .lt => decide (a < b) | .le => decide (a ≤ b)
+  | .gt => decide (a > b) | .ge => decide (a ≥ b)
 
 /-- A total table on one nominal carrier with a nominal result. The table
 identity is retained even if another declaration has identical rows. -/
@@ -177,8 +195,7 @@ def tag : Opcode p → String
   | .boolAnd => "bool.and.v1"
   | .boolOr => "bool.or.v1"
   | .boolNot => "bool.not.v1"
-  | .compare .eq _ => "exact.eq.v1"
-  | .compare .ne _ => "exact.ne.v1"
+  | .compare k _ => k.tag
   | .call _ => "static.call.v1"
 
 def operands : Opcode p → List Ty
@@ -205,8 +222,10 @@ def valid (env : Environment) : Opcode p → Bool
   | .finiteTag c t => (FiniteSort.tags env c).any (·.contains t)
   | .finiteOrdinal c n => (FiniteSort.tags env c).any (n < ·.length)
   | .lookupTag s | .lookupOrdinal s => (s.plan? env).isSome
-  | .compare _ .nat | .compare _ .int | .compare _ (.pair _) => false
-  | .compare _ t => t.valid env
+  | .compare _ .nat | .compare _ .int => true
+  | .compare _ (.pair _) => false
+  | .compare .eq t | .compare .ne t => t.valid env
+  | .compare _ _ => false
   | .call t => t.params.all (·.valid env) && t.result.valid env
 
 /-- Resolve the ordinal from the exact carrier declaration, in declared order. -/

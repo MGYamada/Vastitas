@@ -20,6 +20,8 @@ contribution prefer : keep {
 assemble keep { apply prefer; }
 fn main() -> Int { if keep(false) { 314 } else { 9 } }";
 
+const ORDERED_CALLS: &str = include_str!("../llvm/fixtures/OrderedCalls.vast");
+
 fn preview(s: &Scratch, source: &str) -> Output {
     s.write_package("app", source, "");
     s.command("check", "app/Vastitas.toml")
@@ -114,6 +116,62 @@ fn assembled_selector_order_drives_both_native_exit_edges() {
             );
         }
     }
+}
+
+#[test]
+fn repeated_assembled_calls_retain_both_occurrences_in_the_revision_and_llvm() {
+    let s = Scratch::empty("repeated assembled comparison");
+    let original = include_str!("../llvm/fixtures/ComparisonMethod.vast");
+    let repeated = original.replace("{ 42 }", "{ if before(right, left) { 9 } else { 42 } }");
+    let result = preview(&s, &repeated);
+    success(&result);
+    let text = String::from_utf8(result.stdout).unwrap();
+    let bodies: Vec<_> = text
+        .split("define internal ")
+        .filter_map(|section| section.split_once("\n}").map(|(body, _)| body))
+        .filter(|body| body.contains("call i32 @vq_f"))
+        .collect();
+    assert_eq!(bodies.len(), 1);
+    let calls: Vec<_> = bodies[0]
+        .lines()
+        .filter_map(|line| line.split_once("call i32 @vq_f"))
+        .map(|(dst, call)| (dst.trim(), call.split_once('(').unwrap().0))
+        .collect();
+    assert_eq!(calls.len(), 2);
+    assert_eq!(calls[0].1, calls[1].1);
+    assert_ne!(calls[0].0, calls[1].0);
+
+    let receipt = s
+        .command("check", "app/Vastitas.toml")
+        .arg("--print-function-revision")
+        .output()
+        .unwrap();
+    success(&receipt);
+    let revision: serde_json::Value = serde_json::from_slice(&receipt.stdout).unwrap();
+    let records = revision["pure"]["dispatch_calls"].as_array().unwrap();
+    assert_eq!(records.len(), 2);
+    let family = revision["families"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|family| family["id"]["name"] == "before")
+        .unwrap();
+    let selected = &family["dispatch"][0]["selected"];
+    assert_eq!(selected["origin"]["contribution"]["name"], "ordered");
+    for record in records {
+        assert_eq!(record["method"], selected["ordinal"]);
+        assert_eq!(record["id"], records[0]["id"]);
+    }
+    s.write("twice.json", std::str::from_utf8(&receipt.stdout).unwrap());
+    s.write_package("app", original, "");
+    let once = s
+        .command("check", "app/Vastitas.toml")
+        .args(TARGET)
+        .args(["--expect-function-revision", "twice.json"])
+        .output()
+        .unwrap();
+    expect_code(&once, "E_FUNCTION_REVISION");
+    assert!(once.stdout.is_empty());
 }
 
 #[test]
@@ -371,6 +429,44 @@ fn boxed_integer_exports_bind_their_argument_order_and_full_revision() {
 }
 
 #[test]
+fn integer_predicate_binds_operand_order_and_scalar_result_to_its_revision() {
+    let s = Scratch::empty("integer predicate revision");
+    let source = include_str!("../llvm/fixtures/IntegerPredicate.vast");
+    let original = preview(&s, source);
+    success(&original);
+    let text = String::from_utf8(original.stdout).unwrap();
+    assert!(text.contains("define i32 @vq_exact(ptr %v0, ptr %v1)"));
+    assert!(text.contains("call i32 @vastitas_int_le_v1(ptr %v3, ptr %v1)"));
+    assert!(text.contains("ret i32 %v4"));
+
+    let revision = s
+        .command("check", "app/Vastitas.toml")
+        .arg("--print-function-revision")
+        .output()
+        .unwrap();
+    success(&revision);
+    let saved = s.0.join("revision.json");
+    std::fs::write(&saved, revision.stdout).unwrap();
+
+    let changed = preview(&s, &source.replace("offset <= b", "b <= offset"));
+    success(&changed);
+    assert!(
+        String::from_utf8(changed.stdout)
+            .unwrap()
+            .contains("call i32 @vastitas_int_le_v1(ptr %v1, ptr %v3)")
+    );
+    let stale = s
+        .command("check", "app/Vastitas.toml")
+        .args(TARGET)
+        .arg("--expect-function-revision")
+        .arg(saved)
+        .output()
+        .unwrap();
+    expect_code(&stale, "E_FUNCTION_REVISION");
+    assert!(stale.stdout.is_empty());
+}
+
+#[test]
 fn boxed_program_preserves_call_targets_and_borrowed_returns() {
     let s = Scratch::empty("boxed integer module");
     let source = include_str!("../llvm/fixtures/BoxedProgram.vast");
@@ -411,6 +507,68 @@ fn boxed_program_preserves_call_targets_and_borrowed_returns() {
     }
     source.push_str("x12 }");
     expect_code(&preview(&s, &source), "E_UNSUPPORTED");
+}
+
+#[test]
+fn assembled_calls_keep_the_selected_target_and_ordered_nested_arguments() {
+    let s = Scratch::empty("assembled nested calls");
+    let original = preview(&s, ORDERED_CALLS);
+    success(&original);
+    let llvm = std::str::from_utf8(&original.stdout).unwrap();
+    let mut calls = llvm.lines().filter(|line| line.contains("call ptr @vq_f"));
+    assert_eq!(
+        calls.next().unwrap().trim(),
+        "%v2 = call ptr @vq_f0(ptr %v0, ptr %v1)"
+    );
+    assert_eq!(
+        calls.next().unwrap().trim(),
+        "%v5 = call ptr @vq_f0(ptr %v3, ptr %v4)"
+    );
+    assert_eq!(
+        calls.next().unwrap().trim(),
+        "%v6 = call ptr @vq_f1(ptr %v2, ptr %v5)"
+    );
+    let revision = s
+        .command("check", "app/Vastitas.toml")
+        .arg("--print-function-revision")
+        .output()
+        .unwrap();
+    success(&revision);
+    s.write(
+        "original.json",
+        std::str::from_utf8(&revision.stdout).unwrap(),
+    );
+
+    for changed in [
+        ORDERED_CALLS.replace(
+            "pick(delta(9, 4), delta(3, 1))",
+            "let a = delta(9, 4); let b = delta(3, 1); pick(b, a)",
+        ),
+        ORDERED_CALLS.replace("apply forward;", ""),
+    ] {
+        let other = preview(&s, &changed);
+        success(&other);
+        assert_ne!(other.stdout, original.stdout);
+        let stale = s
+            .command("check", "app/Vastitas.toml")
+            .args(TARGET)
+            .args(["--expect-function-revision", "original.json"])
+            .output()
+            .unwrap();
+        expect_code(&stale, "E_FUNCTION_REVISION");
+        assert!(stale.stdout.is_empty());
+    }
+}
+
+#[cfg(feature = "llvm-native")]
+#[test]
+fn native_assembled_nested_calls_observe_argument_and_method_changes() {
+    check_native_status(ORDERED_CALLS, 23);
+    check_native_status(
+        &ORDERED_CALLS.replace("delta(9, 4), delta(3, 1)", "delta(3, 1), delta(9, 4)"),
+        17,
+    );
+    check_native_status(&ORDERED_CALLS.replace("apply forward;", ""), 17);
 }
 
 #[test]
@@ -624,15 +782,30 @@ fn llvm_preview_rejects_unsupported_bodies_and_stale_revisions_before_printing()
     for source in [
         "fn choose(n: Int) -> Int { if n == 0 { 1 } else { n } } fn main() -> Int { choose(4) }",
         "fn f(n: Int) -> Int { if n == 0 { 1 } else { n } } fn main() -> Int { 7 }",
+    ] {
+        let result = preview(&s, source);
+        success(&result);
+        let llvm = String::from_utf8(result.stdout).unwrap();
+        assert!(llvm.contains("call i32 @vastitas_int_eq_v1"));
+        assert!(llvm.contains(" = phi ptr "));
+    }
+    for source in [
         "fn main() -> Int { let x = show!(-1); x }",
         "resource fn main() -> Int { value { if true { 3 } else { 4 } } }",
-        "pub fn pick(a: Bool) -> Bool { a }",
+        "pub fn pick(a: Bool) -> Bool { !a }",
     ] {
         let o = preview(&s, source);
         success(&s.command("check", "app/Vastitas.toml").output().unwrap());
         expect_code(&o, "E_UNSUPPORTED");
         assert!(o.stdout.is_empty(), "partial bytes for {source}");
     }
+    let identity = preview(&s, "pub fn pick(a: Bool) -> Bool { a }");
+    success(&identity);
+    let text = String::from_utf8(identity.stdout).unwrap();
+    assert!(text.contains("define i32 @vq_exact(i32 %v0)"));
+    assert!(text.contains("ret i32 %v0"));
+    assert!(!text.contains("vastitas_retain") && !text.contains("vastitas_release"));
+
     let original = "fn main() -> Int { 7 }";
     s.write_package("app", original, "");
     let rev = s
@@ -949,10 +1122,7 @@ fn checked_llvm_executable_installs_atomically_and_rejects_unsupported_replaceme
         .output()
         .unwrap();
     expect_code(&overwrite_source, "E_OUTPUT");
-    s.write(
-        "app/main.vast",
-        "fn choose(n: Int) -> Int { if n == 0 { 1 } else { n } } fn main() -> Int { choose(4) }",
-    );
+    s.write("app/main.vast", "fn main() -> Int { let x = show!(-1); x }");
     let unsupported = build().output().unwrap();
     expect_code(&unsupported, "E_UNSUPPORTED");
     assert_eq!(fs::read(&output).unwrap(), saved);

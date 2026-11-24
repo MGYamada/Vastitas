@@ -15,9 +15,6 @@ def compare(expected, actual, field):
         if not isinstance(actual, dict) or actual.keys() != expected.keys():
             raise ValueError(f"{field}: different record fields")
         for key, value in expected.items():
-            # A zero-width span is a placeholder on a handwritten nested path.
-            if key == "span" and value["start"] == value["end"] == 0:
-                continue
             compare(value, actual[key], f"{field}.{key}")
     elif isinstance(expected, list):
         if not isinstance(actual, list) or len(actual) != len(expected):
@@ -38,8 +35,11 @@ def check(request, directory):
     revision = subprocess.check_output(
         ["cargo", "run", "--locked", "--quiet", "--bin", "vastitas", "--", "check",
          "--manifest-path", manifest, "--print-function-revision"], cwd=ROOT)
-    expected = request["packages"][0]["modules"][0]["indexed_declarations"]
-    actual = json.loads(revision)["input"]["packages"][0]["modules"][0]["indexed_declarations"]
+    fixture_root = request["packages"][0]["modules"][0]
+    parsed_root = json.loads(revision)["input"]["packages"][0]["modules"][0]
+    compare(fixture_root["span"], parsed_root["span"], f"{package['name']}.root.span")
+    expected = fixture_root["indexed_declarations"]
+    actual = parsed_root["indexed_declarations"]
     if not expected or any(d["span"]["end"] <= d["span"]["start"] for d in expected):
         raise ValueError(f"{package['name']}: missing physical declaration span")
     compare(expected, actual, package["name"])

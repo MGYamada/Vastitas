@@ -48,13 +48,13 @@ theorem data : Core.validDeclarations accumulated = true := by
   decide
 def checkedDeclarations : Source.CheckedDeclarations headers := {
   resolved, namespaceAccepted := validated, ownersUnique := uniqueOwners, lowered := actualLowered,
-  referencesValid, idsPreserved := namesPreserved, accepted := data, geometryAccepted := roles }
+  referencesValid, tableIds := tableIds, accepted := data, geometryAccepted := roles }
 
 /-- Reassemble the independently checked result of the real declaration pass.
 All computational data equal the candidate environment and all proofs belong
 to these exact input headers. -/
 theorem acceptedDeclarations : Source.checkDeclarations headers = .ok checkedDeclarations := by
-  obtain ⟨c,passed,same⟩ := declarationsFromLower resolved actualLowered referencesValid namesPreserved data roles
+  obtain ⟨c,passed,same⟩ := declarationsFromLower resolved actualLowered referencesValid tableIds data roles
   have eq : c = checkedDeclarations := by cases c; cases same; rfl
   exact passed.trans (congrArg Except.ok eq)
 

@@ -11,6 +11,49 @@ namespace VastitasOracle.IndexedFunctions
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.Indexed.FunctionSource
 open FunctionSource.Compiler
 
+private theorem bind_ok {a : Except ε α} {next : α → Except ε β}
+    (ok : (a >>= next) = .ok value) : ∃ x, a = .ok x ∧ next x = .ok value := by
+  cases a with
+  | error e => contradiction
+  | ok x => exact ⟨x,rfl,ok⟩
+
+set_option maxRecDepth 4096 in
+/-- Finite discovery and sealing replace the prepared table, preserving the header declarations. -/
+theorem prepared_env {decls : Core.Declarations} {pp : PreparedProgram}
+    (ok : prepareProgram source decls lifted disp excluded = .ok pp) :
+    pp.input.body.declarations = decls := by
+  unfold prepareProgram at ok
+  obtain ⟨ordinary, fromOrdinary, rest⟩ := bind_ok ok
+  have initial : ordinary.input.body.declarations = decls := by
+    obtain ⟨_,_,h⟩ := bind_ok fromOrdinary
+    obtain ⟨⟨_,_⟩,_,h⟩ := bind_ok h
+    obtain ⟨⟨_,_⟩,_,h⟩ := bind_ok h
+    cases h
+    rfl
+  by_cases no : source.finiteFunctions.isEmpty = true
+  · simp only [no, ite_true] at rest
+    cases rest
+    exact initial
+  · simp only [no] at rest
+    obtain ⟨_,_,h⟩ := bind_ok rest
+    obtain ⟨⟨_,_,_⟩,_,h⟩ := bind_ok h
+    obtain ⟨⟨_,_,_⟩,_,h⟩ := bind_ok h
+    obtain ⟨_,_,h⟩ := bind_ok h
+    obtain ⟨_,_,h⟩ := bind_ok h
+    obtain ⟨_,_,h⟩ := bind_ok h
+    obtain ⟨⟨_,_,_⟩,_,h⟩ := bind_ok h
+    cases h
+    exact initial
+
+/-- Lowering the executable pass places its input declarations in the emitted module. -/
+theorem pass_env {pp : PreparedProgram} (ok : lowerPass pp false = .ok pass) :
+    pass.module.declarations = pp.input.body.declarations := by
+  unfold lowerPass at ok
+  simp only [Bool.false_and, Bool.false_eq_true, ite_false] at ok
+  obtain ⟨⟨_,_⟩,_,h⟩ := bind_ok ok
+  cases h
+  rfl
+
 theorem checked_pass {prepared : PreparedProgram} (checked : CheckedPass prepared audit requireMain) :
     lowerPass prepared audit = .ok checked.lowered ∧
     checked.core.module = checked.lowered.module ∧

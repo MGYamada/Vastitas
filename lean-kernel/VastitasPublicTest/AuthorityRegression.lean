@@ -166,9 +166,16 @@ private def cases : List (String × Json × String) := [
       else line
     return row.setObjVal! "text" (toJson (String.intercalate "\n" lines))
   let direct := direct.setObjVal! "root_source" (files.setObjVal! "files" (toJson rows))
+  checkBad "removing the first delegation moves the addon's root" direct "E_MODULE_SOURCE"
+  -- The first surviving line starts with "pub contribution fresh".
+  let direct := editModule direct "addon" [] fun m =>
+    let decl := get (values m "contributions")[0]! "span"
+    let start := (get decl "start").getNat?.toOption.get! - "pub ".utf8ByteSize
+    m.setObjVal! "span" (Json.mkObj [("start", toJson start), ("end", toJson (start + 3)),
+      ("line", get decl "line"), ("column", toJson (1 : Nat))])
   checkGood "a direct exclusive edit" direct 42
   checkBad "a direct edit's unapplied body" (contributionMethod direct "base" []
     (·.setObjVal! "return_type" (named "Bool"))) "E_TYPE"
-  IO.println s!"public authority: three accepted/executable cases, {cases.length + 4} rejected inputs under both check/emit policies passed"
+  IO.println s!"public authority: three accepted/executable cases, {cases.length + 5} rejected inputs under both check/emit policies passed"
 
 end VastitasPublicTest.AuthorityRegression

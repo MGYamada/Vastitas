@@ -17,6 +17,21 @@ private def sourceSpan (start size line column : Nat) : Json :=
   Json.mkObj [("start", toJson start), ("end", toJson (start + size)),
     ("line", toJson line), ("column", toJson column)]
 
+/-- Append a path to a single-line fixture and set its span as it is written. -/
+private def appendPath (text : String) (path : Json) (offset line : Nat) : Option (String × Json) := do
+  let spelling := String.intercalate "::" (← (path.getObjValAs? (List String) "path").toOption)
+  let span := sourceSpan (offset + text.utf8ByteSize) spelling.utf8ByteSize line (text.length + 1)
+  return (text ++ spelling, path.setObjVal! "span" span)
+
+private def appendPaths (text : String) (paths : Array Json) (offset line : Nat) : Option (String × Json) := do
+  let mut result := text
+  let mut positioned := #[]
+  for path in paths do
+    let (next, p) ← appendPath (if positioned.isEmpty then result else result ++ ", ") path offset line
+    result := next
+    positioned := positioned.push p
+  return (result, .arr positioned)
+
 /-- Give each handwritten smooth space in the algebra and geometry regressions
 a physical declaration and the spans that the public wire checker requires. -/
 private def smoothLine (d : Json) (offset line : Nat) : Option (String × Json) := do
@@ -24,26 +39,61 @@ private def smoothLine (d : Json) (offset line : Nat) : Option (String × Json) 
   let name ← (d.getObjValAs? String "name").toOption
   let isPublic ← (d.getObjValAs? Bool "public").toOption
   let impl ← (d.getObjVal? "implementation").toOption
-  let implName := String.intercalate "::" (← (impl.getObjValAs? (List String) "path").toOption)
   let dimension ← (d.getObjValAs? String "dimension").toOption
   let coordinates ← (d.getObjValAs? (List String) "coordinates").toOption
   let visibility := if isPublic then "pub " else ""
   let head := visibility ++ "indexed affine " ++ name ++ "("
-  let text := head ++ implName ++ ") = Affine(" ++ dimension ++ ")[" ++ String.intercalate ", " coordinates ++ "];"
+  let (throughImpl, impl) ← appendPath head impl offset line
+  let text := throughImpl ++ ") = Affine(" ++ dimension ++ ")[" ++ String.intercalate ", " coordinates ++ "];"
   let declarationSpan := sourceSpan (offset + visibility.utf8ByteSize) (text.utf8ByteSize - visibility.utf8ByteSize)
     line (visibility.length + 1)
-  let implSpan := sourceSpan (offset + head.utf8ByteSize) implName.utf8ByteSize line (head.length + 1)
-  return (text, (d.setObjVal! "span" declarationSpan).setObjVal! "implementation" (impl.setObjVal! "span" implSpan))
+  return (text, (d.setObjVal! "span" declarationSpan).setObjVal! "implementation" impl)
+
+private def familyLine (d : Json) (head : String) (offset line : Nat) : Option (String × Json) := do
+  let mut text := head ++ "("
+  let mut params := #[]
+  for param in ← (d.getObjValAs? (Array Json) "parameters").toOption do
+    if !params.isEmpty then text := text ++ ", "
+    let kind ← (param.getObjValAs? String "kind").toOption
+    match kind with
+    | "object" | "frame" =>
+      let key := if kind == "object" then "domain" else "family"
+      let path ← (param.getObjVal? key).toOption
+      let (next, ref) ← appendPath (text ++ kind ++ "(") path offset line
+      text := next ++ ")"
+      params := params.push (param.setObjVal! key ref)
+    | "domain" | "marker" | "natural" =>
+      text := text ++ kind
+      params := params.push param
+    | _ => failure
+  let repr ← (d.getObjValAs? String "representation").toOption
+  let rules ← (← (d.getObjValAs? (List Json) "constraints").toOption).mapM RegressionIndexedText.familyConstraint
+  return (text ++ ") = " ++ repr ++ " constraints(" ++ String.intercalate ", " rules ++ ");",
+    d.setObjVal! "parameters" (.arr params))
 
 private def indexedLine (d : Json) (offset line : Nat) : Option (String × Json) := do
   if let some smooth := smoothLine d offset line then return smooth
-  let (keyword, suffix) ← RegressionIndexedText.syntaxOf d
   let name ← (d.getObjValAs? String "name").toOption
   let visible ← (d.getObjValAs? Bool "public").toOption
-  let visibility := if visible then "pub " else ""
-  let item := "indexed " ++ keyword ++ " " ++ name ++ suffix ++ ";"
-  return (visibility ++ item, d.setObjVal! "span" (sourceSpan (offset + visibility.utf8ByteSize)
-    item.utf8ByteSize line (visibility.length + 1)))
+  let vis := if visible then "pub " else ""
+  let kind ← (d.getObjValAs? String "kind").toOption
+  let head := vis ++ "indexed " ++ kind ++ " " ++ name
+  let (text, positioned) : String × Json ← match kind with
+    | "family" => familyLine d head offset line
+    | "implementation" => do
+      let (start, marker) ← appendPath (head ++ "(") (← (d.getObjVal? "marker").toOption) offset line
+      let repr ← (d.getObjValAs? String "representation").toOption
+      let caps ← (d.getObjValAs? (List String) "capabilities").toOption
+      let caps := caps.map fun c => if c == "dimension" then "dim" else c
+      pure (start ++ ", " ++ repr ++ ") capabilities(" ++ String.intercalate ", " caps ++ ");",
+        d.setObjVal! "marker" marker)
+    | "classification" => do
+      let (start, parents) ← appendPaths (head ++ " { parents(") (← (d.getObjValAs? (Array Json) "parents").toOption) offset line
+      let (text, domain) ← appendPaths (start ++ "); domain(") (← (d.getObjValAs? (Array Json) "domain").toOption) offset line
+      pure (text ++ "); };", (d.setObjVal! "parents" parents).setObjVal! "domain" domain)
+    | _ => RegressionIndexedText.syntaxOf d vis kind name offset line
+  return (text, positioned.setObjVal! "span" (sourceSpan (offset + vis.utf8ByteSize)
+    (text.utf8ByteSize - vis.utf8ByteSize) line (vis.length + 1)))
 
 /-- Handwritten regression requests carry their physical manifest and source.
 Malformed raw records still reach the wire decoder and semantic diagnostics. -/
@@ -61,7 +111,7 @@ def package (name : String) (modules : List Json) (version : Nat := currentProto
     if (m.getObjVal? "path").toOption != some (.arr #[]) then
       physical := physical.push m
     else
-      let mut root := m.setObjVal! "span" (sourceSpan offset 0 1 1)
+      let mut root := m
       if let .ok ds := m.getObjValAs? (Array Json) "indexed_declarations" then
         let mut declarations := #[]
         for d in ds do
@@ -71,7 +121,9 @@ def package (name : String) (modules : List Json) (version : Nat := currentProto
             declarations := declarations.push positioned
           else declarations := declarations.push d
         root := root.setObjVal! "indexed_declarations" (.arr declarations)
-      physical := physical.push root
+      -- Generated lines start with "indexed" or "pub indexed". Empty sources use EOF.
+      let first := text.takeWhile (· != ' ')
+      physical := physical.push (root.setObjVal! "span" (sourceSpan offset first.utf8ByteSize 1 1))
   let entry := Json.mkObj [("offset",base),("text",toJson text),("files",.arr #[
     Json.mkObj [("path",owner),("offset",toJson (0 : Nat)),("text",manifest)],
     Json.mkObj [("path",file),("offset",base)]])]

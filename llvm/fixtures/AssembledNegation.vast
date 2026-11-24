@@ -1,0 +1,9 @@
+fn flip(x: Int) -> Int { -x }
+
+fn direction(x: Int) -> Int { x }
+contribution reversing : direction {
+    fn direction(x: Int) requires (HasEq) -> Int { flip(x) }
+}
+assemble direction { apply reversing; }
+
+fn main() -> Int { direction(340282366920938463463374607431768211499) }

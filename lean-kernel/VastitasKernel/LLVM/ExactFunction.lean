@@ -6,8 +6,8 @@ set_option autoImplicit false
 namespace VastitasKernel.LLVM.ExactFunction
 open Indexed MidIR ResourceSource UnaryFunction
 
-/-- A foreign caller supplies the boxed Nat/Int signature of the checked
-source export. Every operator site is selected in that same function revision. -/
+/-- A foreign caller follows the checked export signature for boxed integers,
+pairs and canonical 32-bit Booleans. Every operator site is selected in that same function revision. -/
 structure Artifact {json : Lean.Json} (req : Wire.CheckedInput json false) (header : TargetHeader)
     extends ExitFunction.CheckedSites req where
   source : Core.Function

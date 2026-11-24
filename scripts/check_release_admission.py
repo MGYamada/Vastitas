@@ -43,7 +43,7 @@ ROW_OBLIGATIONS = {
                  'compiler-ir.edition@namespace-source', 'compiler-ir.families@selector-source', 'compiler-ir.operators@selected-method'),
         'midir': ('compiler-ir.midir@representation', 'compiler-ir.midir@pure-cfg', 'compiler-ir.midir@direct-call'),
         'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.llvm-bytes@static-call',
-                 'compiler-ir.llvm-bytes@assembled-bool'),
+                 'compiler-ir.llvm-bytes@assembled-bool', 'compiler-ir.llvm-bytes@boxed-control-flow'),
         'official': ('compiler-ir.stage-validation@soundness', 'compiler-ir.stage-validation@pure-cfg',
                      'compiler-ir.llvm-bytes@static-call', 'compiler-ir.llvm-bytes@assembled-bool',
                      'compiler-ir.families@static-retention'),
@@ -92,13 +92,16 @@ ROW_OBLIGATIONS = {
     },
     'scalar-indexed': {
         'source': ('compiler-ir.operators@binding', 'compiler-ir.operators@exact-integers'),
-        'core': ('compiler-ir.coverage@ledger', 'compiler-ir.coverage@inventory', 'compiler-ir.coverage@literal-lowering', 'compiler-ir.coverage@finite-lowering', 'compiler-ir.operators@selected-method'),
+        'core': ('compiler-ir.coverage@ledger', 'compiler-ir.coverage@inventory', 'compiler-ir.coverage@literal-lowering', 'compiler-ir.coverage@finite-lowering',
+                 'compiler-ir.coverage@binding-lowering', 'compiler-ir.coverage@static-call-lowering',
+                 'compiler-ir.coverage@conversion-lowering', 'compiler-ir.coverage@pair-lowering',
+                 'compiler-ir.coverage@unary-lowering', 'compiler-ir.coverage@branch-lowering', 'compiler-ir.coverage@binary-lowering', 'compiler-ir.operators@selected-method'),
         'midir': ('compiler-ir.registry@opcodes', 'compiler-ir.registry@int-literal',
-                  'compiler-ir.registry@exact-arithmetic', 'compiler-ir.registry@pair-operations'),
+                  'compiler-ir.registry@exact-arithmetic', 'compiler-ir.registry@pair-operations', 'compiler-ir.registry@binary-signatures'),
         'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.llvm-bytes@entry-status',
                  'compiler-ir.llvm-bytes@folded-entry', 'compiler-ir.llvm-bytes@entry-regression',
                  'compiler-ir.llvm-bytes@boxed-library', 'compiler-ir.llvm-bytes@boxed-program',
-                 'compiler-ir.llvm-bytes@boxed-regression'),
+                 'compiler-ir.llvm-bytes@boxed-regression', 'compiler-ir.llvm-bytes@boxed-control-flow'),
         'official': ('compiler-ir.stage-validation@soundness', 'compiler-ir.llvm-bytes@entry-status',
                      'compiler-ir.llvm-bytes@folded-entry', 'compiler-ir.verification-modes@boxed-stage'),
         'native': ('compiler-ir.runtime@linkage', 'compiler-ir.backend@native', 'compiler-ir.feasibility@qualification'),
@@ -114,16 +117,19 @@ ROW_OBLIGATIONS = {
     },
     'edition-verification': {
         'source': ('compiler-ir.edition@manifest', 'compiler-ir.edition@admission',
-                   'compiler-ir.edition@finite-tables', 'compiler-ir.edition@affine-replay', 'compiler-ir.edition@resource-cell-replay', 'compiler-ir.edition@resource-product-replay', 'compiler-ir.edition@resource-ownership-replay', 'compiler-ir.edition@resource-value-replay',
+                   'compiler-ir.edition@finite-tables', 'compiler-ir.edition@definition-replay', 'compiler-ir.edition@indexed-record-replay',
+                   'compiler-ir.edition@affine-replay', 'compiler-ir.edition@resource-cell-replay', 'compiler-ir.edition@resource-product-replay', 'compiler-ir.edition@resource-ownership-replay', 'compiler-ir.edition@resource-value-replay',
                    'compiler-ir.finite-binders@category-functions',
                    'compiler-ir.realization@affine-wrappers', 'compiler-ir.realization@identity-source', 'compiler-ir.realization@exact-chart-source'),
         'core': ('compiler-ir.edition@manifest', 'compiler-ir.edition@manifest-source', 'compiler-ir.edition@correspondence',
-                 'compiler-ir.edition@finite-tables', 'compiler-ir.edition@finite-declaration-source', 'compiler-ir.edition@affine-source',
+                 'compiler-ir.edition@finite-tables', 'compiler-ir.edition@finite-declaration-source', 'compiler-ir.edition@indexed-value-source', 'compiler-ir.edition@affine-source',
                  'compiler-ir.edition@resource-cell-source', 'compiler-ir.edition@resource-product-source', 'compiler-ir.edition@resource-ownership-source', 'compiler-ir.edition@resource-value-source',
                  'compiler-ir.families@singleton-source', 'compiler-ir.edition@namespace-source',
                  'compiler-ir.families@selector-source'),
-        'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.check-build@preview'),
-        'official': ('compiler-ir.composition@theorem',),
+        'midir': ('compiler-ir.midir@representation', 'compiler-ir.midir@direct-call'),
+        'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.check-build@preview', 'compiler-ir.llvm-bytes@boxed-program',
+                 'compiler-ir.llvm-bytes@boxed-control-flow'),
+        'official': ('compiler-ir.composition@theorem', 'compiler-ir.composition@published-definitions'),
         'fast': ('compiler-ir.proof-binding@authentication',),
         'native': ('compiler-ir.distribution@packaging',),
     },
@@ -132,7 +138,7 @@ NAMING_DOCUMENT = 'docs/language/types.md#public-type-names'
 LLVM_PROOFS = {'compiler-ir.llvm-bytes@bytes', 'compiler-ir.llvm-bytes@static-call', 'compiler-ir.llvm-bytes@assembled-bool',
                'compiler-ir.llvm-bytes@entry-status', 'compiler-ir.llvm-bytes@folded-entry',
                'compiler-ir.llvm-bytes@binary-function', 'compiler-ir.llvm-bytes@finite-entry',
-               'compiler-ir.llvm-bytes@boxed-library', 'compiler-ir.llvm-bytes@boxed-program'}
+               'compiler-ir.llvm-bytes@boxed-library', 'compiler-ir.llvm-bytes@boxed-program', 'compiler-ir.llvm-bytes@boxed-control-flow'}
 
 
 def obligations(row, dimension):
@@ -144,14 +150,16 @@ def obligations(row, dimension):
 def required_status(dimension, claim):
     if dimension == 'official' and claim == 'compiler-ir.realization@coordinate-interpretation':
         return 'proved-bridge'
-    if (claim in {'compiler-ir.coverage@literal-lowering', 'compiler-ir.coverage@finite-lowering', 'compiler-ir.storage@static-effects', 'compiler-ir.storage@gemm-abi', 'compiler-ir.storage@erased-unit',
+    if (claim in {'compiler-ir.coverage@literal-lowering', 'compiler-ir.coverage@finite-lowering',
+                  'compiler-ir.coverage@binding-lowering', 'compiler-ir.coverage@static-call-lowering',
+                  'compiler-ir.storage@static-effects', 'compiler-ir.storage@gemm-abi', 'compiler-ir.storage@erased-unit',
                   'compiler-ir.edition@manifest-source', 'compiler-ir.edition@finite-declaration-source', 'compiler-ir.families@singleton-source',
                   'compiler-ir.edition@namespace-source', 'compiler-ir.edition@affine-source', 'compiler-ir.edition@resource-cell-source', 'compiler-ir.edition@resource-product-source', 'compiler-ir.edition@resource-ownership-source', 'compiler-ir.edition@resource-value-source',
                   'compiler-ir.families@selector-source', 'compiler-ir.operators@selected-method'}
             or dimension == 'official'
             or (dimension == 'llvm' and claim in LLVM_PROOFS)
             or (dimension == 'midir' and claim in {'compiler-ir.midir@finite-lookup', 'compiler-ir.registry@exact-arithmetic',
-                                                   'compiler-ir.registry@pair-operations'})):
+                                                   'compiler-ir.registry@pair-operations', 'compiler-ir.registry@binary-signatures'})):
         return 'proved-oracle'
     return 'tested'
 

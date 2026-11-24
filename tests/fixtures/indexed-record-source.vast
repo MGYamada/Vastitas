@@ -1,0 +1,17 @@
+pub indexed marker Coeff;
+pub indexed implementation Chart(Coeff, smooth_affine) capabilities();
+pub indexed classification Smooth { parents(); domain(Chart); };
+pub indexed affine Plane(Chart) = Affine(2)[x, y];
+pub indexed base_dimension Duration;
+pub indexed quantity Period = Duration;
+pub indexed scale Reference = frac(1, 2) of Period;
+pub indexed family SpectralSpace(object(Smooth)) = free_module constraints(canonical(0));
+pub indexed free_module States: SpectralSpace<Plane> = basis(ground, excited);
+pub indexed convention Units = hbar_one;
+pub indexed affine North(Chart) = Affine(1)[x];
+pub indexed affine South(Chart) = Affine(1)[y];
+pub indexed affine NorthOpen(Chart) = localize(North, x) inverse u;
+pub indexed affine SouthOpen(Chart) = localize(South, y) inverse v;
+pub indexed glued Circle(Chart) = glue(NorthOpen, SouthOpen)
+    by(y -> u, v -> x) inverse(x -> v, u -> y);
+pub indexed manifold SmoothCircle = manifold(Circle, 1) by(u -> South::y);

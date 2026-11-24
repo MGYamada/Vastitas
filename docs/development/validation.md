@@ -453,12 +453,23 @@ workflow has no name, so the table gives its identifier.
 | Workflow | Job | Hosts | Runs |
 | --- | --- | --- | --- |
 | CI, `ci.yml` | Rust formatting and lint | Linux | `check_docs.py`, `check_primitive_table.py`, `check_spec.py`, `cargo fmt`, `cargo clippy`, `cargo package`, the Python tests under `scripts/`, `check_boundaries.py`, the [experiment harnesses](#experiment-harnesses), and the generation and `--check` of the standard-library package |
-| CI, `ci.yml` | Native compiler (host, no mathlib) | Linux and macOS | The kernel build, `check_boundaries.py` with the directory `lean/` absent, the isolated 20,000-function watchdog test, the boxed LLVM integer libraries and hosted executables against Lean-generated controls, the three regression scripts, `cargo test --locked --all-targets`, `audit-lean`, `check_resource_cleanup.py` and the diagnostics model against the built compiler |
+| CI, `ci.yml` | Native compiler (host, no mathlib) | Linux and macOS | The kernel build, `check_boundaries.py` with the directory `lean/` absent, the four isolated 20,000-function watchdog cases, the boxed LLVM integer libraries and hosted executables against Lean-generated controls, the three regression scripts, `cargo test --locked --all-targets`, `audit-lean`, `check_resource_cleanup.py` and the diagnostics model against the built compiler |
 | CI, `ci.yml` | Optional GEMM adapter (host, OpenBLAS 0.3.34) | Linux and macOS | The commands of [Numerical adapters](#numerical-adapters) |
 | CI, `ci.yml` | Public compiler proof qualification (host) | Linux and macOS | The signed-literal proof, LLVM corpus replay, boxed program, physical input revisions and cross-package assembled method. Each host retains the proof report and logs. |
 | CI, `ci.yml` | Lean proofs and axiom audit | Linux | The commands of [Proof oracle and axiom audit](#proof-oracle-and-axiom-audit), without Mathlib |
 | Mathematical bridge, `lean-bridge.yml` | Daleckii–Krein proof and axiom audit | Linux | The commands of [Mathematical bridge](#mathematical-bridge) |
 | Documentation book, `documentation.yml` | `book` | Linux | `mdbook build` with the pinned release and `scripts/check_book.py` |
+
+The ordinary Rust suite checks four call-graph shapes at 128 functions. The native CI job runs
+the same four shapes once at 20,000 functions on each host, under the 60-second kernel watchdog.
+To run the full-size cases alone, use
+`cargo test --locked --test compiler kernel_checks_twenty_thousand_functions_within_the_watchdog -- --ignored --exact --test-threads=1`.
+The scale harness passes the frontend's wire file directly to the kernel.
+
+Compiler-proof measurements and LLVM corpus replays share one proof-worker slot per user in the
+system temporary directory. The per-worker deadline begins after the slot becomes available.
+The boxed proof regression creates its first certificate once. Each verifier rebuilds its authority
+and checks the entire export. The regression removes intermediate exports after their last consumer.
 
 - `ci.yml` and the documentation workflow run on pull requests, on pushes to
   `main` and on manual dispatch. A push to the branch of a pull request is

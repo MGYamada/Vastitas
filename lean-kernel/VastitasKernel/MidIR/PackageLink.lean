@@ -117,9 +117,12 @@ def familiesCovered (m : Core.Module) (originals : Array Nat) : Bool := Id.run d
     owners := owners.insert f.definition keep
   return true
 
-private def callIds (f : Function .optimization) : List Nat :=
-  f.blocks.toList.flatMap fun b => b.ops.toList.filterMap fun op =>
-    match op.code with | .call target => some target.symbol | _ => none
+def callSymbol? {p : Phase} (op : Op p) : Option Nat :=
+  match op.code with | .call target => some target.symbol | _ => none
+
+/-- Local callee addresses in block and instruction order, including repetitions. -/
+def callIds {p : Phase} (f : Function p) : List Nat :=
+  f.blocks.toList.flatMap fun b => b.ops.toList.filterMap callSymbol?
 
 /-- Every emitted sibling of a static reference must survive linkage. An
 unused higher-order declaration may have only its separate source audit. -/
@@ -137,24 +140,74 @@ def staticClosed {json main} (req : Request json main) (ids : Array Nat) : Bool 
         covered caller target.definition.owner
       | _, _ => false
 
+private def alignedFunction {json main} (req : Request json main) (fs : Array Core.Function)
+    (originals : Array Nat) (f : Function .optimization) (i : Nat) : Option Unit := do
+  let id ← originals[i]?
+  let orig ← fs[id]?
+  let key ← req.checked.pureProgram.executable.lowered.origins[id]?
+  let target ← CallTarget.ofCore orig key
+  let called ← (callIds f).mapM (originals[·]?)
+  guard (orig.id == id && validOrigin req.checked.pureProgram orig key &&
+    decide (f.target = {target with symbol := i}) && Finite.sameCounts called orig.body.callIds)
+
 /-- Structural witness on every local symbol, including original call edge
 multiplicity and finite-template origin. Calls can be spelled in a different
 order by A-normalization, so the CFG also remains part of the artifact. -/
 def aligned {json main} (req : Request json main) (originals : Array Nat)
-    (opt : Module .optimization) : Bool := Id.run do
-  let src := req.checked.pureProgram
+    (opt : Module .optimization) : Bool :=
   let fs := (core req).functions.toArray
-  unless originals.size == opt.functions.size do return false
-  for (f, i) in opt.functions.toList.zipIdx do
-    let some id := originals[i]? | return false
-    let some orig := fs[id]? | return false
-    let some key := src.executable.lowered.origins[id]? | return false
-    let some target := CallTarget.ofCore orig key | return false
-    let some called := (callIds f).mapM (originals[·]?) | return false
-    unless orig.id == id && validOrigin src orig key &&
-      decide (f.target = {target with symbol := i}) && Finite.sameCounts called orig.body.callIds do
-      return false
-  return true
+  originals.size == opt.functions.size && opt.functions.toList.zipIdx.all fun (f, i) =>
+    (alignedFunction req fs originals f i).isSome
+
+private theorem aligned_at {json main} {req : Request json main} {ids opt}
+    (h : aligned req ids opt = true) {i : Nat} {f : Function .optimization} (atSlot : opt.functions[i]? = some f) :
+    alignedFunction req (core req).functions.toArray ids f i = some () := by
+  have member := List.mk_mem_zipIdx_iff_getElem?.mpr (by simpa using atSlot :
+    opt.functions.toList[i]? = some f)
+  simp only [aligned, Bool.and_eq_true, List.all_eq_true] at h
+  obtain ⟨u, success⟩ := Option.isSome_iff_exists.mp (h.2 (f,i) member)
+  cases u
+  exact success
+
+/-- Recover the checked Core origin and complete call ABI for any local
+address in an aligned package. Only its dense symbol address is remapped. -/
+theorem aligned_target {json main} (req : Request json main) (originals : Array Nat)
+    (opt : Module .optimization) (alignedAll : aligned req originals opt = true)
+    (i : Nat) (f : Function .optimization) (localFn : opt.functions[i]? = some f) :
+    ∃ id orig key target, originals[i]? = some id ∧ (core req).functions.toArray[id]? = some orig ∧
+      orig.id = id ∧ req.checked.pureProgram.executable.lowered.origins[id]? = some key ∧
+      validOrigin req.checked.pureProgram orig key = true ∧ CallTarget.ofCore orig key = some target ∧
+      f.target = {target with symbol := i} := by
+  have success := aligned_at alignedAll localFn
+  simp only [alignedFunction, bind, Option.bind_eq_some_iff] at success
+  obtain ⟨id, atId, orig, atFn, key, atKey, target, atTarget, _, _, conditions⟩ := success
+  simp only [guard, Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at conditions
+  split at conditions
+  next h => exact ⟨id, orig, key, target, atId, atFn, h.1.1.1, atKey, h.1.1.2, atTarget, h.1.2⟩
+  next => contradiction
+
+/-- Relocation maps every call in a retained body back to a Core symbol.
+The checked counts preserve repeated calls of the same specialization. -/
+theorem aligned_calls {json main} {req : Request json main} {ids opt}
+    (h : aligned req ids opt = true) {i : Nat} {f : Function .optimization} (atSlot : opt.functions[i]? = some f) :
+    ∃ (id : Nat) (orig : Core.Function) (called : List Nat), ids[i]? = some id ∧ (core req).functions.toArray[id]? = some orig ∧
+      (callIds f).mapM (ids[·]?) = some called ∧ called.Perm orig.body.callIds := by
+  have success := aligned_at h atSlot
+  simp only [alignedFunction, bind, Option.bind_eq_some_iff] at success
+  obtain ⟨id, atId, orig, atFn, _, _, _, _, called, mapped, conditions⟩ := success
+  simp only [guard] at conditions
+  split at conditions
+  next ok =>
+    refine ⟨id, orig, called, atId, atFn, mapped, List.perm_iff_count.mpr ?_⟩
+    intro target
+    simp only [Bool.and_eq_true] at ok
+    have counts := ok.2
+    by_cases member : target ∈ called ++ orig.body.callIds
+    · have equal := List.all_eq_true.mp counts target member
+      simpa [Finite.countIndex_lookup, List.count_eq_countP] using equal
+    · simp at member
+      simp [List.count_eq_zero.mpr member.1, List.count_eq_zero.mpr member.2]
+  next => contradiction
 
 /-- Run structural lowering over each retained original body; the resolver
 remaps only checked direct calls. Every actual call must also occur in the
@@ -202,6 +255,7 @@ structure Artifact {json main} (req : Request json main) where
   entry : Nat
   opt : Module .optimization
   exe : Module .execution
+  noReverse : req.checked.pureProgram.compiled.entries = []
   originalEntry : (core req).main = some sourceEntry
   entryMap : originals[entry]? = some sourceEntry
   accounted : ledger req originals = some dispositions
@@ -227,7 +281,8 @@ def compile {json main} (req : Request json main) : Option (Artifact req) := do
   let checked := req.checked
   let src := checked.pureProgram
   guard (checked.lowered.functions.isEmpty && checked.observations.isEmpty &&
-    req.input.pureFragments.isEmpty && src.compiled.entries.isEmpty)
+    req.input.pureFragments.isEmpty)
+  let ⟨noReverse⟩ ← certify (src.compiled.entries = [])
   let m := core req
   let some sourceEntry := m.main | none
   let fs := m.functions.toArray
@@ -256,7 +311,7 @@ def compile {json main} (req : Request json main) : Option (Artifact req) := do
   let ⟨lowering⟩ ← certify (aligned req originals opt = true)
   match h : opt.execute, recorded : ledger req originals with
   | some exe, some dispositions =>
-    return ⟨originals,dispositions,sourceEntry,entry,opt,exe,originalEntry,entryMap,
+    return ⟨originals,dispositions,sourceEntry,entry,opt,exe,noReverse,originalEntry,entryMap,
       recorded,allRoots,sourceRoots,rootMethods,allSiblings,staticTargets,
       allCalls,bodies,lowering,rfl,rfl,rfl,h⟩
   | _, _ => none

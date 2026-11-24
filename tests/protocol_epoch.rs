@@ -77,6 +77,114 @@ fn the_frontend_the_kernel_and_version_share_one_epoch() {
 }
 
 #[test]
+fn implicit_package_roots_match_the_first_physical_token_or_eof() {
+    let s = common::Scratch::empty("implicit module roots");
+    let prefix = "// 名\r\n\u{2003} ";
+    let empty = "// café\r\n\u{a0}\t";
+    s.write_package("empty", empty, "");
+    s.write_package("other", "pub fn value() -> Int { 7 }", "");
+    s.write_package(
+        "app",
+        &format!("{prefix}{PROGRAM}"),
+        "one={path='../empty'}\ntwo={path='../other'}",
+    );
+    let raw = s.captured("app/Vastitas.toml", CURRENT_PROTOCOL);
+    let file_offset = |name: &str| {
+        let path = s.0.join(name).join("main.vast").canonicalize().unwrap();
+        raw["root_source"]["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|f| f["path"] == path.to_str().unwrap())
+            .unwrap()["offset"]
+            .as_u64()
+            .unwrap()
+    };
+    let root_pointer = |name: &str| {
+        let packages = raw["packages"].as_array().unwrap();
+        let p = packages.iter().position(|p| p["name"] == name).unwrap();
+        let m = packages[p]["modules"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .position(|m| m["path"] == json!([]))
+            .unwrap();
+        format!("/packages/{p}/modules/{m}")
+    };
+    let app = root_pointer("app");
+    let dep = root_pointer("empty");
+    let first = file_offset("app") + prefix.len() as u64;
+    let eof = file_offset("empty") + empty.len() as u64;
+    let app_span = json!({"start":first, "end":first+2, "line":2, "column":3});
+    let eof_span = json!({"start":eof, "end":eof, "line":2, "column":3});
+    assert_eq!(raw.pointer(&app).unwrap()["span"], app_span);
+    assert_eq!(raw.pointer(&dep).unwrap()["span"], eof_span);
+    let triple = "aarch64-apple-darwin";
+    let layout = "e-m:o-i64:64-n32:64-S128";
+    let accepted = common::kernel_with_args(&raw, &["llvm-check", triple, layout]);
+    assert_eq!(accepted["ok"], true, "{accepted}");
+
+    for (field, value) in [
+        ("span/start", json!(first + 1)),
+        ("span/end", json!(first)),
+        ("span/line", json!(1)),
+        ("span/column", json!(4)),
+        ("public", json!(false)),
+    ] {
+        let mut changed = raw.clone();
+        *changed.pointer_mut(&format!("{app}/{field}")).unwrap() = value;
+        let response = kernel(&changed, "check");
+        assert_wire_rejected(&response, "E_MODULE_SOURCE");
+        assert_eq!(response["diagnostics"][0]["span"], app_span);
+    }
+
+    // Both dependencies are unused. A different dependency's genuine span
+    // cannot stand in for the EOF token of the empty package.
+    let mut changed = raw.clone();
+    changed.pointer_mut(&dep).unwrap()["span"] =
+        raw.pointer(&root_pointer("other")).unwrap()["span"].clone();
+    for route in [
+        &["check"][..],
+        &["emit"],
+        &["function-revision"],
+        &["llvm-check", triple, layout],
+        &["llvm-build", triple, layout],
+    ] {
+        let response = common::kernel_with_args(&changed, route);
+        assert_wire_rejected(&response, "E_MODULE_SOURCE");
+        assert_eq!(response["diagnostics"][0]["span"], eof_span);
+        assert!(response.get("llvm").is_none() && response.get("function_revision").is_none());
+    }
+}
+
+#[test]
+fn flat_and_library_inputs_share_the_synthetic_module_origin() {
+    let s = common::Scratch::empty("flat module origin");
+    let prefix = "// λ\r\n  ";
+    s.write("main.vast", &format!("{prefix}{PROGRAM}"));
+    s.write("lib.vast", "fn unused() -> Int { 19 }");
+    for files in [&["main.vast"][..], &["main.vast", "--lib", "lib.vast"]] {
+        let raw = captured_wire(s.cli().arg("check").args(files), CURRENT_PROTOCOL);
+        let module = &raw["packages"][0]["modules"][0];
+        assert_eq!(
+            module["span"],
+            json!({"start":0,"end":0,"line":1,"column":1})
+        );
+        assert_eq!(kernel(&raw, "function-revision")["ok"], true);
+        for (lo, hi, line, column) in [
+            (prefix.len(), prefix.len() + 2, 2, 3),
+            (0, 0, 2, 1),
+            (0, 0, 1, 3),
+        ] {
+            let mut moved = raw.clone();
+            moved["packages"][0]["modules"][0]["span"] =
+                json!({"start":lo,"end":hi,"line":line,"column":column});
+            assert_wire_rejected(&kernel(&moved, "function-revision"), "E_PROTOCOL");
+        }
+    }
+}
+
+#[test]
 fn root_source_is_the_physical_package_entry_at_its_global_byte_offset() {
     let s = common::Scratch::empty("root source");
     let entry = "// λ\r\nmod inner {} mod external; fn main() -> Int { dep::answer() }";

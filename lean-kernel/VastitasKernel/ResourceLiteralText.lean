@@ -20,17 +20,8 @@ private def digits (f : File) (p : String.Pos.Raw) (accept : Char → Bool) :=
   let stop := String.Pos.Raw.nextWhile f.text accept p
   (p.extract f.text stop, stop)
 
-/-- Compare decimal integers as digits, before converting any input to a bignum.
-The frontend accepts redundant leading zeros on unsigned resource integers. -/
-def expectNat (f : File) (c : Cursor) (expected : Nat) : Except String Cursor := do
-  let t ← f.next c
-  let start : String.Pos.Raw := ⟨t.span.start - f.base⟩
-  let (raw, stop) := digits f start Char.isDigit
-  let significant := raw.dropWhile '0'
-  unless !raw.isEmpty && (if significant.isEmpty then expected == 0
-      else significant == (toString expected).toSlice) do
-    throw "resource integer differs from physical source"
-  return t.after.ascii (stop.byteIdx - t.after.pos.byteIdx)
+def expectNat (f : File) (c : Cursor) (expected : Nat) : Except String Cursor :=
+  f.expectNat c expected "resource integer differs from physical source"
 
 private def i64Range (i : Int) := -(2^63) ≤ i && i < 2^63
 

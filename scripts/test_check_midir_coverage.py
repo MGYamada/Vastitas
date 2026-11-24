@@ -325,11 +325,48 @@ class RepositoryTests(unittest.TestCase):
             with self.subTest(rows=rows), self.assertRaisesRegex(guard.CoverageError, "compiled lowering differs"):
                 guard.check_lowerings({"coverage": selected}, rows)
 
+    def test_static_call_mapping_requires_the_exact_constructor_opcode_and_theorem(self):
+        ledger = json.loads((guard.ROOT / guard.LEDGER).read_text())
+        call = next(r for r in ledger["coverage"] if r["origin"] == guard.STATIC_CALL_ORIGIN)
+        self.assertEqual(call["disposition"], "lowered")
+        for changed in [{"planned_opcode": "midir.int.const.v1"}, {"evidence": [guard.LITERAL_THEOREM]}]:
+            rows = [{**r, **changed} if r is call else r for r in ledger["coverage"]]
+            with self.subTest(changed=changed), self.assertRaisesRegex(guard.CoverageError, "static call"):
+                guard.validate({**ledger, "coverage": rows}, ledger["schema"])
+        fake = {**call, "origin": "VastitasKernel.Term.call"}
+        rows = [fake if r["origin"] == fake["origin"] else r for r in ledger["coverage"]]
+        with self.assertRaisesRegex(guard.CoverageError, "missing checked local lowering"):
+            guard.validate({**ledger, "coverage": rows}, ledger["schema"])
+
+    def test_conversion_rejects_an_integer_negation_or_a_static_call_proof(self):
+        ledger = json.loads((guard.ROOT / guard.LEDGER).read_text())
+        entry = next(row for row in ledger["coverage"] if row["origin"] == guard.CONVERSION_ORIGIN)
+        self.assertEqual(entry["disposition"], "lowered")
+        for change in [{"planned_opcode": "midir.int_neg.v1"}, {"evidence": [guard.STATIC_CALL_THEOREM]}]:
+            rows = [{**row, **change} if row is entry else row for row in ledger["coverage"]]
+            with self.subTest(change=change), self.assertRaisesRegex(guard.CoverageError, "Nat-to-Int conversion"):
+                guard.validate({**ledger, "coverage": rows}, ledger["schema"])
+
     def test_complete_cli_rejects_the_current_pending_inventory(self):
         run = subprocess.run([sys.executable, str(guard.ROOT / "scripts/check_midir_coverage.py"),
                               "--require-complete"], text=True, capture_output=True, check=False)
         self.assertEqual(run.returncode, 1)
         self.assertIn("not release acceptance", run.stderr)
+
+    def test_opcode_alternatives_cover_binary_unary_and_pair_operations(self):
+        ledger = json.loads((guard.ROOT / guard.LEDGER).read_text())
+        for form in ["binary", "unary", "pair", "project"]:
+            entry = next(r for r in ledger["coverage"] if r["origin"] == "VastitasKernel.Indexed.Core.Term." + form)
+            opcodes = [op.removeprefix("midir.") for op in entry["planned_opcode"]]
+            compiled = {"origin": entry["origin"], "opcode": opcodes, "theorem": entry["evidence"][0]}
+            guard.check_lowerings({"coverage": [entry]}, [compiled])
+            for bad in [opcodes[0], opcodes[:-1], opcodes[::-1], opcodes + [opcodes[0]], [None, 1]]:
+                with self.subTest(form=form, bad=bad), self.assertRaises(guard.CoverageError):
+                    guard.check_lowerings({"coverage": [entry]}, [dict(compiled, opcode=bad)])
+            entry["planned_opcode"].reverse()
+            with self.assertRaisesRegex(guard.CoverageError, "unknown opcode alternatives"):
+                guard.validate(ledger, ledger["schema"])
+            entry["planned_opcode"].reverse()
 
 
 if __name__ == "__main__":

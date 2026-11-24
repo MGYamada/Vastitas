@@ -6,11 +6,16 @@ set_option autoImplicit false
 namespace VastitasKernel.MidIR.Evaluation
 open Indexed Indexed.Core.Semantics
 
-private def fits : VastitasKernel.MidIR.Ty → Value → Bool
-  | .unit, .unit => true
-  | .bool, .boolean _ => true
-  | .finite c, .finiteTag d _ => c == d
-  | _, _ => false
+/-- Comparisons read both unbounded numbers or two tags of the exact declared sort. -/
+def compareValues (k : Comparison) : VastitasKernel.MidIR.Ty → Value → Value → Option Value
+  | .nat, .natural a, .natural b => some (.boolean (k.numbers a b))
+  | .int, .integer a, .integer b => some (.boolean (k.numbers a b))
+  | .unit, .unit, .unit => .boolean <$> k.equality true
+  | .bool, .boolean a, .boolean b => .boolean <$> k.equality (a == b)
+  | .finite s, .finiteTag l a, .finiteTag r b => do
+    guard (s == l && s == r)
+    .boolean <$> k.equality (a == b)
+  | _, _, _ => none
 
 /-- Read the ordered nominal arguments of a table, including the owner and
 endpoints of each Hom fiber. Arity mismatches have no value. -/
@@ -68,9 +73,7 @@ def denote {p : Phase} (env : Environment) (op : Opcode p) (args : List Value)
   | .call target => resolve target args
   | .compare k t => do
     let [a, b] := args | none
-    guard (fits t a && fits t b)
-    let equal := decide (a = b)
-    return .boolean (match k with | .eq => equal | .ne => !equal)
+    compareValues k t a b
 
 structure SemanticOp where
   args : List Ref

@@ -10,11 +10,9 @@ open Lean
 private def field (j : Json) (key : String) := (j.getObjVal? key).toOption
 private def str (j : Json) (key : String) := (j.getObjValAs? String key).toOption
 private def path (j : Json) := (j.getObjValAs? (List String) "path").toOption.map (String.intercalate "::")
-private def ref (j : Json) (key : String) := (field j key).bind path
 private def fields (j : Json) (key : String) := (j.getObjValAs? (List Json) key).toOption
 private def names (j : Json) (key : String) := (j.getObjValAs? (List String) key).toOption
 private def comma := String.intercalate ", "
-private def paths (j : Json) (key : String) := do return comma (← (← fields j key).mapM path)
 
 private def poly : Nat → Json → Option String
   | 0, _ => none
@@ -30,26 +28,17 @@ private def poly : Nat → Json → Option String
     | _ => none
 
 private def polynomial := poly 256
+private def literal (j : Json) : Option String := do
+  let negative := str j "op" == some "neg"
+  let value ← if negative then field j "operand" else some j
+  guard (["natural", "fraction"].contains (← str value "op"))
+  return (if negative then "-" else "") ++ (← polynomial value)
+
 private def matrix (j : Json) (key : String) (element : Json → Option String) : Option String := do
   let rows ← (← fields j key).mapM fun row => do
     let entries ← (fromJson? (α := List Json) row).toOption
     return "(" ++ comma (← entries.mapM element) ++ ")"
   return "(" ++ comma rows ++ ")"
-
-private def power (key : String) (f : Json) : Option String := do
-  return (← ref f key) ++ "^" ++ (← str f "exponent")
-
-private def dimension (j : Json) : Option String := do
-  let factors ← (fromJson? (α := List Json) j).toOption
-  let terms ← factors.mapM (power "base")
-  return if terms.isEmpty then "1" else String.intercalate " * " terms
-
-private def components (j : Json) (list key : String) : Option String := do
-  let items ← (← fields j list).mapM fun item => do return (← str item "coordinate") ++ ": " ++ (← ref item key)
-  return "(" ++ comma items ++ ")"
-
-private def annotation (d : Json) : Option String := do
-  return ": " ++ (← ref d "family") ++ "<" ++ (← paths d "indices") ++ "> = "
 
 private def columns (j : Json) : Option String := do
   match ← str j "kind" with
@@ -63,74 +52,177 @@ private def metricGram (g : Json) : Option String := do
   | "gram" => return "gram" ++ (← matrix g "rows" polynomial)
   | _ => none
 
-private def monomial (j : Json) : Option String := do
-  let coeff ← field j "coefficient"
-  let atom := fun (x : Json) => do
-    match ← str x "op" with
-    | "natural" | "fraction" => polynomial x
+def familyConstraint (j : Json) : Option String := do
+  let kind ← str j "kind"
+  let keys ← match kind with
+    | "canonical" => some ["object"]
+    | "same_object" | "same_base" => some ["left", "right"]
+    | "structural" => some ["object", "base"]
+    | "over" => some ["object", "marker"]
     | _ => none
-  let value ← if (str coeff "op") == some "neg" then do return "-" ++ (← atom (← field coeff "operand"))
-    else atom coeff
-  return String.intercalate " * " (value :: (← (← fields j "factors").mapM (power "scale")))
+  let slots ← keys.mapM fun key => (j.getObjValAs? Nat key).toOption
+  return kind ++ "(" ++ comma (slots.map toString) ++ ")"
 
-private def physicalEntries (j : Json) : Option String := do
-  match ← str j "kind" with
-  | "euclidean" => return "euclidean"
-  | "normalized" => return "normalized" ++ (← components j "scales" "scale")
-  | "gram" => return "gram" ++ (← matrix j "rows" monomial)
-  | _ => none
+/-- The fixture owns one source line. Compute each reference span when writing
+the path, including repeated occurrences of the same spelling. -/
+private structure Line where
+  text : String
+  offset : Nat
+  number : Nat
 
-/-- Print a declaration's source keyword and its suffix after the declared name.
-Unsupported negative wire records have no invented source representation. -/
-def syntaxOf (d : Json) : Option (String × String) := do
-  let kind ← str d "kind"
+private abbrev Writer := StateT Line Option
+
+private def emit (s : String) : Writer Unit := modify fun l => { l with text := l.text ++ s }
+
+private def pathValue (j : Json) : Writer Json := do
+  let spelling ← liftM (path j)
+  let l ← get
+  let start := l.offset + l.text.utf8ByteSize
+  let span := Json.mkObj [("start", toJson start), ("end", toJson (start + spelling.utf8ByteSize)),
+    ("line", toJson l.number), ("column", toJson (l.text.length + 1))]
+  emit spelling
+  return j.setObjVal! "span" span
+
+private def writeField (j : Json) (key : String) (write : Json → Writer Json) : Writer Json := do
+  let v ← liftM (field j key)
+  return j.setObjVal! key (← write v)
+
+private def each (separator : String) (write : Json → Writer Json) (items : Json) : Writer Json := do
+  let items ← liftM items.getArr?.toOption
+  let mut result := #[]
+  for j in items do
+    unless result.isEmpty do emit separator
+    result := result.push (← write j)
+  return .arr result
+
+private def annotation (d : Json) : Writer Json := do
+  emit ": "
+  let d ← writeField d "family" pathValue
+  emit "<"
+  let d ← writeField d "indices" (each ", " pathValue)
+  emit "> = "
+  return d
+
+private def power (key : String) (entry : Json) : Writer Json := do
+  let entry ← writeField entry key pathValue
+  emit ("^" ++ (← liftM (str entry "exponent")))
+  return entry
+
+private def dimension (v : Json) : Writer Json := do
+  if v == .arr #[] then emit "1"
+  each " * " (power "base") v
+
+private def components (d : Json) (list key : String) : Writer Json := do
+  emit "("
+  let d ← writeField d list (each ", " fun entry => do
+    emit ((← liftM (str entry "coordinate")) ++ ": ")
+    writeField entry key pathValue)
+  emit ")"
+  return d
+
+private def monomial (j : Json) : Writer Json := do
+  let coeff ← liftM (field j "coefficient")
+  let negative := str coeff "op" == some "neg"
+  if negative then emit "-"
+  let value ← if negative then liftM (field coeff "operand") else pure coeff
+  let atoms ← if str value "op" == some "product" then liftM (fields value "factors") else pure [value]
+  for (atom, i) in atoms.zipIdx do
+    if i > 0 then emit " * "
+    guard (["natural", "fraction"].contains (← liftM (str atom "op")))
+    emit (← liftM (polynomial atom))
+  if !(← liftM (fields j "factors")).isEmpty then emit " * "
+  writeField j "factors" (each " * " (power "scale"))
+
+private def physicalEntries (j : Json) : Writer Json := do
+  match ← liftM (str j "kind") with
+  | "euclidean" => emit "euclidean"; return j
+  | "normalized" => emit "normalized"; components j "scales" "scale"
+  | "gram" =>
+    emit "gram("
+    let j ← writeField j "rows" (each ", " fun row => do
+      emit "("
+      let r ← each ", " monomial row
+      emit ")"
+      return r)
+    emit ")"
+    return j
+  | _ => failure
+
+private def body (d : Json) (kind : String) : Writer Json := do
   match kind with
-  | "marker" | "base_dimension" => return (kind, "")
-  | "implementation" =>
-    let caps := (← names d "capabilities").map fun c => if c == "dimension" then "dim" else c
-    return (kind, "(" ++ (← ref d "marker") ++ ", " ++ (← str d "representation") ++ ") capabilities(" ++ comma caps ++ ")")
-  | "classification" => return (kind, " { parents(" ++ (← paths d "parents") ++ "); domain(" ++ (← paths d "domain") ++ "); }")
-  | "family" =>
-    let params ← (← fields d "parameters").mapM fun j => do
-      match ← str j "kind" with
-      | "object" => return "object(" ++ (← ref j "domain") ++ ")"
-      | "frame" => return "frame(" ++ (← ref j "family") ++ ")"
-      | _ => none
-    let rules ← (← fields d "constraints").mapM fun j => do
-      guard (str j "kind" == some "canonical")
-      return "canonical(" ++ toString (← (j.getObjValAs? Nat "object").toOption) ++ ")"
-    let constraints := if rules.isEmpty then "" else " constraints(" ++ comma rules ++ ")"
-    return (kind, "(" ++ comma params ++ ") = " ++ (← str d "representation") ++ constraints)
-  | "convention" => return (kind, " = " ++ (← str d "value"))
+  | "marker" | "base_dimension" => return d
+  | "convention" => emit (" = " ++ (← liftM (str d "value"))); return d
   | "calibration" =>
-    let values ← (← fields d "parameters").mapM fun j => do
-      return (← str j "coordinate") ++ " = measured(" ++ (← polynomial (← field j "value")) ++
-        ", u = " ++ (← polynomial (← field j "uncertainty")) ++ ")"
-    let parts := values ++ ["method = " ++ (← str d "method"),
-      "reference = " ++ (toJson (← str d "reference")).compress, "revision = " ++ (toJson (← str d "revision")).compress]
-    return (kind, (← annotation d) ++ "calibrate(" ++ comma parts ++ ")")
-  | "quantity" => return (kind, " = " ++ (← dimension (← field d "dimension")))
-  | "scale" => return (kind, " = " ++ (← polynomial (← field d "magnitude")) ++ " of " ++ (← ref d "quantity"))
-  | "reading" => return (kind, (← annotation d) ++ (← components d "quantities" "quantity"))
-  | "metric" => return (kind, (← annotation d) ++ (← metricGram (← field d "gram")))
+    let d ← annotation d
+    let params ← liftM (fields d "parameters")
+    let values ← liftM <| params.mapM fun j => do
+      return (← str j "coordinate") ++ " = measured(" ++ (← literal (← field j "value")) ++
+        ", u = " ++ (← literal (← field j "uncertainty")) ++ ")"
+    let parts := values ++ ["method = " ++ (← liftM (str d "method")),
+      "reference = " ++ (toJson (← liftM (str d "reference"))).compress,
+      "revision = " ++ (toJson (← liftM (str d "revision"))).compress]
+    emit ("calibrate(" ++ comma parts ++ ")")
+    return d
+  | "quantity" => emit " = "; writeField d "dimension" dimension
+  | "scale" =>
+    emit (" = " ++ (← liftM ((field d "magnitude").bind polynomial)) ++ " of ")
+    writeField d "quantity" pathValue
+  | "reading" => components (← annotation d) "quantities" "quantity"
+  | "metric" =>
+    let d ← annotation d
+    emit (← liftM ((field d "gram").bind metricGram))
+    return d
   | "physical_metric" =>
-    let v ← field d "value"
-    let value ← if v == .null then pure "" else do pure (", value = " ++ (← dimension v))
-    return ("physical", (← annotation d) ++ "interpret(" ++ (← ref d "metric") ++ ", reading = " ++
-      (← ref d "reading") ++ ", " ++ (← physicalEntries (← field d "entries")) ++ value ++ ")")
+    let d ← annotation d
+    emit "interpret("
+    let d ← writeField d "metric" pathValue
+    emit ", reading = "
+    let d ← writeField d "reading" pathValue
+    emit ", "
+    let d ← writeField d "entries" physicalEntries
+    let d ← if (← liftM (field d "value")) == .null then pure d else do
+      emit ", value = "
+      writeField d "value" dimension
+    emit ")"
+    return d
   | "frame" =>
-    let inv ← field d "inverse"
-    let tail ← if inv == .null then pure "" else do pure (" inverse = " ++ (← columns inv))
-    return (kind, (← annotation d) ++ (← columns (← field d "columns")) ++ tail)
-  | "free_module" => return (kind, (← annotation d) ++ "basis(" ++ comma (← names d "basis") ++ ")")
+    let d ← annotation d
+    emit (← liftM ((field d "columns").bind columns))
+    let inv ← liftM (field d "inverse")
+    unless inv == .null do emit (" inverse = " ++ (← liftM (columns inv)))
+    return d
+  | "free_module" =>
+    let d ← annotation d
+    emit ("basis(" ++ comma (← liftM (names d "basis")) ++ ")")
+    return d
   | "endomorphism" =>
-    let symmetric ← (d.getObjValAs? Bool "symmetric").toOption
-    return (kind, (← annotation d) ++ "rows" ++ (← matrix d "rows" polynomial) ++ " of " ++
-      (← ref d "module") ++ (if symmetric then " symmetric" else ""))
-  | "spectrum" => return (kind, (← annotation d) ++ "eigen(" ++ (← ref d "endomorphism") ++ ", " ++ (← str d "fiber") ++ ")")
-  | "branch" => return (kind, (← annotation d) ++ "simple(" ++ (← ref d "spectrum") ++ ", localize = " ++
-      (← polynomial (← field d "localize")) ++ ", witness = " ++ (← polynomial (← field d "witness")) ++
-      ", exponent = " ++ (← str d "exponent") ++ ")")
-  | _ => none
+    let d ← annotation d
+    emit ("rows" ++ (← liftM (matrix d "rows" polynomial)) ++ " of ")
+    let d ← writeField d "module" pathValue
+    if ← liftM (d.getObjValAs? Bool "symmetric").toOption then emit " symmetric"
+    return d
+  | "spectrum" =>
+    let d ← annotation d
+    emit "eigen("
+    let d ← writeField d "endomorphism" pathValue
+    emit (", " ++ (← liftM (str d "fiber")) ++ ")")
+    return d
+  | "branch" =>
+    let d ← annotation d
+    emit "simple("
+    let d ← writeField d "spectrum" pathValue
+    emit (", localize = " ++ (← liftM ((field d "localize").bind polynomial)) ++
+      ", witness = " ++ (← liftM ((field d "witness").bind polynomial)) ++
+      ", exponent = " ++ (← liftM (str d "exponent")) ++ ")")
+    return d
+  | _ => failure
+
+/-- Write the complete declaration and stamp every nested path while rendering.
+Malformed raw negative controls can still exercise the independent wire decoder. -/
+def syntaxOf (d : Json) (vis kind name : String) (offset line : Nat) : Option (String × Json) := do
+  let keyword := if kind == "physical_metric" then "physical" else kind
+  let head := vis ++ "indexed " ++ keyword ++ " " ++ name
+  let (record, final) ← (body d kind).run ⟨head, offset, line⟩
+  return (final.text ++ ";", record)
 
 end VastitasKernel.RegressionIndexedText

@@ -2,9 +2,11 @@
 """Compare checked boxed libraries and hosted programs with generated Lean controls."""
 import argparse
 import json
+import operator
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -85,6 +87,56 @@ def output(cmd, **opts):
     return subprocess.check_output(cmd, text=True, **opts).strip()
 
 
+def check_comparison_control(prefix, sdk, work, emit):
+    source = "ComparisonMethodControl.lean"
+    shutil.copyfile(ROOT / "llvm/fixtures" / source, work / source)
+    subprocess.run([prefix / "bin/lean", "-c", "predicates.c", source], check=True, cwd=work)
+    subprocess.run([prefix / "bin/leanc", *sdk, "predicates.c", "-o", "predicates"], check=True, cwd=work)
+    values = [(1, 1), (2**128 + 1, 2**128 + 257), (2**1024 + 1, 2**1024 - 255), (0, 2**128)]
+    predicates = [("==", operator.eq), ("!=", operator.ne), ("<", operator.lt),
+                  ("<=", operator.le), (">", operator.gt), (">=", operator.ge)]
+    probe = ROOT / "llvm/fixtures/IntegerPredicateProbe.c"
+    subprocess.run(["cc", *sdk, "-std=c11", "-O2", "-I", prefix / "include", "-c", probe, "-o", "predicate-probe.o"],
+                   check=True, cwd=work)
+
+    def compile_candidate(name, source):
+        obj = f"predicate-{name}.o"
+        emit(source, obj)
+        subprocess.run([prefix / "bin/leanc", *sdk, "predicate-probe.o", obj, "shim.o",
+                        "-o", "candidate"], check=True, cwd=work)
+
+    def check_candidate(kind, a, b, expected, alias=False):
+        mode = "alias" if alias else "distinct"
+        actual = output([work / "candidate", kind, str(a), str(b), mode], cwd=work)
+        if actual != expected:
+            raise ValueError(f"{kind} comparison on {a} and {b} ({mode}): expected {expected}, got {actual}")
+    count = 0
+    for kind, sign in [("Nat", 1), ("Int", -1)]:
+        for code, (glyph, predicate) in enumerate(predicates):
+            compile_candidate(f"{kind}-{code}", f"pub fn compare(a: {kind}, b: {kind}) -> Bool {{ a {glyph} b }}")
+            for x, y in values:
+                a, b = sign * x, sign * y
+                result = output([work / "predicates", kind, str(code), str(a), str(b)], cwd=work)
+                expected = "42" if predicate(a, b) else "7"
+                check_candidate(kind, a, b, expected)
+                if result != expected:
+                    raise ValueError(f"{kind} {predicate.__name__}: wrong native control result for {a} and {b}")
+                count += 1
+            heap = sign * (2**1024 + 1)
+            check_candidate(kind, heap, heap, "42" if predicate(heap, heap) else "7", alias=True)
+    compile_candidate("offset", (ROOT / "llvm/fixtures/IntegerPredicate.vast").read_text())
+    for delta in (-257, -256, -255, 1):
+        a, b = -(2**1024 + 1), -(2**1024 + 1) + delta
+        check_candidate("Int", a, b, "42" if a - 256 <= b else "7")
+    emit("pub fn pick(a: Bool) -> Bool { a }", "bool-id.o")
+    (work / "bool-id.c").write_text("#include <stdint.h>\nextern uint32_t vq_exact(uint32_t);\n"
+                                   "int main(void) { return vq_exact(0) != 0 || vq_exact(1) != 1; }\n")
+    subprocess.run(["cc", *sdk, "bool-id.c", "bool-id.o", "-o", "bool-id"], cwd=work, check=True)
+    subprocess.run([work / "bool-id"], cwd=work, check=True)
+    print(f"{count} compiled predicate results matched generated Lean/C and unbounded integers", flush=True)
+    print("12 aliased heap comparisons and 4 comparisons using owned temporaries passed", flush=True)
+
+
 def native(args, work):
     prefix = Path(output(["lean", "--print-prefix"], cwd=ROOT))
     sdk = ["-isysroot", output(["xcrun", "--show-sdk-path"])] if sys.platform == "darwin" else []
@@ -122,6 +174,8 @@ def native(args, work):
     preview = [*check, "--llvm-preview", "--target-triple", target["triple"], "--data-layout", target["layout"]]
 
     def emit_preview(command, obj):
+        if (work / obj).exists():
+            raise ValueError(f"duplicate native fixture output: {obj}")
         verified = subprocess.check_output(command, cwd=ROOT)
         (work / "checked.ll").write_bytes(verified)
         if args.backend:
@@ -134,6 +188,7 @@ def native(args, work):
         (work / "main.vast").write_text(source)
         emit_preview(preview, obj)
 
+    check_comparison_control(prefix, sdk, work, emit)
     count = examples = 0
     for kinds, result, vast_expr, lean_expr, evaluate in cases():
         names = "ab"[:len(kinds)]
@@ -185,6 +240,28 @@ def native(args, work):
         run([leanc, *sdk, "SwapControl.c", ROOT / "llvm/fixtures/PairOwnership.c", "shim.o", obj, "-o", "swap"])
         run([work / "swap"])
 
+    comparisons = (ROOT / "llvm/fixtures/ComparisonMethod.vast").read_text()
+    conditional = (ROOT / "llvm/fixtures/ConditionalMethod.vast").read_text()
+    flow_cases = [
+        (comparisons, 42), (comparisons.replace("apply ordered;", ""), 7),
+        (conditional, 2**128 + 43), (conditional.replace("choose(true,", "choose(false,"), -19),
+        (conditional.replace("apply conditional;", ""), -19),
+    ]
+    # The nested split carries the borrowed x across both joins. Two call
+    # arguments alias the same heap integer, including its uses after the phi.
+    for outer, inner in [(True, True), (True, False), (False, True)]:
+        source = f"""fn pick(x: Int, y: Int, outer: Bool, inner: Bool) -> Int {{
+            let z = if outer {{ if inner {{ x * y }} else {{ x + y }} }} else {{ y - x }};
+            z + x
+        }}
+        fn main() -> Int {{ let n = {BIG}; pick(n, n, {str(outer).lower()}, {str(inner).lower()}) }}"""
+        expected = BIG + ((BIG * BIG if inner else 2 * BIG) if outer else 0)
+        flow_cases.append((source, expected))
+    for i, (source, expected) in enumerate(flow_cases):
+        obj = f"control-flow-{i}.o"
+        emit(source, obj)
+        check_integer(obj, expected)
+    print(f"{len(flow_cases)} boxed branches matched the full integer through the native phi and call ABI")
     pair_source = (ROOT / "llvm/fixtures/BoxedPairs.vast").read_text()
     for source, obj, expected in [(pair_source, "applied-pair.o", 42),
                                   (pair_source.replace("apply prioritized;", ""), "default-pair.o", 2**128 + 43)]:
@@ -193,6 +270,36 @@ def native(args, work):
         run([leanc, *sdk, "shim.o", obj, "-o", "pairs"])
         if subprocess.run([work / "pairs"], cwd=work).returncode != expected % 256:
             raise ValueError("pair-returning method selected the wrong exit")
+    projection = (ROOT / "llvm/fixtures/SelectedProjection.vast").read_text()
+    (work / "ProjectionControl.lean").write_bytes((ROOT / "llvm/fixtures/SelectedProjectionControl.lean").read_bytes())
+    run([prefix / "bin/lean", "-c", "ProjectionControl.c", "ProjectionControl.lean"])
+    run([leanc, *sdk, "ProjectionControl.c", "-o", "projection-control"])
+    for source, obj, field, expected in [(projection, "applied-projection.o", ["second"], 19),
+                                         (projection.replace("apply second_field;", ""), "default-projection.o", [], 7)]:
+        emit(source, obj)
+        reference = subprocess.run([work / "projection-control", *field], cwd=work).returncode
+        if reference != expected:
+            raise ValueError("compiled Lean selected the wrong field")
+        check_integer(obj, reference)
+    negation = (ROOT / "llvm/fixtures/AssembledNegation.vast").read_text()
+    (work / "NegationControl.lean").write_bytes((ROOT / "llvm/fixtures/AssembledNegationControl.lean").read_bytes())
+    run([prefix / "bin/lean", "-c", "NegationControl.c", "NegationControl.lean"])
+    run([leanc, *sdk, "NegationControl.c", "-o", "negation-control"])
+    magnitude = 2**128 + 43
+    for body, obj, argv, expected in [(negation, "applied-negation.o", ["flip"], -magnitude),
+                                      (negation.replace("apply reversing;", ""), "default-negation.o", [], magnitude)]:
+        emit(body, obj)
+        reference = int(output([work / "negation-control", *argv]))
+        if reference != expected:
+            raise ValueError("compiled Lean returned the wrong signed integer")
+        check_integer(obj, reference)
+    conversion = (ROOT / "llvm/fixtures/AssembledConversion.vast").read_text()
+    if conversion.count("apply exact;") != 1:
+        raise ValueError("expected one applied conversion method")
+    for body, obj, expected in [(conversion, "applied-conversion.o", 2**128 + 43),
+                                (conversion.replace("apply exact;", ""), "default-conversion.o", 0)]:
+        emit(body, obj)
+        check_integer(obj, expected)
     hosted = (ROOT / "llvm/fixtures/BoxedProgram.vast").read_text()
     numerator = -(2**128 + 1)
     divisors = [3, 0, 1]
@@ -295,6 +402,7 @@ def main():
     print(f"{programs} hosted executable statuses matched generated Lean and independent expectations")
     print("both pair exports matched compiled Lean on heap and immediate values; distinct and aliased field counts matched before and after release")
     print("pair-returning assembly selected full integer results 42 and 2^128 + 43")
+    print("selected and default pair projections matched compiled Lean at 19 and 7")
     print("hosted result probes matched each full integer and distinguished a value larger by 256")
     print("assembled integer entry returned 42 and rejected the sibling method in the expected revision")
     print("called and uncalled cross-package methods matched the generated Lean controls at exit 42 and 7")

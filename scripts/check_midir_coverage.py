@@ -41,9 +41,38 @@ MODULE = re.compile(r"[A-Za-z_][A-Za-z_0-9]*(?:\.[A-Za-z_][A-Za-z_0-9]*)*\Z")
 LITERAL_THEOREM = "VastitasOracle.MidIR.literal_constructor_coverage"
 FINITE_TAG_THEOREM = "VastitasOracle.MidIR.finite_tag_constructor_coverage"
 LOOKUP_THEOREM = "VastitasOracle.MidIR.finite_lookup_constructor_coverage"
+STATIC_CALL_THEOREM = "VastitasOracle.MidIR.static_call_constructor_coverage"
+STATIC_CALL_ORIGIN = "VastitasKernel.Indexed.Core.Term.call"
+CONVERSION_ORIGIN = "VastitasKernel.Indexed.Core.Term.natToInt"
+CONVERSION_THEOREM = "VastitasOracle.MidIR.nat_to_int_constructor_coverage"
+EXACT_MAPPINGS = {
+    "VastitasKernel.Indexed.Core.Term.binary": (
+        "binary operator", [
+        "midir.bool.const.v1", "midir.bool.and.v1", "midir.bool.or.v1",
+        "midir.exact.eq.v1", "midir.exact.ne.v1", "midir.exact.lt.v1",
+        "midir.exact.le.v1", "midir.exact.gt.v1", "midir.exact.ge.v1",
+        "midir.nat_add.v1", "midir.nat_sub.v1", "midir.nat_mul.v1",
+        "midir.nat_div.v1", "midir.int_add.v1", "midir.int_sub.v1",
+        "midir.int_mul.v1", "midir.int_div.v1", "midir.nat_int_div.v1",
+        "midir.int_nat_div.v1"],
+        "VastitasOracle.MidIR.binary_constructor_coverage"),
+    "VastitasKernel.Indexed.Core.Term.unary": (
+        "unary operator", ["midir.bool.not.v1", "midir.int_neg.v1", "midir.int.const.v1"],
+        "VastitasOracle.MidIR.unary_constructor_coverage"),
+    "VastitasKernel.Indexed.Core.Term.pair": (
+        "homogeneous pair", ["midir.nat_pair.v1", "midir.int_pair.v1"],
+        "VastitasOracle.MidIR.pair_constructor_coverage"),
+    "VastitasKernel.Indexed.Core.Term.project": (
+        "pair projection", ["midir.nat_pair_first.v1", "midir.nat_pair_second.v1",
+                            "midir.int_pair_first.v1", "midir.int_pair_second.v1"],
+        "VastitasOracle.MidIR.projection_constructor_coverage"),
+    STATIC_CALL_ORIGIN: ("static call", "midir.static.call.v1", STATIC_CALL_THEOREM),
+    CONVERSION_ORIGIN: ("Nat-to-Int conversion", "midir.nat_to_int.v1", CONVERSION_THEOREM),
+}
 STRUCTURAL_THEOREMS = {
     "VastitasKernel.Indexed.Core.Term." + origin: "VastitasOracle.MidIR." + theorem + "_constructor_coverage"
-    for origin, theorem in [("variable", "variable"), ("scope", "scope"), ("ascribe", "ascription"), ("letE", "let")]
+    for origin, theorem in [("variable", "variable"), ("scope", "scope"), ("ascribe", "ascription"), ("letE", "let"),
+                            ("branch", "branch")]
 }
 
 
@@ -390,14 +419,14 @@ def pending_ledger(root, base_commit):
                              "planned_opcode": "midir." + origin.removeprefix("VastitasKernel."),
                              "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
                              "evidence": []})
-    return {"schema_version": 1, "scope": "constructor coverage only; no compiler admission",
+    return {"schema_version": 2, "scope": "constructor coverage only; no compiler admission",
             "snapshot": {"base_commit": base_commit, "schema_sha256": digest(schema)},
             "schema": schema, "coverage": sorted(coverage, key=lambda item: item["origin"])}
 
 
 def validate(ledger, actual, require_complete=False):
     if (set(ledger) != {"schema_version", "scope", "snapshot", "schema", "coverage"} or
-            type(ledger["schema_version"]) is not int or ledger["schema_version"] != 1):
+            type(ledger["schema_version"]) is not int or ledger["schema_version"] != 2):
         raise CoverageError("unsupported coverage ledger schema")
     if ledger["scope"] != "constructor coverage only; no compiler admission":
         raise CoverageError("coverage ledger must not claim compiler admission")
@@ -430,6 +459,9 @@ def validate(ledger, actual, require_complete=False):
         if status == "structural":
             if opcode is not None or origin not in STRUCTURAL_THEOREMS or item["evidence"] != [STRUCTURAL_THEOREMS[origin]]:
                 raise CoverageError(f"structural lowering requires its checked binding theorem and no opcode: {origin}")
+        elif isinstance(opcode, list):
+            if status != "lowered" or origin not in EXACT_MAPPINGS or opcode != EXACT_MAPPINGS[origin][1]:
+                raise CoverageError(f"unknown opcode alternatives for {origin}")
         elif not isinstance(opcode, str) or not MODULE.fullmatch(opcode) or not opcode.startswith("midir."):
             raise CoverageError(f"missing exact planned opcode for {origin}")
         if not isinstance(item["reason"], str) or not item["reason"].strip() or not isinstance(item["evidence"], list):
@@ -439,7 +471,11 @@ def validate(ledger, actual, require_complete=False):
         if status == "admitted":
             raise CoverageError(f"admission unavailable before closed-registry evidence checking: {origin}")
         if status == "lowered":
-            if item["evidence"] not in ([LITERAL_THEOREM], [FINITE_TAG_THEOREM], [LOOKUP_THEOREM]):
+            if origin in EXACT_MAPPINGS:
+                label, expected_opcode, theorem = EXACT_MAPPINGS[origin]
+                if (opcode, item["evidence"]) != (expected_opcode, [theorem]):
+                    raise CoverageError(f"{label} requires its checked opcode and constructor theorem: {origin}")
+            elif item["evidence"] not in ([LITERAL_THEOREM], [FINITE_TAG_THEOREM], [LOOKUP_THEOREM]):
                 raise CoverageError(f"missing checked local lowering theorem for {origin}")
         elif status != "structural" and item["evidence"]:
             raise CoverageError(f"unrecognized evidence schema for {origin}")
@@ -456,13 +492,22 @@ def check_lowerings(ledger, rows):
     expected = {}
     for row in rows:
         if (set(row) != {"origin", "opcode", "theorem"} or not isinstance(row["origin"], str)
-                or not isinstance(row["theorem"], str) or not (row["opcode"] is None or isinstance(row["opcode"], str))):
+                or not isinstance(row["theorem"], str)):
             raise CoverageError("invalid compiled lowering row")
         origin = row["origin"]
         if origin in expected:
             raise CoverageError(f"duplicate compiled lowering for {origin}")
         opcode = row["opcode"]
-        expected[origin] = (None if opcode is None else "midir." + opcode, [row["theorem"]])
+        if isinstance(opcode, list):
+            if (len(opcode) < 2 or not all(isinstance(op, str) and MODULE.fullmatch(op) for op in opcode)
+                    or len(set(opcode)) != len(opcode)):
+                raise CoverageError(f"invalid compiled opcode alternatives for {origin}")
+            opcode = ["midir." + op for op in opcode]
+        elif isinstance(opcode, str) and MODULE.fullmatch(opcode):
+            opcode = "midir." + opcode
+        elif opcode is not None:
+            raise CoverageError("invalid compiled lowering row")
+        expected[origin] = (opcode, [row["theorem"]])
     recorded = {r["origin"]: (r["planned_opcode"], r["evidence"]) for r in ledger["coverage"] if r["disposition"] in {"lowered", "structural"}}
     if expected != recorded:
         changed = sorted(k for k in expected.keys() | recorded.keys() if expected.get(k) != recorded.get(k))

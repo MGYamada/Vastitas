@@ -1,4 +1,4 @@
-/* Boxed integer and pair ABI. All value operations borrow inputs and return an owned result. */
+/* Boxed integer and pair ABI. Arithmetic returns an owned object. Predicates borrow both inputs and return 0 or 1 as a C uint32_t. */
 #include <lean/lean.h>
 
 lean_obj_res vastitas_nat_decimal_v1(const char *digits) { return lean_cstr_to_nat(digits); }
@@ -15,6 +15,20 @@ lean_obj_res vastitas_int_sub_v1(b_lean_obj_arg a, b_lean_obj_arg b) { return le
 lean_obj_res vastitas_int_mul_v1(b_lean_obj_arg a, b_lean_obj_arg b) { return lean_int_mul(a, b); }
 lean_obj_res vastitas_int_div_v1(b_lean_obj_arg a, b_lean_obj_arg b) { return lean_int_ediv(a, b); }
 lean_obj_res vastitas_int_neg_v1(b_lean_obj_arg a) { return lean_int_neg(a); }
+
+uint32_t vastitas_nat_eq_v1(b_lean_obj_arg a, b_lean_obj_arg b) { return lean_nat_dec_eq(a, b); }
+uint32_t vastitas_nat_ne_v1(b_lean_obj_arg a, b_lean_obj_arg b) { return !lean_nat_dec_eq(a, b); }
+uint32_t vastitas_nat_lt_v1(b_lean_obj_arg a, b_lean_obj_arg b) { return lean_nat_dec_lt(a, b); }
+uint32_t vastitas_nat_le_v1(b_lean_obj_arg a, b_lean_obj_arg b) { return lean_nat_dec_le(a, b); }
+uint32_t vastitas_nat_gt_v1(b_lean_obj_arg a, b_lean_obj_arg b) { return lean_nat_dec_lt(b, a); }
+uint32_t vastitas_nat_ge_v1(b_lean_obj_arg a, b_lean_obj_arg b) { return lean_nat_dec_le(b, a); }
+
+uint32_t vastitas_int_eq_v1(b_lean_obj_arg a, b_lean_obj_arg b) { return lean_int_dec_eq(a, b); }
+uint32_t vastitas_int_ne_v1(b_lean_obj_arg a, b_lean_obj_arg b) { return !lean_int_dec_eq(a, b); }
+uint32_t vastitas_int_lt_v1(b_lean_obj_arg a, b_lean_obj_arg b) { return lean_int_dec_lt(a, b); }
+uint32_t vastitas_int_le_v1(b_lean_obj_arg a, b_lean_obj_arg b) { return lean_int_dec_le(a, b); }
+uint32_t vastitas_int_gt_v1(b_lean_obj_arg a, b_lean_obj_arg b) { return lean_int_dec_lt(b, a); }
+uint32_t vastitas_int_ge_v1(b_lean_obj_arg a, b_lean_obj_arg b) { return lean_int_dec_le(b, a); }
 
 lean_obj_res vastitas_nat_to_int_v1(b_lean_obj_arg a) {
     /* lean_nat_to_int consumes one reference, including for a heap Nat. */

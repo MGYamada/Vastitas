@@ -11,6 +11,12 @@ phases carry its specialization to the same printed function slot. The assembly 
 checks the selected comparison and rejects its saved certificate after removing the
 contribution. [Certificate subject](../../../lean/VastitasOracle/FlowCertificate/Subject.lean) · [Publication theorem](../../../lean/VastitasOracle/FlowCertificate.lean)
 
+For a control-flow graph, separate Lean workers prove the evaluated integer and
+the printed bytes. For blocks containing several calls, the evaluation proof uses
+Lean's proof-producing call-by-value tactic. Each verifier includes both proofs
+and their dependencies in the regenerated declaration prefix. The assembly log
+reports elapsed seconds and peak resident memory for each worker.
+
 From the repository root, build the matching frontend, checker and oracle, then run the qualification.
 
 ```sh

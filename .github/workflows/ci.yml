@@ -351,7 +351,11 @@ jobs:
           lake -d lean-kernel build vastitas-kernel
           lake -d lean build VastitasOracle
           cargo build --locked --bin vastitas
+      - name: Verify the assembled method and its operator in the published revision
+        if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
+        run: python3 experiments/compiler_validation/boxed_certificate/regression.py --suite assembly --memory 6144 2>&1 | tee "$RUNNER_TEMP/proof-assembly.log"
       - name: Replay the signed literal from the public request through the complete bytes
+        if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
         run: |
           python3 experiments/compiler_validation/official_exit/run.py --artifact --timeout 120 --memory 2500 \
             --output "$RUNNER_TEMP/proof-signed-literal.json"
@@ -364,9 +368,6 @@ jobs:
       - name: Check library and manifest revisions in both modes
         if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
         run: python3 experiments/compiler_validation/boxed_certificate/regression.py --suite inputs --memory 6144 2>&1 | tee "$RUNNER_TEMP/proof-inputs.log"
-      - name: Verify the assembled method and its operator in the published revision
-        if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
-        run: python3 experiments/compiler_validation/boxed_certificate/regression.py --suite assembly --memory 6144 2>&1 | tee "$RUNNER_TEMP/proof-assembly.log"
       - name: Retain compiler proof qualification results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

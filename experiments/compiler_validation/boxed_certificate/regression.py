@@ -34,13 +34,19 @@ def run(work, suite, frontend, memory):
             roots = verify.verify(args, private, report)
         except ValueError as e:
             if rejection is None or rejection not in str(e):
+                print(f"{label} ({mode}) failed: {e}", flush=True)
                 raise
             print(f"{label} rejected ({rejection})", flush=True)
             return report, None
         finally:
             # The generated export is already sealed. Keep the authority module
             # only for the producer that elaborates the alternate proof terms.
-            for name in ("authority.ndjson", "generated.ndjson", "Certificate.olean"):
+            for result in report["phases"]:
+                if result["phase"] in {"evaluation", "printing"} or result["status"] != "passed":
+                    print(f"{label} {result['phase']}: {result['status']}, {result['wall_seconds']:.2f}s, "
+                          f"{result['peak_rss_bytes'] / 1024**2:.1f} MiB peak RSS", flush=True)
+            for name in ("authority.ndjson", "generated.ndjson", "Certificate.olean",
+                         "FlowEvaluation.olean", "FlowPrinting.olean"):
                 (private / name).unlink(missing_ok=True)
             if not keep_authority:
                 (private / "Authority.olean").unlink(missing_ok=True)
@@ -71,9 +77,9 @@ def run(work, suite, frontend, memory):
         (pair_dir / "sealed.ndjson").unlink()
         magnitude = 2**128 + 43
         for label, fixture, apply, functions, selected_result, default_result in [
+            ("bool-comparison", "BoolComparison", "apply equality;", 4, 2**128 + 10, 2**128 + 7),
             ("selected-projection", "SelectedProjection", "apply second_field;", 5, 19, 7),
             ("assembled-comparison", "ComparisonMethod", "apply ordered;", 3, 42, 7),
-            ("bool-comparison", "BoolComparison", "apply equality;", 4, 2**128 + 10, 2**128 + 7),
             ("assembled-negation", "AssembledNegation", "apply reversing;", 4, -magnitude, magnitude),
         ]:
             body = (verify.ROOT / f"llvm/fixtures/{fixture}.vast").read_text()
@@ -91,6 +97,10 @@ def run(work, suite, frontend, memory):
             default, _ = check(f"{label}-default", "official")
             require(default["integer_result"] == str(default_result)
                     and default["revision_sha256"] != selected["revision_sha256"], f"{label}: wrong default method")
+            if label == "bool-comparison":
+                saved = work / f"{label}-default" / "sealed.ndjson"
+                replay, _ = check(f"{label}-default-fast", "fast", candidate=saved)
+                require(replay["certificate"] == default["certificate"], "wrong default comparison certificate")
             check(f"{label}-stale", "fast", candidate=candidate, rejection="declaration environment differs")
             candidate.unlink()
             (work / f"{label}-default" / "sealed.ndjson").unlink()

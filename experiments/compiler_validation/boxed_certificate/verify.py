@@ -49,15 +49,14 @@ def lean_command(prefix, memory):
     return [prefix / "bin/lean", "-M", str(memory)]
 
 
-def stage_proof(namespace):
-    body = "(by with_unfolding_all rfl)" if namespace == "FlowCertificate" else "rfl"
-    return f"""by
+PROOF = """by
   refine ⟨rfl, ?_, rfl, rfl, rfl, ?_⟩
   · with_unfolding_all rfl
-  · exact VastitasOracle.{namespace}.printedLines code headerBytes lines rfl {body}"""
+  · exact VastitasOracle.BoxedCertificate.printedLines code headerBytes lines rfl rfl"""
 
-
-PROOF = stage_proof("BoxedCertificate")
+FLOW_PROOF = """by
+  refine ⟨rfl, ?_, rfl, rfl, evaluated, printed⟩
+  · with_unfolding_all rfl"""
 
 
 def natural(value):
@@ -299,7 +298,11 @@ def authority(revision, model, triple, layout, data, sources):
     header_bytes = list(b"\n".join(header_lines[:2]) + b"\n")
     body = header_lines[2].decode("utf-8").split("\n")
     require(len(body) >= 3 and body[0] == body[-1] == "", "noncanonical body delimiters")
-    lines = ", ".join(map(quote, body[1:-1]))
+    flow = model.get("kind") == "flow"
+    # Match the literal lines embedded by the corpus. Source strings shared
+    # between the revision and physical layout still use the balanced bindings.
+    quote_line = official.lean_string if flow else quote
+    lines = ", ".join(map(quote_line, body[1:-1]))
     fields = [(quote(k), 'wire' if k == 'input' else official.json_term(revision[k], quote)) for k in sorted(revision)]
     rev = ", ".join(f"({k}, {v})" for k, v in fields)
     files, entry = sources
@@ -310,7 +313,6 @@ def authority(revision, model, triple, layout, data, sources):
         except UnicodeDecodeError:
             label = f"ByteArray.mk #{list(path)}"
         physical.append(f"⟨{label}, {natural(offset)}, {quote(text)}⟩")
-    flow = model.get("kind") == "flow"
     namespace = "FlowCertificate" if flow else "BoxedCertificate"
     code_type = "ExactFlow" if flow else "ExactProgram"
     functions = []
@@ -348,8 +350,8 @@ end VastitasProof
 """
 
 
-def certificate(proof=PROOF):
-    return f"""import Authority
+def certificate(proof=PROOF, module="Authority"):
+    return f"""import {module}
 set_option maxRecDepth 65536
 set_option maxHeartbeats 8000000
 namespace VastitasProof
@@ -357,6 +359,33 @@ theorem checked : obligation := {proof}
 #print axioms checked
 end VastitasProof
 """
+
+
+def flow_helpers(model, work, lean, phase):
+    # Prove exactly the same two fields on the current code, in separate workers.
+    # The full declarations and their proofs enter the authenticated export.
+    # Repeated calls in one block would re-expand the accumulated state under rfl.
+    repeated_calls = any(sum(op[0] == "invoke" for op in block["ops"]) > 1
+                         for function in model["functions"] for block in function["blocks"])
+    evaluation = "by cbv" if repeated_calls else "rfl"
+    modules = [
+        ("evaluation", "FlowEvaluation", "Authority",
+         f"theorem evaluated : code.entryValue = some ({integer(model['value'])} : Int) := {evaluation}"),
+        ("printing", "FlowPrinting", "FlowEvaluation",
+         "theorem printed : code.print = subject.bytes :=\n"
+         "  VastitasOracle.FlowCertificate.printedLines code headerBytes lines rfl (by with_unfolding_all rfl)"),
+    ]
+    for name, module, dependency, theorem in modules:
+        source = f"""import {dependency}
+set_option autoImplicit false
+set_option maxRecDepth 65536
+set_option maxHeartbeats 8000000
+namespace VastitasProof
+{theorem}
+end VastitasProof
+"""
+        (work / f"{module}.lean").write_text(source)
+        phase(name, [*lean, "-DwarningAsError=true", "-o", f"{module}.olean", f"{module}.lean"])
 
 
 def snapshot(candidate, authority_path, destination):
@@ -429,16 +458,23 @@ def verify(args, work, report):
                   functions=len(model["functions"]), integer_result=integer(model["value"]))
     (work / "Authority.lean").write_text(authority(revision, model, args.target_triple, args.data_layout, data, sources))
     phase("authority", [*lean, "-DwarningAsError=true", "-o", "Authority.olean", "Authority.lean"])
+    module = "Authority"
+    proof = PROOF
+    required_roots = [root.replace("BoxedCertificate", namespace) for root in ROOTS]
+    if graph == "flow":
+        flow_helpers(model, work, lean, phase)
+        module = "FlowPrinting"
+        proof = FLOW_PROOF
+        required_roots.extend(["VastitasProof.evaluated", "VastitasProof.printed"])
     if args.candidate is None:
-        (work / "Certificate.lean").write_text(certificate(stage_proof(namespace)))
+        (work / "Certificate.lean").write_text(certificate(proof, module))
         axioms = phase("proof", [*lean, "-DwarningAsError=true", "-o", "Certificate.olean", "Certificate.lean"])
         official_axioms = re.fullmatch(r"'VastitasProof.checked' (?:does not depend on any axioms|depends on axioms: \[([^\]]*)\])\s*", axioms)
         require(official_axioms and set(filter(None, (official_axioms.group(1) or "").split(", "))) <= official.ALLOWED,
                 "unexpected proof axioms")
     report["standard_environment"] = fast.standard(prefix, work)
     baseline = work / "authority.ndjson"
-    required_roots = [root.replace("BoxedCertificate", namespace) for root in ROOTS]
-    closure, roots = fast.export_roots(work, env, prefix, baseline, "Authority", required_roots, GOAL, "def",
+    closure, roots = fast.export_roots(work, env, prefix, baseline, module, required_roots, GOAL, "def",
                                        "boxed", args.timeout, reduction.measure)
     report["authority_closure"] = closure
     supplied = args.candidate

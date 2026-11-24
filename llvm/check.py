@@ -226,6 +226,17 @@ def check_structured_targets(command, targets, work):
         forged = subprocess.run([*preview, "--expect-function-revision", wrong], cwd=ROOT, capture_output=True)
         if forged.returncode == 0 or forged.stdout or b"E_FUNCTION_REVISION" not in forged.stderr:
             raise ValueError(f"{target}: a call was redirected to its same-signature sibling")
+        old_row, new_row = "(lo, right, on) => d5", "(lo, right, on) => d6"
+        old_return = b"case5:\n  ret i32 5\n"
+        if original.count(old_row) != 1 or expected.count(old_return) != 1:
+            raise ValueError(f"{target}: expected one table row for (lo, right, on)")
+        source.write_text(original.replace(old_row, new_row), encoding="utf-8")
+        revised = subprocess.check_output(preview, cwd=ROOT)
+        if revised != expected.replace(old_return, b"case5:\n  ret i32 6\n"):
+            raise ValueError(f"{target}: changing the unused table row did not change its exact return")
+        stale = subprocess.run(replay, cwd=ROOT, capture_output=True)
+        if stale.returncode == 0 or stale.stdout or b"E_FUNCTION_REVISION" not in stale.stderr:
+            raise ValueError(f"{target}: the old revision accepted the changed table")
         for old, new in [("!a || b", "!a && b"), ("!a && !b", "!a || !b")]:
             if original.count(old) != 1:
                 raise ValueError(f"expected one method body containing {old}")

@@ -217,6 +217,12 @@ fn assembled_predicate_and_nominal_multi_axis_lookup_share_the_checked_module() 
         .unwrap();
     success(&revision);
     std::fs::write(project.0.join("checked.json"), &revision.stdout).unwrap();
+    let probe_fifth_row = SOURCE
+        .replace(
+            "Row::hi, Column::middle, Bit::on",
+            "Row::lo, Column::right, Bit::on",
+        )
+        .replace("() => d9", "() => d5");
     let two_joins = common::checked_replace(
         SOURCE,
         "if choose(true, hit) && !choose(true, false) { 42 } else { 7 }",
@@ -241,6 +247,12 @@ fn assembled_predicate_and_nominal_multi_axis_lookup_share_the_checked_module() 
             2,
         ),
         (two_joins, 23, 2),
+        (
+            probe_fifth_row.replace("(lo, right, on) => d5", "(lo, right, on) => d6"),
+            7,
+            2,
+        ),
+        (probe_fifth_row, 42, 2),
         (SOURCE.replace("apply selected;", ""), 7, 1),
     ] {
         project.write("app/main.vast", &source);
@@ -261,7 +273,7 @@ fn assembled_predicate_and_nominal_multi_axis_lookup_share_the_checked_module() 
             ])
             .output()
             .unwrap();
-        if expected == 42 {
+        if source == SOURCE {
             success(&pin);
         } else {
             expect_code(&pin, "E_FUNCTION_REVISION");

@@ -1,8 +1,9 @@
 import VastitasKernel.LLVM.FiniteProgram
 import VastitasOracle.FiniteEntryEvaluation
 import VastitasOracle.FiniteJoins
+import VastitasOracle.FiniteHelpers
 import VastitasOracle.PackageLink
-import VastitasOracle.ResourceSource
+import VastitasOracle.FiniteLookupOrigin
 import VastitasOracle.IndexedDispatch
 
 set_option autoImplicit false
@@ -110,7 +111,9 @@ theorem function_inventory {json main header} {req : ResourceSource.Wire.Checked
         FiniteModule.widthOf exe.result = some image.result ∧
         image.blocks.map FiniteCalls.blockTrace =
           FiniteCalls.expectedBlocks exe.coreId image.result exe.blocks.toList 0 ∧
-        FiniteJoins.Corresponds opt image ∧ FiniteJoins.Corresponds exe image := by
+        FiniteJoins.Corresponds opt image ∧ FiniteJoins.Corresponds exe image ∧
+        FiniteHelpers.blockSites opt.blocks.toList 0 = FiniteHelpers.blockSites exe.blocks.toList 0 ∧
+        FiniteHelpers.Corresponds a.linked.exe.env exe image := by
   have accepted := a.lowered
   simp only [FiniteModule.lower, FiniteModule.translate, bind, Option.bind_eq_some_iff] at accepted
   obtain ⟨code, ⟨entry, atEntry, _, _, functions, emitted, final⟩, certified⟩ := accepted
@@ -141,7 +144,8 @@ theorem function_inventory {json main header} {req : ResourceSource.Wire.Checked
     have joins := FiniteJoins.translate_joins lowered
     obtain ⟨width, calls⟩ := FiniteCalls.translate_calls lowered
     exact ⟨id, orig, key, target, opt, exe, atId, found, symbol, origin, valid, signature,
-      atOpt, remap, atExe, same, lowered, width, calls, FiniteJoins.before_execute (step.trans localSlot) joins, joins⟩
+      atOpt, remap, atExe, same, lowered, width, calls, FiniteJoins.before_execute (step.trans localSlot) joins, joins,
+      (FiniteHelpers.sites_execute (step.trans localSlot)).2, FiniteHelpers.translate_helpers lowered⟩
 
 open VastitasKernel.MidIR Indexed.FunctionSource.Compiler in
 /-- A selected method retains its checked family, specialization and signature
@@ -165,6 +169,8 @@ theorem dispatch_method_bytes {json main header} {req : ResourceSource.Wire.Chec
       image.blocks.map FiniteCalls.blockTrace =
         FiniteCalls.expectedBlocks exe.coreId image.result exe.blocks.toList 0 ∧
       FiniteJoins.Corresponds opt image ∧ FiniteJoins.Corresponds exe image ∧
+      FiniteHelpers.blockSites opt.blocks.toList 0 = FiniteHelpers.blockSites exe.blocks.toList 0 ∧
+      FiniteHelpers.Corresponds a.linked.exe.env exe image ∧
       images[i]? = some image ∧ a.model.code.functions =
         (images.zipIdx.flatMap fun (g,j) => g.helpers.toList ++ [g.body j]) ++ [FiniteModule.hostMain entry] ∧
       a.linked.opt.revision = ResourceSource.FunctionRevision.artifact (ResourceSource.Wire.revisionInput json) req.checked ∧
@@ -174,7 +180,7 @@ theorem dispatch_method_bytes {json main header} {req : ResourceSource.Wire.Chec
   let image := images[i]
   have atImage : images[i]? = some image := List.getElem?_eq_getElem bound
   obtain ⟨id, orig, key, target, opt, exe, atId, found, _, origin, _, signature, atOpt, remap, atExe, same,
-    lowered, _, calls, optJoins, exeJoins⟩ :=
+    lowered, _, calls, optJoins, exeJoins, sites, helpers⟩ :=
     slots i image atImage
   cases Option.some.inj (atId.symm.trans relocated)
   let src := req.checked.pureProgram.executable
@@ -186,8 +192,61 @@ theorem dispatch_method_bytes {json main header} {req : ResourceSource.Wire.Chec
   cases Option.some.inj result
   exact ⟨entry, images, image, family, orig, opt, exe, atFamily, domain, selected, definition, found,
     atOpt, atExe, same, by rw [same, remap], by rw [same, remap], by simpa [same, remap] using keyEq,
-    atEntry, lowered, calls, optJoins, exeJoins, atImage, layout, a.linked.revision,
+    atEntry, lowered, calls, optJoins, exeJoins, sites, helpers, atImage, layout, a.linked.revision,
     (execute_identity _ _ a.linked.executed).2,
     (FiniteModule.parse_iff _ _).mp parsed⟩
+
+open VastitasKernel.Indexed in
+/-- Any lookup occurrence in a published finite executable selects its own
+helper at the same ordinal as in both SSA phases. The caller and helper are
+actual members of the parsed module. All nominal rows determine case returns
+in that helper, including rows never visited by the executable entry. -/
+theorem published_lookup_rows {json main header} {req : ResourceSource.Wire.CheckedInput json main}
+    (a : LLVM.FiniteProgram.Artifact req header) (bytes : List UInt8)
+    (parsed : FiniteModule.parse bytes = some a.model) {slot index : Nat} {f : MidIR.Function .execution}
+    (atFunction : a.linked.exe.functions[slot]? = some f) {s : FiniteHelpers.Site}
+    (atSite : (FiniteHelpers.blockSites f.blocks.toList 0)[index]? = some s) :
+    ∃ (opt : MidIR.Function .optimization) (body : FiniteModule.FunctionImage)
+      (table : FiniteModule.TableImage a.linked.exe.env s.lookup (s.name f.coreId)) (block : FiniteModule.Block),
+      a.linked.opt.functions[slot]? = some opt ∧
+      (FiniteHelpers.blockSites opt.blocks.toList 0)[index]? = some s ∧
+      a.linked.exe.env = (MidIR.PackageLink.core req).declarations.indexed ∧
+      FiniteModule.lookupImage a.linked.exe.env s.lookup (s.name f.coreId) = some table ∧
+      (∃ d, lookup a.linked.exe.env (s.lookup.category.getD s.lookup.table) = some d ∧
+        FiniteLookupOrigin.OwnerMatches s.lookup table.plan.rows d ∧
+        ResourceSource.PhysicalFiniteOrigin req ⟨s.lookup.category.getD s.lookup.table,d⟩) ∧
+      body.helpers[index]? = some table.function ∧ table.function.name = s.name f.coreId ∧
+      body.body slot ∈ a.model.code.functions ∧ table.function ∈ a.model.code.functions ∧
+      block ∈ body.blocks ∧ block.label = s!"b{s.dst.block}" ∧ s.call f.coreId ∈ block.ops ∧
+      (∀ digits key tag out, FiniteLookup.decodeKey table.plan.domains digits = some key →
+        table.plan.atKey key = some tag → table.plan.range.idxOf? tag = some out →
+        ∃ addr, (FiniteLookup.Layout.ofWidths (table.plan.domains.map List.length)).address digits = some addr ∧
+          VastitasOracle.FiniteModule.CaseReturns table.function addr out) ∧
+      a.linked.exe.revision = ResourceSource.FunctionRevision.artifact (ResourceSource.Wire.revisionInput json) req.checked ∧
+      bytes = FiniteModule.print a.model := by
+  obtain ⟨entry, images, _, mapped, _, layout, slots⟩ := function_inventory a
+  obtain ⟨body, atBody, _⟩ := Support.mapM_some_getElem? mapped (by simpa using atFunction)
+  obtain ⟨_, _, _, _, opt, exe, _, _, _, _, _, _, atOpt, _, atExe, _, _, _, _, _, _, sitesEq, helpers⟩ :=
+    slots slot body atBody
+  cases Option.some.inj (atExe.symm.trans atFunction)
+  obtain ⟨fn, atHelper, got⟩ := Support.mapM_some_getElem? helpers.helpers atSite
+  obtain ⟨table, built, rfl⟩ := Option.map_eq_some_iff.mp got
+  have name := table.emitted
+  simp only [FiniteModule.table, bind, Option.bind_eq_some_iff] at name
+  obtain ⟨_, _, _, _, h⟩ := name
+  have named := congrArg FiniteModule.Func.name (Option.some.inj h)
+  have pair : (body,slot) ∈ images.zipIdx := List.mem_of_getElem? (i := slot) (by simp [atBody])
+  have published {g : FiniteModule.Func} (mem : g ∈ body.helpers.toList ++ [body.body slot]) :
+      g ∈ a.model.code.functions := by
+    rw [layout]
+    exact List.mem_append_left _ (List.mem_flatMap.mpr ⟨(body,slot), pair, mem⟩)
+  obtain ⟨block, inBody, label, call⟩ := helpers.calls s (List.mem_of_getElem? atSite)
+  obtain ⟨env, rev⟩ := MidIR.execute_identity _ _ a.linked.executed
+  have core := env.trans a.linked.environment
+  exact ⟨opt,body,table,block,atOpt,by rwa [sitesEq],core,built,
+    FiniteLookupOrigin.physical_authority req core table.plan, by simpa using atHelper,named.symm,published (by simp),
+    published (List.mem_append_left _ (List.mem_of_getElem? atHelper)),inBody,label,call,
+    fun digits _ _ _ => VastitasOracle.FiniteModule.lookup_case table digits,
+    rev.trans a.linked.revision,(FiniteModule.parse_iff _ _).mp parsed⟩
 
 end VastitasOracle.FiniteProgram

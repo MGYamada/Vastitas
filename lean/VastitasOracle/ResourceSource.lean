@@ -576,6 +576,52 @@ theorem physical_finite_entry {json : Lean.Json} (input : Wire.CheckedInput json
     obtain ⟨entry, member, resolved⟩ := resolved_member _ _ (List.mem_map_of_mem present) _ rows
     exact ⟨c, entry, rfl, resolved, (List.mem_filter.mp member).1⟩
 
+/-- A finite entry in the final Core can be traced back to the physical
+declaration whose independent resolution returned that exact payload. -/
+def PhysicalFiniteOrigin {json : Lean.Json} (input : Wire.CheckedInput json requireMain) (entry : Indexed.Entry) : Prop :=
+  ∃ pkg ∈ input.input.packages, ∃ m ∈ pkg.modules, ∃ d ∈ m.pureModule.declarations,
+    let owner : DeclId := ⟨⟨pkg.id, m.pureModule.module.path⟩, d.name⟩
+    let decls := Wire.finiteDeclarations input.input
+    let index := input.checked.pureProgram.compiler.input.body.index
+    let graphs := Indexed.Source.graphSources decls
+    Wire.finiteBody d.body = true ∧
+    (∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      FiniteSourceFiles.Corresponds layout checked.finiteSites
+        ⟨pkg.id.source, owner.scope.path, d.span, d.isPublic, FiniteSourceFiles.indexedSyntax d⟩) ∧
+    ∃ cache, (Indexed.Source.buildProjectionCache index graphs decls).run' [] = .ok cache ∧
+      Wire.resolveFiniteEntry index graphs cache (owner,d) = .ok entry
+
+theorem physical_origin_of_finite_entry {json : Lean.Json} (req : Wire.CheckedInput json requireMain)
+    {entry : Indexed.Entry} (member : entry ∈ Wire.coreFiniteEntries req.checked.pureProgram.compiled.core.module.declarations.indexed) :
+    PhysicalFiniteOrigin req entry := by
+  let decls := Wire.finiteDeclarations req.input
+  let index := req.checked.pureProgram.compiler.input.body.index
+  let graphs := Indexed.Source.graphSources decls
+  have inventory := finite_inventory req
+  change Wire.resolveFiniteEntries index decls = _ at inventory
+  have nonempty : decls.isEmpty = false := by
+    cases h : decls with
+    | nil =>
+      have empty : Wire.coreFiniteEntries req.checked.pureProgram.compiled.core.module.declarations.indexed = [] :=
+        by simpa [h, Wire.resolveFiniteEntries, pure, Except.pure] using inventory.symm
+      simp [empty] at member
+    | cons => rfl
+  simp only [Wire.resolveFiniteEntries, nonempty, Bool.false_eq_true, ↓reduceIte] at inventory
+  cases built : (Indexed.Source.buildProjectionCache index graphs decls).run' [] with
+  | error e => rw [built] at inventory; contradiction
+  | ok cache =>
+    rw [built] at inventory
+    obtain ⟨owned, inDecls, resolved⟩ := Support.mapM_ok_mem inventory entry member
+    obtain ⟨pkg, hp, mods⟩ := List.mem_flatMap.mp inDecls
+    obtain ⟨m, hm, ds⟩ := List.mem_flatMap.mp mods
+    obtain ⟨d, hd, found⟩ := List.mem_filterMap.mp ds
+    split at found <;> try contradiction
+    cases Option.some.inj found
+    obtain ⟨expected, layout, checked, collected, physical, scan, _, site⟩ := physical_indexed_item req hp hm hd
+    exact ⟨pkg,hp,m,hm,d,hd,‹_›,⟨expected,layout,checked,collected,physical,scan,site⟩,cache,built,resolved⟩
+
 /-- Every operand of a primitive replays at its source span. The declaration
 elaborator selects the fully elaborated binding under its original owner. -/
 theorem physical_indexed_primitive {json : Lean.Json} (input : Wire.CheckedInput json requireMain)

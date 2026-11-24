@@ -49,6 +49,15 @@ Each file can be read or assembled independently. The 29 entry modules export `i
 
 The printer spells each target-header byte as an LLVM hexadecimal escape (for example, `\61` is `a`). Within the switch, `u0x0002` is the unsigned ordinal 2. The `i32 -1` at `%miss` has the unsigned value 4,294,967,295.
 
+For each of the eleven public emission cases, `Output.decodes_iff` relates
+its model parser to the complete UTF-8 buffer passed to the driver. A second
+buffer parses to that model exactly when its bytes equal the published bytes.
+The native regression changes `choose(true)` to `choose(false)`. Each program
+passes the public compiler and gives its own exit value, 42 or 7. Their LLVM
+modules differ only in the one-byte Boolean call argument. The handoff test
+supplies each module as the other's readback and requires rejection before an
+object is created. [Emission and readback theorem](../../lean-kernel/VastitasKernel/LLVM/Emission.lean) · [Native handoff regression](../check_exact_native.py)
+
 The table's nominal input and output types are checked before lowering to the foreign `i32` ABI. The general `correspondence` theorems connect the selected Core function and both MidIR phases to the parsed module for every in-domain ordinal. Their `foreign_miss` theorems cover out-of-domain inputs. For the empty carrier, the latter theorem covers all 32-bit words. [Unary function theorems](../../lean/VastitasOracle/UnaryFunction.lean) · [Static call theorems](../../lean/VastitasOracle/CallFunction.lean)
 
 The boxed library requires an initialized Lean runtime and the versioned C shim. Its SSA registers hold Lean objects. A native caller supplies the declared Nat/Int kinds. The abstract call semantics assign no result to an ill-typed arithmetic call. The artifact checks the exported owner, specialization, operand types and current revision. Replay exchanges each operator spelling with its named-call spelling and compares all three protected family IDs and ordered operand keys. Both forms produce the same 1,021 bytes. Its parser reconstructs the exact calls and requires the canonical reference-counting instructions. The Oracle proves that the parsed model recovers the execution MidIR block and has the same return observation as both MidIR phases for every argument list under the shim contract. [Shim source](../runtime/exact.c) · [Oracle correspondence](../../lean/VastitasOracle/ExactLibrary.lean)

@@ -1170,7 +1170,7 @@ Claims:
 A deterministic Lean-defined printer and bounded parser establish the modeled module's round-trip and correspondence to its complete canonical LLVM .ll byte sequence. A checksum or AST identity alone is insufficient. Before native optimization, the driver rereads the final file, compares all bytes with the verified sequence and supplies the same immutable buffer to the in-process libLLVM parser. A Rust builder, normalization pass or parser result must not alter the verified input. A byte change, target change, parser disagreement or extra instruction fails closed. The external parser and handoff remain labeled host premises and receive adversarial tests.
 
 - Example: Changing one byte after verification prevents native code generation even if a stored hash or theorem name remains unchanged.
-- Not executed: Unary and binary lookup, the static forwarder, literal and folded integer entries, an assembled Boolean branch and closed finite package entries have complete canonical-byte theorems. General functions and release verification modes remain pending.
+- Not executed: Every current public emitter has a canonical parser. For each output, a candidate buffer parses to its model exactly when the candidate equals the full published UTF-8 payload. General functions and release verification modes remain pending.
 
 Claims:
 

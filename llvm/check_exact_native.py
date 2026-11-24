@@ -137,6 +137,34 @@ def check_comparison_control(prefix, sdk, work, emit):
     print("12 aliased heap comparisons and 4 comparisons using owned temporaries passed", flush=True)
 
 
+def check_assembled_readback(work, preview, backend):
+    source = (ROOT / "llvm/fixtures/AssembledBool.vast").read_text()
+    files = []
+    for flag, status in [("true", 42), ("false", 7)]:
+        (work / "main.vast").write_text(source.replace("choose(true)", f"choose({flag})"))
+        data = subprocess.check_output(preview, cwd=work)
+        path = work / f"assembly-{flag}.ll"
+        path.write_bytes(data)
+        obj = work / f"assembly-{flag}.o"
+        subprocess.run([backend, "emit", path, path, obj], cwd=work, check=True)
+        exe = work / f"assembly-{flag}"
+        subprocess.run(["cc", obj, "-o", exe], cwd=work, check=True)
+        if subprocess.run([exe], cwd=work).returncode != status:
+            raise ValueError("replayed assembly called the wrong Boolean method")
+        files.append(path)
+    yes, no = files
+    before, after = yes.read_bytes(), no.read_bytes()
+    call = b"call i1 @vq_selected(i1 1)"
+    if before.count(call) != 1 or before.replace(call, b"call i1 @vq_selected(i1 0)") != after:
+        raise ValueError("the two checked modules must differ only at the Boolean argument")
+    for expected, other in [(yes, no), (no, yes)]:
+        obj = work / "substituted.o"
+        rejected = subprocess.run([backend, "emit", expected, other, obj], cwd=work, capture_output=True)
+        if rejected.returncode == 0 or b"complete LLVM byte comparison failed" not in rejected.stderr or obj.exists():
+            raise ValueError("readback of another valid public module reached object emission")
+    print("Both assembled programs executed; each rejected the other's one-byte readback", flush=True)
+
+
 def native(args, work):
     prefix = Path(output(["lean", "--print-prefix"], cwd=ROOT))
     sdk = ["-isysroot", output(["xcrun", "--show-sdk-path"])] if sys.platform == "darwin" else []
@@ -188,6 +216,8 @@ def native(args, work):
         (work / "main.vast").write_text(source)
         emit_preview(preview, obj)
 
+    if args.backend:
+        check_assembled_readback(work, preview, args.backend)
     check_comparison_control(prefix, sdk, work, emit)
     count = examples = 0
     for kinds, result, vast_expr, lean_expr, evaluate in cases():

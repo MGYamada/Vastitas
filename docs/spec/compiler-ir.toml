@@ -1557,7 +1557,7 @@ and handoff remain labeled host premises and receive adversarial tests.
 """
 specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.llvm-bytes)"
 example = "Changing one byte after verification prevents native code generation even if a stored hash or theorem name remains unchanged."
-example_not_executed = "Unary and binary lookup, the static forwarder, literal and folded integer entries, an assembled Boolean branch and closed finite package entries have complete canonical-byte theorems. General functions and release verification modes remain pending."
+example_not_executed = "Every current public emitter has a canonical parser. For each output, a candidate buffer parses to its model exactly when the candidate equals the full published UTF-8 payload. General functions and release verification modes remain pending."
 
 [property."compiler-ir.llvm-bytes".claim.bytes]
 status = "planned"

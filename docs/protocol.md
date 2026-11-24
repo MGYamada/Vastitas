@@ -133,7 +133,12 @@ in this check. Substituting a different valid implementation yields
 
 Lean replays each finite carrier, table, schema and instance in the source
 file supplied for its package and lexical module. It checks visibility, tag
-order, qualified path spans and both ends of every table row. Finite-indexed functions participate in the same inventory, including uncalled
+order, qualified path spans and both ends of every table row. It resolves these
+declarations in their owning modules and compares the resulting list with all
+finite entries in the returned Core, in order. This includes unused declarations
+and paths through a named instance such as `C::composition`.
+
+Finite-indexed functions participate in the source inventory, including uncalled
 functions. Lean checks each static binder and its schema or object projection,
 the parameter and result types, and the expression body. An otherwise valid
 substitution in a declaration fails with `E_FINITE_SOURCE` at the source token. Ill-typed tables

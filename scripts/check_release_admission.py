@@ -126,7 +126,8 @@ ROW_OBLIGATIONS = {
                  'compiler-ir.edition@resource-cell-source', 'compiler-ir.edition@resource-product-source', 'compiler-ir.edition@resource-ownership-source', 'compiler-ir.edition@resource-value-source',
                  'compiler-ir.families@singleton-source', 'compiler-ir.edition@namespace-source',
                  'compiler-ir.families@selector-source'),
-        'midir': ('compiler-ir.midir@representation', 'compiler-ir.midir@direct-call'),
+        'midir': ('compiler-ir.midir@representation', 'compiler-ir.midir@direct-call',
+                  'compiler-ir.llvm-bytes@finite-entry'),
         'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.check-build@preview', 'compiler-ir.llvm-bytes@boxed-program',
                  'compiler-ir.llvm-bytes@boxed-control-flow'),
         'official': ('compiler-ir.composition@theorem', 'compiler-ir.composition@published-definitions'),
@@ -158,7 +159,8 @@ def required_status(dimension, claim):
                   'compiler-ir.families@selector-source', 'compiler-ir.operators@selected-method'}
             or dimension == 'official'
             or (dimension == 'llvm' and claim in LLVM_PROOFS)
-            or (dimension == 'midir' and claim in {'compiler-ir.midir@finite-lookup', 'compiler-ir.registry@exact-arithmetic',
+            or (dimension == 'midir' and claim in {'compiler-ir.midir@finite-lookup', 'compiler-ir.llvm-bytes@finite-entry',
+                                                   'compiler-ir.registry@exact-arithmetic',
                                                    'compiler-ir.registry@pair-operations', 'compiler-ir.registry@binary-signatures'})):
         return 'proved-oracle'
     return 'tested'

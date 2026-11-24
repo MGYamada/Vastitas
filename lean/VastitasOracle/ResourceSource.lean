@@ -413,7 +413,7 @@ theorem resolved_physical_definition {json : Lean.Json} (input : Wire.CheckedInp
     apply List.mem_flatMap.mpr
     refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, List.mem_filterMap.mpr ⟨d, hd, ?_⟩⟩⟩
     simp [selected]
-  exact resolved_definition_member actions _ member _ input.definitionEntries
+  exact resolved_definition_member actions _ member _ (Bool.and_eq_true_iff.mp input.definitionEntries).1
 
 /-- The source marker, representation and capabilities replay in their
 declaring module. Resolving these fields must yield an entry in the returned Core. -/
@@ -522,6 +522,59 @@ theorem physical_declaration_owned {input : Program} {pkg : Package} (hp : pkg �
   refine ⟨_, List.mem_map_of_mem (List.mem_map_of_mem (List.mem_append_left _ (List.mem_map_of_mem hp))), ?_⟩
   apply List.mem_flatMap.mpr
   exact ⟨_, List.mem_map_of_mem (List.mem_map_of_mem (List.mem_map_of_mem hm)), List.mem_map_of_mem hd⟩
+
+/-- Every finite entry of the final Core comes from the written declarations,
+in order. In particular an empty source inventory admits no finite Core entry. -/
+theorem finite_inventory {json : Lean.Json} (input : Wire.CheckedInput json requireMain) :
+    Wire.resolveFiniteEntries input.checked.pureProgram.compiler.input.body.index (Wire.finiteDeclarations input.input) =
+      .ok (Wire.coreFiniteEntries input.checked.pureProgram.compiled.core.module.declarations.indexed) := by
+  have matched := (Bool.and_eq_true_iff.mp input.definitionEntries).2
+  unfold Wire.finiteEntriesMatch at matched
+  cases h : Wire.resolveFiniteEntries _ _ with
+  | error err => simp [h] at matched
+  | ok entries => exact congrArg Except.ok (beq_iff_eq.mp (by simpa only [h] using matched))
+
+/-- Resolving the complete physical finite form yields the exact payload in
+the returned Core, including for an unused declaration or an associated path. -/
+theorem physical_finite_entry {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    {pkg : Package} (hp : pkg ∈ input.input.packages) {m : Module} (hm : m ∈ pkg.modules)
+    {d : Indexed.Source.Declaration} (hd : d ∈ m.pureModule.declarations)
+    (finite : (FiniteSourceFiles.form d).isSome = true) :
+    let owner : Indexed.DeclId := ⟨⟨pkg.id, m.pureModule.module.path⟩, d.name⟩
+    let decls := Wire.finiteDeclarations input.input
+    let index := input.checked.pureProgram.compiler.input.body.index
+    let graphs := Indexed.Source.graphSources decls
+    (∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      FiniteSourceFiles.Corresponds layout checked.finiteSites
+        ⟨pkg.id.source, owner.scope.path, d.span, d.isPublic, FiniteSourceFiles.indexedSyntax d⟩) ∧
+    ∃ cache entry, (Indexed.Source.buildProjectionCache index graphs decls).run' [] = .ok cache ∧
+      Wire.resolveFiniteEntry index graphs cache (owner, d) = .ok entry ∧
+      entry ∈ input.checked.pureProgram.compiled.core.module.declarations.indexed := by
+  obtain ⟨expected, layout, checked, collected, physical, scan, _, site⟩ := physical_indexed_item input hp hm hd
+  refine ⟨⟨expected, layout, checked, collected, physical, scan, site⟩, ?_⟩
+  let decls := Wire.finiteDeclarations input.input
+  let index := input.checked.pureProgram.compiler.input.body.index
+  let graphs := Indexed.Source.graphSources decls
+  let owner : Indexed.DeclId := ⟨⟨pkg.id, m.pureModule.module.path⟩, d.name⟩
+  have present : (owner, d) ∈ decls := by
+    apply List.mem_flatMap.mpr
+    refine ⟨pkg, hp, List.mem_flatMap.mpr ⟨m, hm, List.mem_filterMap.mpr ⟨d, hd, ?_⟩⟩⟩
+    simp [(Wire.finiteBody_eq_form d).trans finite, owner]
+  have nonempty : decls.isEmpty = false := List.isEmpty_eq_false_iff.mpr (List.ne_nil_of_mem present)
+  have complete := finite_inventory input
+  change Wire.resolveFiniteEntries index decls = .ok _ at complete
+  simp only [Wire.resolveFiniteEntries, nonempty, Bool.false_eq_true, ↓reduceIte] at complete
+  cases cache : (Indexed.Source.buildProjectionCache index graphs decls).run' [] with
+  | error err => rw [cache] at complete; contradiction
+  | ok c =>
+    rw [cache] at complete
+    have rows : (decls.map (Wire.resolveFiniteEntry index graphs c)).mapM id =
+        .ok (Wire.coreFiniteEntries input.checked.pureProgram.compiled.core.module.declarations.indexed) := by
+      simpa only [List.mapM_map, Function.id_comp] using! complete
+    obtain ⟨entry, member, resolved⟩ := resolved_member _ _ (List.mem_map_of_mem present) _ rows
+    exact ⟨c, entry, rfl, resolved, (List.mem_filter.mp member).1⟩
 
 /-- Every operand of a primitive replays at its source span. The declaration
 elaborator selects the fully elaborated binding under its original owner. -/

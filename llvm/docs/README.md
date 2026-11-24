@@ -443,6 +443,12 @@ Lean 4.35.0 emits `switch` for tagged cases and stores join arguments on a
 jump. Its pinned binary reports no LLVM backend feature.
 [Lean tagged cases](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1090-L1137) · [Lean join arguments](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1050-L1060)
 
+For a checked finite entry, Lean resolves the declarations from the supplied
+`.vast` files, including unused tables. Their owners, tags, rows and instance
+fields agree in order with the finite entries in Core and both MidIR phases.
+The theorem follows the same execution MidIR to the LLVM model and its complete
+printed bytes. [Source and Core correspondence](../../lean/VastitasOracle/ResourceSource.lean) · [Finite entry and LLVM bytes](../../lean/VastitasOracle/FiniteProgram.lean)
+
 Two valid affine isomorphisms can exchange their forward and inverse maps.
 A Cartesian square can also select a second declaration of the same inverse
 map. With an entry returning 10, all three source variants reproduce the 374

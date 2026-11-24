@@ -545,8 +545,8 @@ document = ""
 
 [row.dimension.midir]
 state = "partial"
-claims = ["compiler-ir.midir@representation", "compiler-ir.midir@direct-call"]
-note = "In the boxed profile the linked optimization and execution modules retain the resolved indexed definitions under the same revision. The ordered-calls program executes its selected two-operand method in both phases. Other accepted function and storage profiles still require composition."
+claims = ["compiler-ir.midir@representation", "compiler-ir.midir@direct-call", "compiler-ir.llvm-bytes@finite-entry"]
+note = "For a closed finite executable, resolving the physical declarations reproduces the entire finite part of its linked execution environment. The same entries occur in returned Core and optimization MidIR. In the boxed profile the linked optimization and execution modules retain the resolved indexed definitions under the same revision. The ordered-calls program executes its selected two-operand method in both phases. Other accepted function and storage profiles still require composition."
 document = ""
 
 [row.dimension.llvm]

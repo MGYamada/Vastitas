@@ -158,6 +158,33 @@ fn implicit_package_roots_match_the_first_physical_token_or_eof() {
 }
 
 #[test]
+fn flat_and_library_inputs_share_the_synthetic_module_origin() {
+    let s = common::Scratch::empty("flat module origin");
+    let prefix = "// λ\r\n  ";
+    s.write("main.vast", &format!("{prefix}{PROGRAM}"));
+    s.write("lib.vast", "fn unused() -> Int { 19 }");
+    for files in [&["main.vast"][..], &["main.vast", "--lib", "lib.vast"]] {
+        let raw = captured_wire(s.cli().arg("check").args(files), CURRENT_PROTOCOL);
+        let module = &raw["packages"][0]["modules"][0];
+        assert_eq!(
+            module["span"],
+            json!({"start":0,"end":0,"line":1,"column":1})
+        );
+        assert_eq!(kernel(&raw, "function-revision")["ok"], true);
+        for (lo, hi, line, column) in [
+            (prefix.len(), prefix.len() + 2, 2, 3),
+            (0, 0, 2, 1),
+            (0, 0, 1, 3),
+        ] {
+            let mut moved = raw.clone();
+            moved["packages"][0]["modules"][0]["span"] =
+                json!({"start":lo,"end":hi,"line":line,"column":column});
+            assert_wire_rejected(&kernel(&moved, "function-revision"), "E_PROTOCOL");
+        }
+    }
+}
+
+#[test]
 fn root_source_is_the_physical_package_entry_at_its_global_byte_offset() {
     let s = common::Scratch::empty("root source");
     let entry = "// λ\r\nmod inner {} mod external; fn main() -> Int { dep::answer() }";

@@ -37,7 +37,7 @@ private def functions (isFlat := true) : List Json :=
 private def publish (isPublic : Bool) (item : Json) : Json := item.setObjVal! "public" (toJson isPublic)
 
 private def rootModule (functions : List Json) : Json := Json.mkObj [
-  ("path", toJson ([] : List String)), ("public", toJson true), ("span", span),
+  ("path", toJson ([] : List String)), ("public", toJson true), ("span", span.setObjVal! "end" (toJson (0 : Nat))),
   ("imports", toJson ([] : List Json)), ("generics", toJson ([] : List Json)),
   ("methods", toJson ([] : List Json)), ("functions", toJson functions)]
 

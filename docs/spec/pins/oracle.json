@@ -319,6 +319,7 @@
     {"name": "VastitasOracle.ResourceSource.defining_method_body", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:0e70c73f945e69445e48176e2feffdb088d499d577dfab44ac2fa2f27700cf5f"},
     {"name": "VastitasOracle.ResourceSource.expected_function_revision_exact", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:6f6b049c644dbfc9e31fec2010ca7dbbf2bb987fee92de01153fb6ad19d22531"},
     {"name": "VastitasOracle.ResourceSource.expected_revision_selects_method", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:f3d9aac4d0fcd2b07e8a0baa70dd9113fb18f09c2a1f142203cfe07216e50ed9"},
+    {"name": "VastitasOracle.ResourceSource.flat_root_module", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:04951202be314aa371b6dbe3988225db0cd9436fd9b8905151959170e6fc6e19"},
     {"name": "VastitasOracle.ResourceSource.literal_component_value", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:afc0d7663ac037a92cbf140d60ce7a25c2b90ace4aee6d1b6ef4afe577cc0368"},
     {"name": "VastitasOracle.ResourceSource.physical_affine_declaration", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:b0f400a7570593b97f483273bd8a579ddfd2a6205481685b6ccf491dbc3c1625"},
     {"name": "VastitasOracle.ResourceSource.physical_classification", "module": "VastitasOracle.ResourceSource", "kind": "theorem", "statement": "sha256:4a6c91723da002fec591008bd3dd0abe08745173b5a61201dc139d3807c7abac"},

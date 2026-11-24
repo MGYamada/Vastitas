@@ -655,6 +655,32 @@ theorem physical_morphism {json : Lean.Json} (input : Wire.CheckedInput json req
     refine ⟨expected, layout, checked, site, file, first, edits, physical, scan, atSite, atFile, owner, tok, ?_⟩
     simpa [FiniteSourceFiles.replay, tok, Except.mapError, Bind.bind, Except.bind] using replay
 
+/-- Flat inputs and explicit libraries share the reserved single-package envelope,
+whose sole public root has a synthetic zero-width span at line and column one. -/
+theorem flat_root_module {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    (flat : input.input.root = flatPackageId.source) :
+    ∃ pkg m, input.input.packages = [pkg] ∧ pkg.id = flatPackageId ∧
+      pkg.dependencies = [] ∧ pkg.geometryCompat = none ∧ pkg.modules = [m] ∧
+      m.pureModule.module.path = [] ∧ m.pureModule.module.isPublic = true ∧
+      m.pureModule.module.span = ({} : Span) := by
+  have shape : Wire.flatRequest input.input.root input.input.packages = true := by
+    have checked := (Wire.checks_of_program input.decoded).1
+    rw [flat] at checked ⊢
+    have reserved : reservedSource flatPackageId.source = true :=
+      String.startsWith_string_iff.mpr ⟨"flat".toList, rfl⟩
+    cases h : Wire.flatRequest flatPackageId.source input.input.packages <;>
+      simp [Wire.reservedIdentities, reserved, h] at checked ⊢
+  unfold Wire.flatRequest at shape
+  split at shape
+  next pkg hp =>
+    split at shape
+    next m hm =>
+      simp at shape
+      obtain ⟨⟨⟨⟨_, owner⟩, deps⟩, profile⟩, ⟨path, visibility⟩, span⟩ := shape
+      exact ⟨pkg, m, hp, owner, deps, profile, hm, path, visibility, span⟩
+    next => simp at shape
+  next => contradiction
+
 /-- Each manifest-backed package, including an unused dependency, has one
 public root at the first token of the physical file assigned by the module scan. -/
 theorem physical_root_modules {json : Lean.Json} (input : Wire.CheckedInput json requireMain)

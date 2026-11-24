@@ -357,7 +357,8 @@ span must match the first token of that file in global byte offsets and
 file-local line and column. A file containing only whitespace or comments
 uses the zero-width token at end of file. A mismatch produces
 `E_MODULE_SOURCE` at the expected token. Flat inputs and their libraries
-share one synthetic public root.
+share one synthetic public root at byte range `[0, 0)`, line 1, column 1,
+even when the first declaration follows a comment or occurs in a library.
 
 For every file-backed package the checker reads `package.name`,
 `package.version` and `package.edition`

@@ -521,13 +521,14 @@ def package (j : Json) : Except String Package := do
 /-- Whether `packages`, with `root`, is the request that `packages::flat_request`
 writes for a flat unit: one package with the identity `flatPackageId`, which is
 the root, without dependencies or a `geometry_compat` export, whose one module
-is the public root module. -/
+is the public root module with the synthetic zero-width span at the origin. -/
 def flatRequest (root : String) (packages : List Package) : Bool :=
   match packages with
   | [pkg] => root == flatPackageId.source && pkg.id == flatPackageId && pkg.dependencies.isEmpty &&
       pkg.geometryCompat.isNone &&
       match pkg.modules with
-      | [m] => m.pureModule.module.path.isEmpty && m.pureModule.module.isPublic
+      | [m] => m.pureModule.module.path.isEmpty && m.pureModule.module.isPublic &&
+          m.pureModule.module.span == ({} : Span)
       | _ => false
   | _ => false
 
@@ -559,7 +560,8 @@ a package request, with the optional field `legacy_geometry`. Main reads the
 version before this decoder, and the decoder reads no other version. The
 reserved identities are checked on the request's packages, before the kernel
 adds the profile (`Program.profile`). -/
-private def decodedProgram (j : Json) : Except String Program := do
+private def decodedProgram (j : Json) :
+    Except String {p : Program // reservedIdentities p.root p.packages = .ok ()} := do
   fields j ["version", "file", "root", "root_source", "packages", "legacy_geometry", "expected_function_revision"]
   let version ← j.getObjValAs? Nat "version"
   if version != currentProtocol then throw s!"expected protocol {currentProtocol}"
@@ -567,11 +569,13 @@ private def decodedProgram (j : Json) : Except String Program := do
   let root ← str j "root"
   let geometry ← legacyGeometry j
   let packages ← (← array j "packages").mapM package
-  reservedIdentities root packages
-  if geometry then profileConflict packages
-  let raw : Program := {file, root, packages, legacyGeometry := geometry}
-  let names ← raw.valueFamilies.mapError (·.message)
-  return {raw with operatorValues := names}
+  match h : reservedIdentities root packages with
+  | .error message => throw message
+  | .ok () =>
+    if geometry then profileConflict packages
+    let raw : Program := {file, root, packages, legacyGeometry := geometry}
+    let names ← raw.valueFamilies.mapError (·.message)
+    return ⟨{raw with operatorValues := names}, h⟩
 
 abbrev physicalFileIndex := ManifestBindings.physicalFileIndex
 abbrev manifestFile? := ManifestBindings.manifestFile?
@@ -592,20 +596,23 @@ def exactSources (j : Json) (p : Program) : Except String Unit := do
 
 def program (j : Json) : Except String Program := do
   let p ← decodedProgram j
-  exactSources j p
-  return p
+  exactSources j p.val
+  return p.val
 
-theorem exactSources_of_program {j : Json} {p : Program} (h : program j = .ok p) :
-    exactSources j p = .ok () := by
+theorem checks_of_program {j : Json} {p : Program} (h : program j = .ok p) :
+    reservedIdentities p.root p.packages = .ok () ∧ exactSources j p = .ok () := by
   cases hd : decodedProgram j with
   | error msg => simp [program, hd, Bind.bind, Except.bind] at h
   | ok parsed =>
-    cases hs : exactSources j parsed with
+    cases hs : exactSources j parsed.val with
     | error msg => simp [program, hd, hs, Bind.bind, Except.bind] at h
     | ok u =>
       cases u
-      have eq : parsed = p := by simpa [program, hd, hs, Bind.bind, Except.bind, Pure.pure, Except.pure] using h
-      exact eq ▸ hs
+      have eq : parsed.val = p := by simpa [program, hd, hs, Bind.bind, Except.bind, Pure.pure, Except.pure] using h
+      exact eq ▸ ⟨parsed.property, hs⟩
+
+theorem exactSources_of_program {j : Json} {p : Program} (h : program j = .ok p) :
+    exactSources j p = .ok () := (checks_of_program h).2
 
 /-- The namespace work of the body passes that ran: those of the pure program
 and, when the program has resource fragments, the passes with them. Without

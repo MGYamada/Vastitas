@@ -93,6 +93,7 @@ Claims:
     - `physical_edition_accepts_equivalent_toml_and_ignores_decoys` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
     - `each_physical_dependency_alias_belongs_to_the_manifest_that_declares_it` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
     - `implicit_package_roots_match_the_first_physical_token_or_eof` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
+    - `flat_and_library_inputs_share_the_synthetic_module_origin` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
     - `legacy_geometry_exports_replay_the_physical_manifest_roles_and_presence` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
     - `the_frontend_the_kernel_and_version_share_one_epoch` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
     - `every_version_below_the_epoch_fails_closed` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
@@ -250,14 +251,14 @@ Claims:
   - Note: Changing only the physical exponent, sign, fraction, substitution image, smooth chart dimension or coordinate order rejects the request at the original expression or token. The check includes unused declarations in imported modules.
 - `namespace-source`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
-    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_import`, `VastitasOracle.ResourceSource.physical_module`, `VastitasOracle.ResourceSource.physical_root_modules`
+    - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_import`, `VastitasOracle.ResourceSource.physical_module`, `VastitasOracle.ResourceSource.physical_root_modules`, `VastitasOracle.ResourceSource.flat_root_module`
     - [`VastitasOracle.FlowCertificate`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/FlowCertificate.lean): `VastitasOracle.FlowCertificate.published_root_modules`
   - Premises:
     - the public protocol-10 request passed the independent checker
-    - the root module claim concerns manifest-backed packages
+    - the physical root and LLVM byte correspondence concern manifest-backed packages
     - the LLVM byte correspondence requires a valid control-flow certificate and its publication witness
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
-  - Note: Each file-backed package has one public root at the first token of its assigned source file, including the end-of-file token for a file containing only trivia. For a published control-flow module the same source layout belongs to the checked function revision and complete LLVM bytes. Each declared module and each import replays in its declaring file. Inline modules retain the mod keyword span and external modules the full declaration span. Import resolution uses the written path, alias and visibility, including when two dependency aliases resolve to the same already-assembled family. The loader supplies the physical inputs and manifest dependency mapping.
+  - Note: Each file-backed package has one public root at the first token of its assigned source file, including the end-of-file token for a file containing only trivia. For a published control-flow module the same source layout belongs to the checked function revision and complete LLVM bytes. Flat inputs, including explicit libraries, share one protected package and a public root with a zero-width span at byte zero, line one, column one. Each declared module and each import replays in its declaring file. Inline modules retain the mod keyword span and external modules the full declaration span. Import resolution uses the written path, alias and visibility, including when two dependency aliases resolve to the same already-assembled family. The loader supplies the physical inputs and manifest dependency mapping.
 - `correspondence`: [Planned](../specifications.md#planned)
   - Issue: [#533](https://github.com/MGYamada/Vastitas/issues/533)
 

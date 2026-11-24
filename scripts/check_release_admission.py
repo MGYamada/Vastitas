@@ -43,7 +43,7 @@ ROW_OBLIGATIONS = {
                  'compiler-ir.edition@namespace-source', 'compiler-ir.families@selector-source', 'compiler-ir.operators@selected-method'),
         'midir': ('compiler-ir.midir@representation', 'compiler-ir.midir@pure-cfg', 'compiler-ir.midir@direct-call'),
         'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.llvm-bytes@static-call',
-                 'compiler-ir.llvm-bytes@assembled-bool'),
+                 'compiler-ir.llvm-bytes@assembled-bool', 'compiler-ir.llvm-bytes@boxed-control-flow'),
         'official': ('compiler-ir.stage-validation@soundness', 'compiler-ir.stage-validation@pure-cfg',
                      'compiler-ir.llvm-bytes@static-call', 'compiler-ir.llvm-bytes@assembled-bool',
                      'compiler-ir.families@static-retention'),
@@ -101,7 +101,7 @@ ROW_OBLIGATIONS = {
         'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.llvm-bytes@entry-status',
                  'compiler-ir.llvm-bytes@folded-entry', 'compiler-ir.llvm-bytes@entry-regression',
                  'compiler-ir.llvm-bytes@boxed-library', 'compiler-ir.llvm-bytes@boxed-program',
-                 'compiler-ir.llvm-bytes@boxed-regression'),
+                 'compiler-ir.llvm-bytes@boxed-regression', 'compiler-ir.llvm-bytes@boxed-control-flow'),
         'official': ('compiler-ir.stage-validation@soundness', 'compiler-ir.llvm-bytes@entry-status',
                      'compiler-ir.llvm-bytes@folded-entry', 'compiler-ir.verification-modes@boxed-stage'),
         'native': ('compiler-ir.runtime@linkage', 'compiler-ir.backend@native', 'compiler-ir.feasibility@qualification'),
@@ -127,7 +127,8 @@ ROW_OBLIGATIONS = {
                  'compiler-ir.families@singleton-source', 'compiler-ir.edition@namespace-source',
                  'compiler-ir.families@selector-source'),
         'midir': ('compiler-ir.midir@representation', 'compiler-ir.midir@direct-call'),
-        'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.check-build@preview', 'compiler-ir.llvm-bytes@boxed-program'),
+        'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.check-build@preview', 'compiler-ir.llvm-bytes@boxed-program',
+                 'compiler-ir.llvm-bytes@boxed-control-flow'),
         'official': ('compiler-ir.composition@theorem', 'compiler-ir.composition@published-definitions'),
         'fast': ('compiler-ir.proof-binding@authentication',),
         'native': ('compiler-ir.distribution@packaging',),
@@ -137,7 +138,7 @@ NAMING_DOCUMENT = 'docs/language/types.md#public-type-names'
 LLVM_PROOFS = {'compiler-ir.llvm-bytes@bytes', 'compiler-ir.llvm-bytes@static-call', 'compiler-ir.llvm-bytes@assembled-bool',
                'compiler-ir.llvm-bytes@entry-status', 'compiler-ir.llvm-bytes@folded-entry',
                'compiler-ir.llvm-bytes@binary-function', 'compiler-ir.llvm-bytes@finite-entry',
-               'compiler-ir.llvm-bytes@boxed-library', 'compiler-ir.llvm-bytes@boxed-program'}
+               'compiler-ir.llvm-bytes@boxed-library', 'compiler-ir.llvm-bytes@boxed-program', 'compiler-ir.llvm-bytes@boxed-control-flow'}
 
 
 def obligations(row, dimension):

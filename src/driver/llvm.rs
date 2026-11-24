@@ -36,6 +36,7 @@ pub(super) fn checked_bytes<'a>(
             "entry-status"
             | "assembled-bool"
             | "finite-program"
+            | "boxed-control-flow"
             | "boxed-exact-program"
             | "storage-program"
             | "storage-gemm-program",
@@ -64,7 +65,7 @@ pub(super) fn checked_bytes<'a>(
         bytes: text.as_bytes(),
         #[cfg(feature = "llvm-native")]
         runtime: match kind {
-            Some("boxed-exact-program") => Runtime::Boxed,
+            Some("boxed-exact-program" | "boxed-control-flow") => Runtime::Boxed,
             Some("storage-program") => Runtime::Storage,
             Some("storage-gemm-program") => Runtime::Gemm,
             _ => Runtime::Pure,

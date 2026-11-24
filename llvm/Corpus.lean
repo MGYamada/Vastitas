@@ -6,6 +6,8 @@ import VastitasOracle.DispatchFunction
 import VastitasKernel.LLVM.FiniteModule
 import VastitasOracle.StorageProgram
 import VastitasKernel.LLVM.ExactProgram
+import VastitasKernel.LLVM.ExactFlowParse
+import VastitasOracle.FlowCertificate.Subject
 import VastitasKernel.LLVM.FiniteExecution
 
 /-! Closed statements about the checked-in LLVM files. Each statement embeds the contents of its
@@ -52,6 +54,39 @@ elab "corpus_bytes " file:str : term => do
   return Lean.toExpr bytes.data.toList
 
 def boxedBytes := corpus_bytes "src/boxed-arithmetic.ll"
+
+def assembledComparison : ExactFlow.Code :=
+  let predicate (a b : Nat) : ExactFlow.Func := ⟨.bool, #[
+    ⟨[.int,.int],[.exact (.compare .int .lt a b)],.ret 2⟩]⟩
+  let entry : ExactFlow.Func := ⟨.int, #[
+    ⟨[],[.exact (.int (-(2^128 + 1))),.exact (.int (-1)),.invoke 0 [0,1]],.branch 2 ⟨1,[]⟩ ⟨2,[]⟩⟩,
+    ⟨[],[.exact (.int 42)],.jump ⟨3,[0]⟩⟩, ⟨[],[.exact (.int 7)],.jump ⟨3,[0]⟩⟩, ⟨[.int],[],.ret 0⟩]⟩
+  ⟨header,#[predicate 0 1,entry,predicate 1 0],1⟩
+
+/-- Embed the literal header octets and body lines separately. Re-encoding must
+reproduce the entire file before either literal enters the closed theorem. -/
+elab "corpus_module_lines " file:str : term => do
+  let source := System.FilePath.mk (← readThe Lean.Core.Context).fileName
+  let some dir := source.parent | throwError "corpus needs a source directory"
+  let bytes ← IO.FS.readBinFile (dir / file.getString)
+  let some text := String.fromUTF8? bytes | throwError "expected UTF-8 assembly"
+  let triple :: layout :: "" :: body := text.splitOn "\n" | throwError "expected a target header"
+  let "" :: reversed := body.reverse | throwError "expected a final newline"
+  let header := (triple ++ "\n" ++ layout ++ "\n").toUTF8
+  let lines := reversed.reverse
+  unless header ++ ("\n" ++ String.intercalate "\n" lines ++ "\n").toUTF8 == bytes do
+    throwError "LLVM lines did not reproduce the source bytes"
+  return Lean.toExpr (header.data.toList, lines)
+
+private def comparisonText : List UInt8 × List String := corpus_module_lines "src/assembled-comparison.ll"
+
+def assembledComparisonBytes :=
+  comparisonText.1 ++ ("\n" ++ String.intercalate "\n" comparisonText.2 ++ "\n").toUTF8.data.toList
+
+set_option maxRecDepth 8192 in
+theorem assembled_comparison_verified : assembledComparisonBytes = assembledComparison.print :=
+  (VastitasOracle.FlowCertificate.printedLines assembledComparison comparisonText.1 comparisonText.2
+    rfl (by with_unfolding_all rfl)).symm
 
 def boxedProgram : ExactProgram.Code :=
   ⟨header,#[
@@ -556,6 +591,9 @@ private def forBinary {bytes model} (_ : BinaryTable.parse bytes = some model) :
 private def forDispatch {bytes model} (_ : DispatchBool.parse bytes = some model) : ByteArray :=
   ⟨bytes.toArray⟩
 
+private def forFlow {bytes : List UInt8} {code : ExactFlow.Code}
+    (_ : bytes = code.print) : ByteArray := ⟨bytes.toArray⟩
+
 private def forProgram {bytes : List UInt8} {code : ExactProgram.Code}
     (_ : bytes = code.print) : ByteArray := ⟨bytes.toArray⟩
 
@@ -701,6 +739,7 @@ private def forCode {bytes : List UInt8} {code : FiniteModule.Code}
 def checkedFiles : List (String × ByteArray) :=
   [("exit-status.ll", forExit exit_status_verified),
    ("folded-arithmetic.ll", forExit folded_arithmetic_verified),
+   ("assembled-comparison.ll", forFlow assembled_comparison_verified),
    ("boxed-program.ll", forProgram boxed_program_verified),
    ("ordered-calls.ll", forProgram ordered_calls_verified),
    ("assembled-negation.ll", forProgram assembled_negation_verified),
@@ -795,6 +834,17 @@ def main (args : List String) : IO Unit := do
     let changed := moduleText.replace before after
     unless changed != moduleText && (VastitasKernel.LLVM.ExactProgram.parse changed.toUTF8.data.toList).isNone do
       throw (IO.userError "boxed-program.ll: accepted a damaged call, startup or ownership instruction")
+  let flow := Vastitas.LLVMCorpus.assembledComparison
+  let bytes := Vastitas.LLVMCorpus.assembledComparisonBytes
+  unless VastitasKernel.LLVM.ExactFlow.parse bytes == some flow && flow.entryValue == some 42 do
+    throw (IO.userError "assembled-comparison.ll: wrong typed branch, phi or full result")
+  let text := (String.fromUTF8? ⟨bytes.toArray⟩).get!
+  for (old,new) in [("[ %b1v0, %e1_3 ]", "[ %b1v0, %e2_3 ]"), ("icmp ne i32", "icmp eq i32"),
+      ("@vq_f0(ptr %b0v0, ptr %b0v1)", "@vq_f0(i32 %b0v0, ptr %b0v1)"),
+      ("call void @vastitas_retain_v1(ptr %b1v0)", "call void @vastitas_release_v1(ptr %b1v0)")] do
+    let damaged := text.replace old new
+    unless damaged != text && (VastitasKernel.LLVM.ExactFlow.parse damaged.toUTF8.data.toList).isNone do
+      throw (IO.userError s!"assembled-comparison.ll: damaged control flow accepted at {old}")
   unless VastitasKernel.LLVM.ExactLibrary.parse Vastitas.LLVMCorpus.integerPredicateBytes ==
       some Vastitas.LLVMCorpus.integerPredicate do
     throw (IO.userError "integer-predicate.ll: different typed comparison or release schedule")

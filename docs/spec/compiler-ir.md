@@ -29,7 +29,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [Local proofs compose over the same module](#compiler-ir.composition) | Planned, Proved (oracle) |
 | [Finite constitutional claims need their own proofs](#compiler-ir.constitution) | Planned |
 | [The LLVM subset has explicit target and ABI semantics](#compiler-ir.llvm-model) | Planned |
-| [The theorem reaches every emitted LLVM byte](#compiler-ir.llvm-bytes) | Planned, Tested, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested |
+| [The theorem reaches every emitted LLVM byte](#compiler-ir.llvm-bytes) | Planned, Tested, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (oracle), Tested |
 | [Fast and Official verify the same artifact obligations](#compiler-ir.verification-modes) | Planned, Proved (oracle) |
 | [Proof binding authenticates statements and dependency closure](#compiler-ir.proof-binding) | Planned |
 | [Check stops after verified LLVM IR](#compiler-ir.check-build) | Planned, Tested |
@@ -422,14 +422,14 @@ Claims:
     - [`VastitasOracle.BinaryCoverage`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BinaryCoverage.lean): `VastitasOracle.MidIR.binary_constructor_coverage`
   - Premises:
     - the Core operator has an admitted signature and the supplied operands have its declared types
-  - Note: The actual builder folds pure literal equality and inequality. On the instruction path it evaluates the left and right operands in order and appends at the second operand's live exit. The typed selector covers Boolean operations, equality on nominal finite tags and Unit, all six Nat and Int comparisons, arithmetic and both orders of mixed division. In both MidIR phases the unbounded result agrees with Core. The compiled registry contains all nineteen opcode alternatives. The straight-line library emitter supports all six numerical predicates. Their conditional use in a hosted boxed module remains open.
+  - Note: The actual builder folds pure literal equality and inequality. On the instruction path it evaluates the left and right operands in order and appends at the second operand's live exit. The typed selector covers Boolean operations, equality on nominal finite tags and Unit, all six Nat and Int comparisons, arithmetic and both orders of mixed division. In both MidIR phases the unbounded result agrees with Core. The compiled registry contains all nineteen opcode alternatives. The straight-line library emitter supports all six numerical predicates. The hosted boxed graph consumes their 32-bit Boolean result in a conditional branch.
 - `branch-lowering`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.BranchCoverage`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BranchCoverage.lean): `VastitasOracle.MidIR.branch_constructor_coverage`, `VastitasOracle.MidIR.linked_branch_method`
   - Premises:
     - the checked package retains the method and its Core body selects one of two integer parameters with a Boolean parameter
     - the three formal parameters have distinct symbols
-  - Note: The builder propagates failure from either arm. On success it uses the actual exits of the condition and both children, their effect tokens and the typed join parameter. The linked method theorem follows the source ascriptions and scopes. Core and both MidIR invokers return the selected integer for every input and call depth under one complete revision. The conditional method still needs a boxed LLVM lowering.
+  - Note: The builder propagates failure from either arm. On success it uses the actual exits of the condition and both children, their effect tokens and the typed join parameter. The linked method theorem follows the source ascriptions and scopes. Core and both MidIR invokers return the selected integer for every input and call depth under one complete revision. The boxed LLVM lowering passes each incoming integer through its predecessor edge to a pointer phi.
 - `unary-lowering`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.UnaryCoverage`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/UnaryCoverage.lean): `VastitasOracle.MidIR.unary_constructor_coverage`, `VastitasOracle.MidIR.linked_unary_method`
@@ -544,7 +544,7 @@ Claims:
     - [`VastitasOracle.BinaryCoverage`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BinaryCoverage.lean): `VastitasOracle.MidIR.binary_signature_selected`, `VastitasOracle.MidIR.selected_binary`
   - Premises:
     - the Core signature is admitted and both supplied values have their declared types
-  - Note: Each typed binary signature selects a registered opcode in both phases. The actual Core values establish the nominal sort for a finite equality. The instruction's two ordered operands and its result type correspond to Core, and both denotations return its full value. The straight-line library ABI returns each numerical predicate as 0 or 1 in an i32. Hosted branches on this result remain open.
+  - Note: Each typed binary signature selects a registered opcode in both phases. The actual Core values establish the nominal sort for a finite equality. The instruction's two ordered operands and its result type correspond to Core, and both denotations return its full value. The straight-line library ABI returns each numerical predicate as 0 or 1 in an i32. The hosted graph tests this i32 against zero before branching.
 - `exact-arithmetic`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.MidIR`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/MidIR.lean): `VastitasOracle.MidIR.exact_binary_from_core`, `VastitasOracle.MidIR.exact_unary_from_core`
@@ -1268,6 +1268,15 @@ Claims:
     - The checker produces a linked, closed straight-line integer artifact and the complete bytes parse to its model.
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
   - Note: The original Core, the optimization and execution MidIR and the reconstructed module agree on the entire Int at the entry. The byte equation binds the target, typed direct calls, ownership instructions and hosted status projection. Runtime initialization, allocation, reference counting, object code and the host linker require native qualification.
+- `boxed-control-flow`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.ExactFlow`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ExactFlow.lean): `VastitasOracle.ExactFlow.correspondence`, `VastitasOracle.ExactFlow.edge_ownership`
+    - [`VastitasOracle.FlowCertificate`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/FlowCertificate.lean): `VastitasOracle.FlowCertificate.corresponds`, `VastitasOracle.FlowCertificate.published_function`
+  - Premises:
+    - The checked, closed integer entry has a linked control-flow artifact and the complete module parses to its model.
+    - The stage certificate and the dependent publication witness describe the same subject.
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: The parsed graph, both MidIR phases and Core yield the same full integer under the checked evaluation budgets. The published bytes have the certified function revision, target and physical source layout. Every emitted function slot has the checked Core owner, specialization and call signature from both MidIR phases, including retained uncalled methods. Each taken edge transfers one reference per boxed argument occurrence and releases each owned local once in the model. The runtime ABI and object code are checked separately.
 - `boxed-regression`: [Tested](../specifications.md#tested)
   - Evidence:
     - [`VastitasPublicTest.LLVM.Regression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasPublicTest/LLVM/Regression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)

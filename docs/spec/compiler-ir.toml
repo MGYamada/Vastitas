@@ -502,13 +502,13 @@ for every row. The release coverage check enforces that distinction.
 status = "proved-oracle"
 evidence = ["VastitasOracle.MidIR.binary_constructor_coverage"]
 premises = ["the Core operator has an admitted signature and the supplied operands have its declared types"]
-note = "The actual builder folds pure literal equality and inequality. On the instruction path it evaluates the left and right operands in order and appends at the second operand's live exit. The typed selector covers Boolean operations, equality on nominal finite tags and Unit, all six Nat and Int comparisons, arithmetic and both orders of mixed division. In both MidIR phases the unbounded result agrees with Core. The compiled registry contains all nineteen opcode alternatives. The straight-line library emitter supports all six numerical predicates. Their conditional use in a hosted boxed module remains open."
+note = "The actual builder folds pure literal equality and inequality. On the instruction path it evaluates the left and right operands in order and appends at the second operand's live exit. The typed selector covers Boolean operations, equality on nominal finite tags and Unit, all six Nat and Int comparisons, arithmetic and both orders of mixed division. In both MidIR phases the unbounded result agrees with Core. The compiled registry contains all nineteen opcode alternatives. The straight-line library emitter supports all six numerical predicates. The hosted boxed graph consumes their 32-bit Boolean result in a conditional branch."
 
 [property."compiler-ir.coverage".claim.branch-lowering]
 status = "proved-oracle"
 evidence = ["VastitasOracle.MidIR.branch_constructor_coverage", "VastitasOracle.MidIR.linked_branch_method"]
 premises = ["the checked package retains the method and its Core body selects one of two integer parameters with a Boolean parameter", "the three formal parameters have distinct symbols"]
-note = "The builder propagates failure from either arm. On success it uses the actual exits of the condition and both children, their effect tokens and the typed join parameter. The linked method theorem follows the source ascriptions and scopes. Core and both MidIR invokers return the selected integer for every input and call depth under one complete revision. The conditional method still needs a boxed LLVM lowering."
+note = "The builder propagates failure from either arm. On success it uses the actual exits of the condition and both children, their effect tokens and the typed join parameter. The linked method theorem follows the source ascriptions and scopes. Core and both MidIR invokers return the selected integer for every input and call depth under one complete revision. The boxed LLVM lowering passes each incoming integer through its predecessor edge to a pointer phi."
 
 [property."compiler-ir.coverage".claim.unary-lowering]
 status = "proved-oracle"
@@ -666,7 +666,7 @@ note = "For a selected argument-free main, the int.const.v1 opcode keeps the com
 status = "proved-oracle"
 evidence = ["VastitasOracle.MidIR.binary_signature_selected", "VastitasOracle.MidIR.selected_binary"]
 premises = ["the Core signature is admitted and both supplied values have their declared types"]
-note = "Each typed binary signature selects a registered opcode in both phases. The actual Core values establish the nominal sort for a finite equality. The instruction's two ordered operands and its result type correspond to Core, and both denotations return its full value. The straight-line library ABI returns each numerical predicate as 0 or 1 in an i32. Hosted branches on this result remain open."
+note = "Each typed binary signature selects a registered opcode in both phases. The actual Core values establish the nominal sort for a finite equality. The instruction's two ordered operands and its result type correspond to Core, and both denotations return its full value. The straight-line library ABI returns each numerical predicate as 0 or 1 in an i32. The hosted graph tests this i32 against zero before branching."
 
 [property."compiler-ir.registry".claim.exact-arithmetic]
 status = "proved-oracle"
@@ -1657,6 +1657,13 @@ evidence = ["VastitasOracle.ExactProgram.correspondence"]
 premises = ["The checker produces a linked, closed straight-line integer artifact and the complete bytes parse to its model."]
 assumes = ["rust-frontend"]
 note = "The original Core, the optimization and execution MidIR and the reconstructed module agree on the entire Int at the entry. The byte equation binds the target, typed direct calls, ownership instructions and hosted status projection. Runtime initialization, allocation, reference counting, object code and the host linker require native qualification."
+
+[property."compiler-ir.llvm-bytes".claim.boxed-control-flow]
+status = "proved-oracle"
+evidence = ["VastitasOracle.ExactFlow.correspondence", "VastitasOracle.ExactFlow.edge_ownership", "VastitasOracle.FlowCertificate.corresponds", "VastitasOracle.FlowCertificate.published_function"]
+premises = ["The checked, closed integer entry has a linked control-flow artifact and the complete module parses to its model.", "The stage certificate and the dependent publication witness describe the same subject."]
+assumes = ["rust-frontend"]
+note = "The parsed graph, both MidIR phases and Core yield the same full integer under the checked evaluation budgets. The published bytes have the certified function revision, target and physical source layout. Every emitted function slot has the checked Core owner, specialization and call signature from both MidIR phases, including retained uncalled methods. Each taken edge transfers one reference per boxed argument occurrence and releases each owned local once in the model. The runtime ABI and object code are checked separately."
 
 [property."compiler-ir.llvm-bytes".claim.boxed-regression]
 status = "tested"

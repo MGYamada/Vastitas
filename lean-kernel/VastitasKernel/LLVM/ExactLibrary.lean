@@ -74,12 +74,15 @@ def Step.declaration (s : Step) : String :=
 def global (value : String) (i : Nat) (scope : String := "") :=
   s!"@c{scope}{i} = private constant [{value.length+1} x i8] c\"{value}\\00\""
 
-def call (s : Step) (i : Nat) (scope : String := "") :=
+def callWith (s : Step) (i : Nat) (scope : String) (reg : Nat → String) :=
+  let operand (r : Nat) := "ptr " ++ reg r
   let args := match s with
-    | .apply _ refs => refs.map arg
-    | .compare _ _ a b => [arg a, arg b]
+    | .apply _ refs => refs.map operand
+    | .compare _ _ a b => [operand a, operand b]
     | _ => [s!"ptr @c{scope}{i}"]
-  "  " ++ slot i ++ " = call " ++ s.abi ++ " " ++ symbol s.callee ++ "(" ++ String.intercalate ", " args ++ ")"
+  "  " ++ reg i ++ " = call " ++ s.abi ++ " " ++ symbol s.callee ++ "(" ++ String.intercalate ", " args ++ ")"
+
+def call (s : Step) (i : Nat) (scope : String := "") := callWith s i scope slot
 
 def rcCall (name : String) (i : Nat) :=
   "  call void " ++ symbol name ++ "(" ++ arg i ++ ")"

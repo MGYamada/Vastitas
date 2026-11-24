@@ -6,7 +6,7 @@ The assumption registry lists the trusted components that claims rest on. A clai
 
 | Assumption | Claims that cite it |
 | --- | --- |
-| [Rust frontend parsing](#assumption.rust-frontend) | 78 |
+| [Rust frontend parsing](#assumption.rust-frontend) | 79 |
 | [Lean-to-C toolchain and C compiler](#assumption.lean-to-c) | 3 |
 | [Lean core Rat and GMP](#assumption.lean-rat-gmp) | 0 |
 | [mathlib](#assumption.mathlib) | 17 |
@@ -55,6 +55,7 @@ Cited by:
 - [`compiler-ir.llvm-bytes`](compiler-ir.md#compiler-ir.llvm-bytes) (`folded-entry`)
 - [`compiler-ir.llvm-bytes`](compiler-ir.md#compiler-ir.llvm-bytes) (`boxed-library`)
 - [`compiler-ir.llvm-bytes`](compiler-ir.md#compiler-ir.llvm-bytes) (`boxed-program`)
+- [`compiler-ir.llvm-bytes`](compiler-ir.md#compiler-ir.llvm-bytes) (`boxed-control-flow`)
 - [`compiler-ir.verification-modes`](compiler-ir.md#compiler-ir.verification-modes) (`boxed-stage`)
 - [`compiler-ir.check-build`](compiler-ir.md#compiler-ir.check-build) (`preview`)
 - [`evidence.names-metric`](metric-evidence.md#evidence.names-metric) (`oracle`)

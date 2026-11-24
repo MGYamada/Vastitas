@@ -76,6 +76,7 @@ import VastitasOracle.IndexedSource
 import VastitasOracle.ExactLibrary
 import VastitasOracle.BoxedCertificate
 import VastitasOracle.ExactProgram
+import VastitasOracle.FlowCertificate
 import VastitasOracle.MidIRRegression
 import VastitasOracle.ConversionCoverage
 import VastitasOracle.PairCoverage

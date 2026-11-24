@@ -240,6 +240,28 @@ def native(args, work):
         run([leanc, *sdk, "SwapControl.c", ROOT / "llvm/fixtures/PairOwnership.c", "shim.o", obj, "-o", "swap"])
         run([work / "swap"])
 
+    comparisons = (ROOT / "llvm/fixtures/ComparisonMethod.vast").read_text()
+    conditional = (ROOT / "llvm/fixtures/ConditionalMethod.vast").read_text()
+    flow_cases = [
+        (comparisons, 42), (comparisons.replace("apply ordered;", ""), 7),
+        (conditional, 2**128 + 43), (conditional.replace("choose(true,", "choose(false,"), -19),
+        (conditional.replace("apply conditional;", ""), -19),
+    ]
+    # The nested split carries the borrowed x across both joins. Two call
+    # arguments alias the same heap integer, including its uses after the phi.
+    for outer, inner in [(True, True), (True, False), (False, True)]:
+        source = f"""fn pick(x: Int, y: Int, outer: Bool, inner: Bool) -> Int {{
+            let z = if outer {{ if inner {{ x * y }} else {{ x + y }} }} else {{ y - x }};
+            z + x
+        }}
+        fn main() -> Int {{ let n = {BIG}; pick(n, n, {str(outer).lower()}, {str(inner).lower()}) }}"""
+        expected = BIG + ((BIG * BIG if inner else 2 * BIG) if outer else 0)
+        flow_cases.append((source, expected))
+    for i, (source, expected) in enumerate(flow_cases):
+        obj = f"control-flow-{i}.o"
+        emit(source, obj)
+        check_integer(obj, expected)
+    print(f"{len(flow_cases)} boxed branches matched the full integer through the native phi and call ABI")
     pair_source = (ROOT / "llvm/fixtures/BoxedPairs.vast").read_text()
     for source, obj, expected in [(pair_source, "applied-pair.o", 42),
                                   (pair_source.replace("apply prioritized;", ""), "default-pair.o", 2**128 + 43)]:

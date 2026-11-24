@@ -726,6 +726,14 @@ fn llvm_preview_rejects_unsupported_bodies_and_stale_revisions_before_printing()
     for source in [
         "fn choose(n: Int) -> Int { if n == 0 { 1 } else { n } } fn main() -> Int { choose(4) }",
         "fn f(n: Int) -> Int { if n == 0 { 1 } else { n } } fn main() -> Int { 7 }",
+    ] {
+        let result = preview(&s, source);
+        success(&result);
+        let llvm = String::from_utf8(result.stdout).unwrap();
+        assert!(llvm.contains("call i32 @vastitas_int_eq_v1"));
+        assert!(llvm.contains(" = phi ptr "));
+    }
+    for source in [
         "fn main() -> Int { let x = show!(-1); x }",
         "resource fn main() -> Int { value { if true { 3 } else { 4 } } }",
         "pub fn pick(a: Bool) -> Bool { !a }",
@@ -1058,10 +1066,7 @@ fn checked_llvm_executable_installs_atomically_and_rejects_unsupported_replaceme
         .output()
         .unwrap();
     expect_code(&overwrite_source, "E_OUTPUT");
-    s.write(
-        "app/main.vast",
-        "fn choose(n: Int) -> Int { if n == 0 { 1 } else { n } } fn main() -> Int { choose(4) }",
-    );
+    s.write("app/main.vast", "fn main() -> Int { let x = show!(-1); x }");
     let unsupported = build().output().unwrap();
     expect_code(&unsupported, "E_UNSUPPORTED");
     assert_eq!(fs::read(&output).unwrap(), saved);

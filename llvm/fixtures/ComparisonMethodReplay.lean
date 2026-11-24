@@ -27,8 +27,11 @@ private def checkCase (file cmp ty expected direction : String) : IO Unit := do
     | "Nat" => pure MidIR.Ty.nat | "Int" => pure .int | _ => throw (IO.userError "bad scalar")
   let revision ← IO.ofExcept (Json.parse (← IO.FS.readFile file))
   let wire ← IO.ofExcept (revision.getObjVal? "input")
-  let .ok req := ResourceSource.Wire.check wire true | throw (IO.userError "source check failed")
-  let some linked := PackageLink.compile req | throw (IO.userError "package lowering failed")
+  let header : LLVM.TargetHeader := ⟨⟨"x86_64-unknown-linux-gnu".toUTF8.data.toList, by decide⟩,
+      ⟨"e-p:64:64".toUTF8.data.toList, by decide⟩⟩
+  let .ok (.exactFlow (req := req) a text _) := LLVM.Emission.check wire header true
+    | throw (IO.userError "expected the checked boxed control-flow module")
+  let linked := a.linked
   unless linked.opt.revision.compress == revision.compress && linked.exe.revision.compress == revision.compress do
     throw (IO.userError "stale function revision")
   let core := PackageLink.core req
@@ -39,12 +42,9 @@ private def checkCase (file cmp ty expected direction : String) : IO Unit := do
     throw (IO.userError "wrong Core or MidIR value")
   unless selectedComparison linked.opt relation sort forward && selectedComparison linked.exe relation sort forward do
     throw (IO.userError "expected a call of the selected dynamic comparison")
-  let header : LLVM.TargetHeader := ⟨⟨"x86_64-unknown-linux-gnu".toUTF8.data.toList, by decide⟩,
-      ⟨"e-p:64:64".toUTF8.data.toList, by decide⟩⟩
-  match LLVM.Emission.check wire header true with
-  | .error diag =>
-    unless diag.code == "E_UNSUPPORTED" do throw (IO.userError s!"unexpected LLVM diagnostic {diag.code}")
-  | .ok _ => throw (IO.userError "update the boxed comparison qualification for the supported LLVM route")
+  unless a.value == n && a.model.entryValue == some n &&
+      text.contains "phi ptr" && text.contains "br i1" && text.contains "call i32 @vq_f" do
+    throw (IO.userError "wrong boxed comparison, branch or joined result")
   IO.println s!"{ty} {cmp}: {n}"
 
 def main : List String → IO Unit

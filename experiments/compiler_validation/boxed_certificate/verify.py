@@ -23,17 +23,24 @@ GOAL = "VastitasProof.obligation"
 THEOREM = "VastitasProof.checked"
 ROOTS = [*fast.AXIOMS, "Eq.refl", "id", "VastitasOracle.BoxedCertificate.Valid.mk",
          "VastitasOracle.BoxedCertificate.printedLines", GOAL]
-KINDS = {"Int": ".int", "Nat": ".nat", "Pair<Int>": "(.pair .int)", "Pair<Nat>": "(.pair .nat)"}
+KINDS = {"Int": ".int", "Nat": ".nat", "Bool": ".bool", "Pair<Int>": "(.pair .int)", "Pair<Nat>": "(.pair .nat)"}
 OPS = {f"{k}_{op}": f"(.{k} .{op})" for k in ("int", "nat") for op in ("add", "sub", "mul", "div")}
 OPS.update(nat_int_div=".natIntDiv", int_nat_div=".intNatDiv", int_neg=".neg", nat_to_int=".natToInt")
 for element in ("nat", "int"):
     OPS[f"{element}_pair"] = f"(.pair .{element})"
     OPS[f"{element}_pair_first"] = f"(.project .{element} true)"
     OPS[f"{element}_pair_second"] = f"(.project .{element} false)"
-PROOF = """by
+
+
+def stage_proof(namespace):
+    body = "(by with_unfolding_all rfl)" if namespace == "FlowCertificate" else "rfl"
+    return f"""by
   refine ⟨rfl, ?_, rfl, rfl, rfl, ?_⟩
   · with_unfolding_all rfl
-  · exact VastitasOracle.BoxedCertificate.printedLines code headerBytes lines rfl rfl"""
+  · exact VastitasOracle.{namespace}.printedLines code headerBytes lines rfl {body}"""
+
+
+PROOF = stage_proof("BoxedCertificate")
 
 
 def natural(value):
@@ -57,6 +64,41 @@ def instruction(step):
         case ["apply", op, refs]:
             return f".primitive (.apply {OPS[op]} [{', '.join(map(natural, refs))}])"
     raise ValueError("unsupported boxed instruction")
+
+
+def flow_op(step):
+    match step:
+        case ["compare", ("Nat" | "Int") as sort, tag, a, b]:
+            ops = {f"exact.{k}.v1": k for k in ("eq", "ne", "lt", "le", "gt", "ge")}
+            return f".exact (.compare {KINDS[sort]} .{ops[tag]} {natural(a)} {natural(b)})"
+        case ["bool", bool() as v]:
+            return ".boolean " + ("true" if v else "false")
+        case ["not", a]:
+            return ".boolNot " + natural(a)
+        case ["and" | "or" as op, a, b]:
+            return f".bool{op.title()} {natural(a)} {natural(b)}"
+        case _:
+            return instruction(step).replace(".primitive ", ".exact ", 1)
+
+
+def flow_edge(e):
+    target, refs = e
+    return f"⟨{natural(target)}, [{', '.join(map(natural, refs))}]⟩"
+
+
+def flow_block(b):
+    match b["exit"]:
+        case ["ret", r]:
+            end = ".ret " + natural(r)
+        case ["jump", e]:
+            end = ".jump " + flow_edge(e)
+        case ["branch", r, yes, no]:
+            end = f".branch {natural(r)} {flow_edge(yes)} {flow_edge(no)}"
+        case _:
+            raise ValueError("unsupported control-flow terminator")
+    params = ", ".join(KINDS[k] for k in b["params"])
+    ops = ", ".join(map(flow_op, b["ops"]))
+    return f"⟨[{params}], [{ops}], {end}⟩"
 
 
 def check_manifest_inputs(wire, manifest, files, entry):
@@ -176,27 +218,35 @@ def authority(revision, model, triple, layout, data, sources):
         except UnicodeDecodeError:
             label = f"ByteArray.mk #{list(path)}"
         physical.append(f"⟨{label}, {natural(offset)}, {quote(text)}⟩")
+    flow = model.get("kind") == "flow"
+    namespace = "FlowCertificate" if flow else "BoxedCertificate"
+    code_type = "ExactFlow" if flow else "ExactProgram"
     functions = []
     for f in model["functions"]:
+        if flow:
+            blocks = ", ".join(map(flow_block, f["blocks"]))
+            functions.append(f"⟨{KINDS[f['result']]}, #[{blocks}]⟩")
+            continue
         args = ", ".join(KINDS[k] for k in f["params"])
         steps = ", ".join(map(instruction, f["ops"]))
         functions.append(f"⟨[{args}], {KINDS[f['result']]}, [{steps}], {natural(f['slot'])}⟩")
     wire = official.json_term(revision["input"], quote)
     triple_term, layout_term = quote(triple), quote(layout)
     bindings = "\n".join(f"def {name} : String := {string_literal(value)}" for value, name in strings.items())
-    return f"""import VastitasOracle.BoxedCertificate
+    module = "FlowCertificate.Subject" if flow else namespace
+    return f"""import VastitasOracle.{module}
 set_option autoImplicit false
 set_option maxRecDepth 65536
 set_option maxHeartbeats 8000000
 namespace VastitasProof
-open Lean VastitasKernel VastitasKernel.LLVM VastitasOracle.BoxedCertificate
+open Lean VastitasKernel VastitasKernel.LLVM VastitasOracle.{namespace}
 {bindings}
 def wire : Json := {wire}
 def revision : Json := Json.mkObj [{rev}]
 def sources : PhysicalSources.Layout := ⟨#[{', '.join(physical)}], {natural(entry)}⟩
 def header : TargetHeader := ⟨⟨{triple_term}.toUTF8.data.toList, by decide⟩,
   ⟨{layout_term}.toUTF8.data.toList, by decide⟩⟩
-def code : VastitasKernel.LLVM.ExactProgram.Code := ⟨header, #[{', '.join(functions)}], {natural(model['entry'])}⟩
+def code : VastitasKernel.LLVM.{code_type}.Code := ⟨header, #[{', '.join(functions)}], {natural(model['entry'])}⟩
 def headerBytes : List UInt8 := {header_bytes}
 def lines : List String := [{lines}]
 def subject : Subject := ⟨wire, revision, sources, header, code,
@@ -277,22 +327,25 @@ def verify(args, work, report):
                       "--target-triple", args.target_triple, "--data-layout", args.data_layout], preview,
           run_from=source.parent)
     data = preview.read_bytes()
+    graph = "flow" if b"\n; flow -> " in data else "program"
+    namespace = "FlowCertificate" if graph == "flow" else "BoxedCertificate"
     model = json.loads(phase("capture", [lean, "--run", HERE / "Capture.lean", revision_path,
-                                         args.target_triple, args.data_layout]), object_pairs_hook=fast.unique_fields)
-    require(model["ir"].encode("utf-8") == data, "captured model and public LLVM bytes differ")
+                                         args.target_triple, args.data_layout, graph]), object_pairs_hook=fast.unique_fields)
+    require(model["kind"] == graph and model["ir"].encode("utf-8") == data, "captured model and public LLVM bytes differ")
     report.update(bytes=len(data), llvm_sha256=official.digest(data), revision_sha256=official.digest(revision_path.read_bytes()),
                   functions=len(model["functions"]), integer_result=integer(model["value"]))
     (work / "Authority.lean").write_text(authority(revision, model, args.target_triple, args.data_layout, data, sources))
     phase("authority", [lean, "-DwarningAsError=true", "-o", "Authority.olean", "Authority.lean"])
     if args.candidate is None:
-        (work / "Certificate.lean").write_text(certificate())
+        (work / "Certificate.lean").write_text(certificate(stage_proof(namespace)))
         axioms = phase("proof", [lean, "-DwarningAsError=true", "-o", "Certificate.olean", "Certificate.lean"])
         official_axioms = re.fullmatch(r"'VastitasProof.checked' (?:does not depend on any axioms|depends on axioms: \[([^\]]*)\])\s*", axioms)
         require(official_axioms and set(filter(None, (official_axioms.group(1) or "").split(", "))) <= official.ALLOWED,
                 "unexpected proof axioms")
     report["standard_environment"] = fast.standard(prefix, work)
     baseline = work / "authority.ndjson"
-    closure, roots = fast.export_roots(work, env, prefix, baseline, "Authority", ROOTS, GOAL, "def",
+    required_roots = [root.replace("BoxedCertificate", namespace) for root in ROOTS]
+    closure, roots = fast.export_roots(work, env, prefix, baseline, "Authority", required_roots, GOAL, "def",
                                        "boxed", args.timeout, reduction.measure)
     report["authority_closure"] = closure
     supplied = args.candidate

@@ -71,6 +71,7 @@ def run(work, suite, frontend):
         magnitude = 2**128 + 43
         for label, fixture, apply, functions, selected_result, default_result in [
             ("selected-projection", "SelectedProjection", "apply second_field;", 5, 19, 7),
+            ("assembled-comparison", "ComparisonMethod", "apply ordered;", 3, 42, 7),
             ("assembled-negation", "AssembledNegation", "apply reversing;", 4, -magnitude, magnitude),
         ]:
             body = (verify.ROOT / f"llvm/fixtures/{fixture}.vast").read_text()

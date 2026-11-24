@@ -34,6 +34,7 @@ CASES = [
     Sample("singleton-power", HERE / "fixtures/SingletonPower.vast", "singleton_power"),
     Sample("borrowed-operator", HERE / "fixtures/borrowed-operator/Vastitas.toml", None),
     Sample("uncalled-operator", HERE / "fixtures/uncalled-operator/Vastitas.toml", None),
+    Sample("assembled-comparison", HERE / "fixtures/ComparisonMethod.vast", "order_method"),
     Sample("integer-predicate", HERE / "fixtures/IntegerPredicate.vast", "integer_predicate"),
     Sample("boxed-arithmetic", HERE / "fixtures/BoxedArithmetic.vast", "boxed_arithmetic"),
     Sample("assembled-bool", HERE / "fixtures/AssembledBool.vast", "assembled_bool"),
@@ -218,7 +219,7 @@ def check_structured_targets(command, targets, work):
 
 
 def check_conditional_method(frontend):
-    """Check the public revision and both MidIR phases for the boxed branch gap."""
+    """Check the public revision and both MidIR phases for the boxed conditional."""
     source = (HERE / "fixtures/ConditionalMethod.vast").read_text()
     cases = [
         ("selected", source, 2**128 + 43),
@@ -231,19 +232,20 @@ def check_conditional_method(frontend):
         manifest.write_text('[package]\nname = "branch_method"\nversion = "0.1.0"\n'
                             'edition = "2026"\nroot = "main.vast"\n')
         command = [frontend, "check", "--manifest-path", manifest]
-        first_revision = work / "selected.json"
+        revisions = []
+        first_revision = work / "case-0.json"
         for index, (method, text, expected) in enumerate(cases):
             (work / "main.vast").write_text(text)
-            current = first_revision if index == 0 else work / "current.json"
+            current = work / f"case-{index}.json"
             current.write_bytes(subprocess.check_output([*command, "--print-function-revision"], cwd=ROOT))
-            run_proof_worker(["lake", "-d", "lean", "env", "lean", "-j1", "-DwarningAsError=true", "--run",
-                            HERE / "fixtures/ConditionalMethodReplay.lean", current, str(expected), method],
-                           cwd=ROOT, check=True)
+            revisions.extend([str(current), str(expected), method])
             if index:
                 stale = subprocess.run([*command, "--expect-function-revision", first_revision],
                                        cwd=ROOT, capture_output=True)
                 if stale.returncode == 0 or stale.stdout or b"E_FUNCTION_REVISION" not in stale.stderr:
                     raise ValueError("the earlier conditional method revision should be stale")
+        run_proof_worker(["lake", "-d", "lean", "env", "lean", "-j1", "-DwarningAsError=true", "--run",
+                          HERE / "fixtures/ConditionalMethodReplay.lean", *revisions], cwd=ROOT, check=True)
 
 
 def check_comparison_method(frontend):
@@ -313,7 +315,8 @@ def main():
     run_proof_worker(["lake", "-d", "lean", "build", "VastitasOracle.CallFunction", "VastitasOracle.ExitFunction",
                     "VastitasOracle.DispatchFunction", "VastitasOracle.BinaryFunction",
                     "VastitasKernel.LLVM.FiniteExecution", "VastitasOracle.StorageProgram",
-                    "VastitasOracle.BranchCoverage", "VastitasOracle.BinaryCoverage"], cwd=ROOT, check=True)
+                    "VastitasOracle.BranchCoverage", "VastitasOracle.BinaryCoverage",
+                    "VastitasOracle.FlowCertificate.Subject"], cwd=ROOT, check=True)
     # The closed equalities reduce large terms. Elaborating one declaration
     # at a time avoids holding several kernel reductions in memory at once.
     print(f"Checking closed Lean proofs for {len(registered)} LLVM files", flush=True)

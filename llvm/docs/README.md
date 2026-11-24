@@ -1,6 +1,6 @@
 # Lean-verified LLVM IR corpus
 
-The corpus contains 36 complete LLVM assembly files from edition 2026 Vastitas source. Lean proves parser acceptance for eight files and equality with a canonical model printout for the other 28. Replay parses each of those 28 files and evaluates its executable models. The structured lookup and direct Kleisli operand each have macOS arm64 and x86-64 Linux files. The other samples target macOS arm64. [Files](../src/) · [Concrete proofs](../Corpus.lean)
+The corpus contains 37 complete LLVM assembly files from edition 2026 Vastitas source. Lean proves parser acceptance for eight files and equality with a canonical model printout for the other 29. Replay parses each of those 29 files and evaluates its executable models. The structured lookup and direct Kleisli operand each have macOS arm64 and x86-64 Linux files. The other samples target macOS arm64. [Files](../src/) · [Concrete proofs](../Corpus.lean)
 
 ## Modules
 
@@ -17,6 +17,7 @@ The corpus contains 36 complete LLVM assembly files from edition 2026 Vastitas s
 | [singleton-power.ll](../src/singleton-power.ll) · 1,977 bytes | [SingletonPower.vast](../fixtures/SingletonPower.vast) | One function squares a boxed integer eight times, divides by seven and passes the owned quotient to the hosted entry. | `singleton_power_verified` |
 | [borrowed-operator.ll](../src/borrowed-operator.ll) · 2,051 bytes | [Borrowed operator package](../fixtures/borrowed-operator/Vastitas.toml) | The caller borrows an edit grant on the imported family. Its selected implementation adds 40 and 2. The module also contains four unselected specializations of the method that returns zero. | `borrowed_operator_verified` |
 | [uncalled-operator.ll](../src/uncalled-operator.ll) · 1,829 bytes | [Uncalled operator package](../fixtures/uncalled-operator/Vastitas.toml) | The entry returns 7. Sealing the borrowed family retains its addition method and four fallback specializations. | `uncalled_operator_verified` |
+| [assembled-comparison.ll](../src/assembled-comparison.ll) · 2,382 bytes | [ComparisonMethod.vast](../fixtures/ComparisonMethod.vast) | The selected method compares two boxed integers and returns an `i32` Boolean. A branch passes 42 or 7 to a pointer `phi`. Each taken edge retains its boxed arguments and releases its owned temporaries. | `assembled_comparison_verified` |
 | [integer-predicate.ll](../src/integer-predicate.ll) · 873 bytes | [IntegerPredicate.vast](../fixtures/IntegerPredicate.vast) | Subtracts 256 from the first boxed integer, compares it with the second, releases both owned temporaries and returns a 32-bit Boolean. | `integer_predicate_verified` |
 | [boxed-arithmetic.ll](../src/boxed-arithmetic.ll) · 1,021 bytes | [BoxedArithmetic.vast](../fixtures/BoxedArithmetic.vast) | The two borrowed arguments determine the result. The function subtracts 5 from the Nat, divides by the Int, adds the quotient to itself, releases three intermediate references and returns an owned Int. | `boxed_arithmetic_verified` |
 | [assembled-bool.ll](../src/assembled-bool.ll) · 688 bytes | [AssembledBool.vast](../fixtures/AssembledBool.vast) | `main` calls the selected Boolean method and branches on the result. The two incoming edges supply 42 and 7 to the `phi`. The selected contribution returns its argument. The nonselected method also has a definition and returns false. | `assembled_bool_verified` |
@@ -442,8 +443,9 @@ the full Core integer with both MidIR observations. [Source](../fixtures/Conditi
 
 With the contribution applied, the two branches returned 2¹²⁸ + 43 and −19. The default
 method returned −19 on the same true input. Their Lean/C native exit statuses on macOS
-arm64 were 43, 237 and 237. The boxed Vastitas LLVM preview reported `E_UNSUPPORTED`
-for these programs. In the pinned Lean distribution, `lean --features` returned `[]`
+arm64 were 43, 237 and 237. The macOS arm64 objects generated from the boxed Vastitas LLVM modules returned
+the same three full integers. In each conditional the selected edge carries the
+borrowed integer to the pointer `phi` and transfers its ownership to the join. In the pinned Lean distribution, `lean --features` returned `[]`
 and `lean -b` reported that LLVM support was disabled. For the independent control,
 Clang 23.1.4 compiled the generated Lean C at `-O0`. Its LLVM IR branches on an
 8-bit Boolean, releases the unselected boxed integer and returns the selected pointer
@@ -459,8 +461,9 @@ reverse order. The public replay covers six comparisons for each of Nat and
 Int, including equal arguments and distinct integers with identical low bytes.
 It checks the selected callee, SSA operand order, common function revision
 and complete Core and MidIR observations. The macOS Lean/C executables returned
-42 and 7 for the two selections with either numeric type. These hosted programs
-still report `E_UNSUPPORTED` at the Vastitas LLVM boundary.
+42 and 7 for the two selections with either numeric type. The hosted LLVM corpus example retains both methods, calls the selected
+comparison and branches on the returned 32-bit Boolean. The native macOS
+qualification observed the full integers 42 and 7 for the two selections.
 [Source](../fixtures/ComparisonMethod.vast) · [Public replay](../fixtures/ComparisonMethodReplay.lean)
 
 Lean 4.35.0's external-call emitter builds the function type and call from

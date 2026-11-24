@@ -117,8 +117,8 @@ fn an_uninvoked_borrowed_integer_family_keeps_both_bodies_and_the_revision() {
 #[test]
 fn unsupported_root_contribution_or_foreign_sibling_rejects_the_closed_package() {
     for (base, implementation) in [
-        ("false", "let p = pair(1, 2); b"),
-        ("let p = pair(1, 2); b", "b"),
+        ("false", "let empty = (); let p = pair(1, 2); b"),
+        ("let empty = (); let p = pair(1, 2); b", "b"),
     ] {
         let project = package(base, implementation, true);
         success(&project.check_manifest(MANIFEST));
@@ -146,7 +146,10 @@ fn unapplied_root_contribution_is_audited_without_linking_foreign_family() {
 
 #[test]
 fn an_empty_explicit_seal_retains_the_unused_foreign_family() {
-    for (body, supported) in [("!b", true), ("let p = pair(1, 2); b", false)] {
+    for (body, expected) in [
+        ("!b", "define internal i1 @"),
+        ("let p = pair(1, 2); b", "call ptr @vastitas_int_pair_v1"),
+    ] {
         let project = package(body, "b && b", false);
         project.write(
             "app/main.vast",
@@ -154,14 +157,9 @@ fn an_empty_explicit_seal_retains_the_unused_foreign_family() {
         );
         success(&project.check_manifest(MANIFEST));
         let output = preview(&project);
-        if supported {
-            success(&output);
-            let llvm = String::from_utf8(output.stdout).unwrap();
-            assert_eq!(llvm.matches("define internal i1 @").count(), 1, "{llvm}");
-        } else {
-            expect_code(&output, "E_UNSUPPORTED");
-            assert!(output.stdout.is_empty());
-        }
+        success(&output);
+        let llvm = String::from_utf8(output.stdout).unwrap();
+        assert_eq!(llvm.matches(expected).count(), 1, "{llvm}");
     }
 }
 

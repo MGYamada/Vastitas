@@ -191,8 +191,8 @@ document = ""
 
 [row.dimension.llvm]
 state = "partial"
-claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.llvm-bytes@static-call", "compiler-ir.llvm-bytes@assembled-bool"]
-note = "The forwarding library and the assembled Bool executable both have a checked direct call. The [static selection corpus](https://github.com/MGYamada/Vastitas/blob/main/llvm/docs/README.md) keeps the 1,448 bytes of an executable with two specializations of invoke. Its revision distinguishes their same-ABI targets. More general module shapes remain."
+claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.llvm-bytes@static-call", "compiler-ir.llvm-bytes@assembled-bool", "compiler-ir.llvm-bytes@boxed-control-flow"]
+note = "The forwarding library and the assembled Bool executable both have a checked direct call. The [static selection corpus](https://github.com/MGYamada/Vastitas/blob/main/llvm/docs/README.md) keeps the 1,448 bytes of an executable with two specializations of invoke. Its revision distinguishes their same-ABI targets. The assembled comparison module calls an ordered two-argument method, branches on its result and joins the two integer values with a pointer phi. The complete 2,382 bytes include both retained method bodies. For each published slot the same revision identifies the Core owner, specialization and call signature through both MidIR phases."
 document = ""
 
 [row.dimension.official]
@@ -431,8 +431,8 @@ document = ""
 
 [row.dimension.llvm]
 state = "partial"
-claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.llvm-bytes@entry-status", "compiler-ir.llvm-bytes@folded-entry", "compiler-ir.llvm-bytes@entry-regression", "compiler-ir.llvm-bytes@boxed-library", "compiler-ir.llvm-bytes@boxed-program", "compiler-ir.llvm-bytes@boxed-regression"]
-note = "Closed integer literals and exact expressions reach complete target-specific bytes. The fold checks canonical methods, saturating Nat subtraction and the operand order of mixed division. The boxed library also emits runtime calls with typed SSA arguments and a checked ownership schedule. Linked, straight-line integer programs preserve their direct calls, complete integer entry value and owned return through the hosted status projection. A singleton entry emits eight boxed multiplications and a division when the fold exceeds its budget. Its stage certificate covers the 403-bit quotient and all 1,977 bytes. Five linked functions return, swap and project pairs under the selected assembly revision. General branches over boxed integers and indexed primitives remain."
+claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.llvm-bytes@entry-status", "compiler-ir.llvm-bytes@folded-entry", "compiler-ir.llvm-bytes@entry-regression", "compiler-ir.llvm-bytes@boxed-library", "compiler-ir.llvm-bytes@boxed-program", "compiler-ir.llvm-bytes@boxed-regression", "compiler-ir.llvm-bytes@boxed-control-flow"]
+note = "Closed integer literals and exact expressions reach complete target-specific bytes. The fold checks canonical methods, saturating Nat subtraction and the operand order of mixed division. The boxed library also emits runtime calls with typed SSA arguments and a checked ownership schedule. Linked, straight-line integer programs preserve their direct calls, complete integer entry value and owned return through the hosted status projection. A singleton entry emits eight boxed multiplications and a division when the fold exceeds its budget. Its stage certificate covers the 403-bit quotient and all 1,977 bytes. Five linked functions return, swap and project pairs under the selected assembly revision. Forward branches over boxed integers preserve the complete observed result and carry dominating values through typed phi arguments. General indexed primitives remain."
 document = ""
 
 [row.dimension.official]
@@ -551,8 +551,8 @@ document = ""
 
 [row.dimension.llvm]
 state = "partial"
-claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.check-build@preview", "compiler-ir.llvm-bytes@boxed-program"]
-note = "Public check --llvm-preview emits the complete modeled modules and rejects unhandled Core and stale revisions. Eleven lawful edits to three separately certified dependencies of the ordered-calls program preserve all 2,311 emitted bytes. The supported boxed stage has a per-input certificate. Complete finite-profile coverage remains."
+claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.check-build@preview", "compiler-ir.llvm-bytes@boxed-program", "compiler-ir.llvm-bytes@boxed-control-flow"]
+note = "Public check --llvm-preview emits the complete modeled modules and rejects unhandled Core and stale revisions. Eleven lawful edits to three separately certified dependencies of the ordered-calls program preserve all 2,311 emitted bytes. The per-input certificate also covers the full printed graph of an assembled integer comparison and its conditional entry. Complete finite-profile coverage remains."
 document = ""
 
 [row.dimension.official]

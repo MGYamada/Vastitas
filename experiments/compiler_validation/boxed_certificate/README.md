@@ -1,6 +1,13 @@
 # Live boxed-program certificates
 
-The driver checks a closed proof about one public straight-line integer program. The proof subject contains the complete protocol-10 input and function revision, target header, typed instruction graph, mathematical integer result and all emitted LLVM bytes. The frontend replays the saved revision before returning its preview. A second execution of the Lean emitter recovers the graph from the linked artifact and compares its revision and bytes with that preview. [Capture](Capture.lean)
+The driver checks a closed proof about one public boxed integer program with static calls and forward control flow. The proof subject contains the complete protocol-10 input and function revision, target header, typed instruction graph, mathematical integer result and all emitted LLVM bytes. The frontend replays the saved revision before returning its preview. A second execution of the Lean emitter recovers the graph from the linked artifact and compares its revision and bytes with that preview. [Capture](Capture.lean)
+
+For a conditional, the certificate checks the typed graph, the chosen edge, the full
+integer at the join and the complete printed module. Its subject imports the printer,
+execution model and physical input decoder. The publication theorem also connects
+the subject to the public emitter, Core and both MidIR phases. The assembly suite
+checks the selected comparison and rejects its saved certificate after removing the
+contribution. [Certificate subject](../../../lean/VastitasOracle/FlowCertificate/Subject.lean) · [Publication theorem](../../../lean/VastitasOracle/FlowCertificate.lean)
 
 From the repository root, build the matching frontend, checker and oracle, then run the qualification.
 

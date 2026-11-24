@@ -15,6 +15,10 @@ inductive Bit where | off | on
 @[noinline] def selected (a b : Bool) := !a || b
 @[noinline] def fallback (a b : Bool) := !a && !b
 
+@[noinline] def joined (hit : Bool) : UInt32 :=
+  let pick := if hit then selected true false else selected false true
+  if pick then 19 else 23
+
 end StructuredLookupComparison
 
 open StructuredLookupComparison in
@@ -24,4 +28,6 @@ def main (args : List String) : IO UInt32 := do
   | [] => return if selected true hit && !selected true false then 42 else 7
   | ["fallback"] => return if fallback true hit && !fallback true false then 42 else 7
   | ["swapped"] => return if selected true hit && !selected false true then 42 else 7
+  | ["joined-hit"] => return joined hit
+  | ["joined-miss"] => return joined (!hit)
   | _ => return 1

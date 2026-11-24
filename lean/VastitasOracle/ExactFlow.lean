@@ -51,28 +51,12 @@ theorem bool_comparison (different x y : Bool) (vs : Array Value) (a b fuel : Na
   · cases different <;> simp [LLVM.ExactFlow.evalOp, LLVM.ExactFlow.boolean2, atA, atB] <;> rfl
   · cases different <;> cases x <;> cases y <;> rfl
 
-private theorem mapM_project {α β γ : Type} {step : α → Option β} (left : α → γ) (right : β → γ)
-    (agree : ∀ x y, step x = some y → left x = right y) {xs : List α} {ys : List β}
-    (h : xs.mapM step = some ys) : xs.map left = ys.map right := by
-  induction xs generalizing ys with
-  | nil => simpa using congrArg (List.map right) (Option.some.inj h).symm
-  | cons x xs ih =>
-    simp only [List.mapM_cons, Option.pure_def, Option.bind_eq_bind, Option.bind_eq_some_iff,
-      Option.some.injEq] at h
-    obtain ⟨y, head, tail, rest, rfl⟩ := h
-    simp [agree x y head, ih rest]
-
 private theorem mapM_calls {α β : Type} {step : α → Option β} (left : α → Option Nat)
     (right : β → Option Nat) (agree : ∀ x y, step x = some y → left x = right y)
     {xs : List α} {ys : List β} (h : xs.mapM step = some ys) :
     xs.filterMap left = ys.filterMap right := by
   simpa only [List.filterMap_map, Function.comp_id, Function.id_comp] using
-    congrArg (List.filterMap id) (mapM_project left right agree h)
-
-private theorem array_list_mapM {α β : Type} {step : α → Option β} {xs : Array α} {ys : Array β}
-    (h : xs.mapM step = some ys) : xs.toList.mapM step = some ys.toList := by
-  rw [← Array.toList_mapM, h]
-  rfl
+    congrArg (List.filterMap id) (Support.mapM_project left right agree h)
 
 open VastitasKernel.MidIR in
 theorem execute_calls {env f g} (h : Function.execute env f = some g) :
@@ -94,11 +78,11 @@ theorem execute_calls {env f g} (h : Function.execute env f = some g) :
     simp only [Block.execute, bind, Option.bind_eq_some_iff] at step
     obtain ⟨ops, mapped, final⟩ := step
     cases Option.some.inj final
-    exact mapM_calls _ _ opEq (array_list_mapM mapped)
+    exact mapM_calls _ _ opEq (Support.array_list_mapM mapped)
   simp only [Function.execute, bind, Option.bind_eq_some_iff] at h
   obtain ⟨_, _, blocks, mapped, _, _, final⟩ := h
   cases Option.some.inj final
-  exact congrArg List.flatten (mapM_project _ _ blockEq (array_list_mapM mapped))
+  exact congrArg List.flatten (Support.mapM_project _ _ blockEq (Support.array_list_mapM mapped))
 
 /-- Direct calls to other published functions in block and instruction order. -/
 def callee? : LLVM.ExactFlow.Op → Option Nat
@@ -133,10 +117,10 @@ theorem translate_calls {env f g} (h : LLVM.ExactFlow.translateFn env f = some g
   simp only [LLVM.ExactFlow.translateFn, bind, Option.bind_eq_some_iff] at h
   obtain ⟨_, _, extra, _, _, _, blocks, mapped, _, _, final⟩ := h
   cases Option.some.inj final
-  have projected := mapM_project
+  have projected := Support.mapM_project
     (fun (p : MidIR.Block .execution × Nat) => p.1.ops.toList.filterMap VastitasKernel.MidIR.PackageLink.callSymbol?)
     (fun (b : LLVM.ExactFlow.Block) => b.ops.filterMap callee?)
-    (fun ⟨_,_⟩ _ h => translate_block_calls h) (array_list_mapM mapped)
+    (fun ⟨_,_⟩ _ h => translate_block_calls h) (Support.array_list_mapM mapped)
   simp only [Array.toList_zipIdx] at projected
   unfold VastitasKernel.MidIR.PackageLink.callIds callIds
   simp only [List.flatMap_def]

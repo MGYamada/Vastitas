@@ -217,6 +217,11 @@ fn assembled_predicate_and_nominal_multi_axis_lookup_share_the_checked_module() 
         .unwrap();
     success(&revision);
     std::fs::write(project.0.join("checked.json"), &revision.stdout).unwrap();
+    let two_joins = common::checked_replace(
+        SOURCE,
+        "if choose(true, hit) && !choose(true, false) { 42 } else { 7 }",
+        "let pick = if hit { choose(true, false) } else { choose(false, true) };\n    if pick { 19 } else { 23 }",
+    );
     for (source, expected, linked_methods) in [
         (SOURCE.to_owned(), 42, 2),
         (
@@ -230,6 +235,12 @@ fn assembled_predicate_and_nominal_multi_axis_lookup_share_the_checked_module() 
             7,
             2,
         ),
+        (
+            two_joins.replace("(hi, middle, on) => d9", "(hi, middle, on) => d8"),
+            19,
+            2,
+        ),
+        (two_joins, 23, 2),
         (SOURCE.replace("apply selected;", ""), 7, 1),
     ] {
         project.write("app/main.vast", &source);
@@ -263,6 +274,10 @@ fn assembled_predicate_and_nominal_multi_axis_lookup_share_the_checked_module() 
         assert!(ll.contains("switch i32 0 , label %miss"));
         assert_eq!(ll.matches("icmp ult i32").count(), 3);
         assert_eq!(ll.matches("mul i32").count(), 2);
+        if matches!(expected, 19 | 23) {
+            assert_eq!(ll.matches(" = phi i1 ").count(), 1);
+            assert_eq!(ll.matches(" = phi i32 ").count(), 1);
+        }
         #[cfg(feature = "llvm-native")]
         {
             let result = project

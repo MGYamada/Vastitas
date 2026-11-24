@@ -3,8 +3,8 @@ import VastitasKernel.LLVM.FiniteExecution
 
 open VastitasKernel.LLVM
 
-/-- Exercise an ABI-preserving operand swap in the complete retained files
-without elaborating the other corpus fixtures. -/
+/-- Exercise calls and the typed join of the selected method's caller in the
+complete retained files without elaborating the other corpus fixtures. -/
 def main (files : List String) : IO Unit := do
   if files.isEmpty then throw (IO.userError "expected the structured lookup LLVM files")
   for file in files do
@@ -25,3 +25,14 @@ def main (files : List String) : IO Unit := do
     let wrongWidth := text.replace call "call i1 @f1 ( i32 %v0_8 , i1 %v0_9 )"
     unless (FiniteModule.parse wrongWidth.toUTF8.data.toList).isNone do
       throw (IO.userError s!"{file}: the call accepted an argument with the wrong width")
+    let arm := "[ %v1_0 , %b1 ]"
+    unless (text.splitOn arm).length == 2 do
+      throw (IO.userError s!"{file}: expected one phi arm carrying the selected integer")
+    let otherValue := text.replace arm "[ %v0_4 , %b1 ]"
+    let some other := FiniteModule.parse otherValue.toUTF8.data.toList
+      | throw (IO.userError s!"{file}: a dominating word was rejected at the join")
+    unless other.code.entryStatus == some 9 do
+      throw (IO.userError s!"{file}: the join did not take the changed value from its actual predecessor")
+    for bad in ["[ %v2_0 , %b1 ]", "[ %v1_0 , %b2 ]"] do
+      unless (FiniteModule.parse (text.replace arm bad).toUTF8.data.toList).isNone do
+        throw (IO.userError s!"{file}: the phi accepted an unavailable register or duplicate predecessor")

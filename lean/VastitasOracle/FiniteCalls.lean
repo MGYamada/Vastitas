@@ -26,28 +26,33 @@ def expectedCall (fi : Nat) (dst : MidIR.Ref) (op : MidIR.Op .execution) : Optio
       (op.args.map fun r => ⟨.word, .reg (refName r)⟩)
   | _ => none
 
-private theorem operation_call {env entry fi dst op line helper}
+def isPhi : Instr → Bool
+  | .phi .. => true
+  | _ => false
+
+/-- Ordinary SSA operations cannot insert a phi into the block. -/
+theorem operation_shape {env entry fi dst op line helper}
     (emitted : operation env entry fi dst op = some (line,helper)) :
-    call? line = expectedCall fi dst op := by
+    (call? line, isPhi line) = (expectedCall fi dst op, false) := by
   obtain ⟨code, args⟩ := op
   unfold operation at emitted
   split at emitted <;> simp_all [expectedCall, call?, Option.pure_def, Option.bind_eq_some_iff,
     bind, guard, Bool.and_eq_true]
-  all_goals try exact emitted.1 ▸ rfl
-  all_goals try exact emitted.2.1 ▸ rfl
+  all_goals try (rw [← emitted.1]; exact ⟨rfl, rfl⟩)
+  all_goals try (rw [← emitted.2.1]; exact ⟨rfl, rfl⟩)
   case h_8 =>
     obtain ⟨_, h⟩ := emitted
     split at h <;> simp_all [Option.bind_eq_some_iff]
-      <;> obtain ⟨_, _, eq, _⟩ := h <;> exact eq ▸ rfl
+      <;> obtain ⟨_, _, eq, _⟩ := h <;> rw [← eq] <;> exact ⟨rfl, rfl⟩
   case h_9 =>
     obtain ⟨_, params, mapped, width, result, rfl, _⟩ := emitted
     change List.mapM (fun x : MidIR.Ty × MidIR.Ref =>
       (widthOf x.1).bind fun w => some (Arg.mk w (.reg (refName x.2)))) _ = some params at mapped
     rw [mapped, Option.bind_some, result]
-    rfl
+    exact ⟨rfl, rfl⟩
   case h_10 =>
     obtain ⟨_, _, rfl, _⟩ := emitted
-    rfl
+    exact ⟨rfl, rfl⟩
 
 /-- Calls in execution order, starting after the block parameters. -/
 def siteCalls (fi block : Nat) : List (MidIR.Op .execution) → Nat → List Instr
@@ -67,7 +72,9 @@ private theorem ops_calls {env entry fi block out hs} (ops : List (MidIR.Op .exe
     simp only [emitOps, bind, Option.bind_eq_some_iff] at h
     obtain ⟨⟨line, helper⟩, lowered, more⟩ := h
     have tail := ih _ _ _ more
-    simp only [siteCalls, ← operation_call lowered]
+    have call := congrArg Prod.fst (operation_shape lowered)
+    change call? line = expectedCall fi ⟨block,slot⟩ op at call
+    simp only [siteCalls, ← call]
     cases eq : call? line <;> simpa [eq, List.append_assoc] using tail
 
 private theorem phis_no_calls {entry incoming i params phis}

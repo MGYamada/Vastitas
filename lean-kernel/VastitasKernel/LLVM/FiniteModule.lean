@@ -88,7 +88,7 @@ def lookupImage (env : Environment) (site : FiniteLookup) (name : String) : Opti
       | none => none
       | some f => some ⟨plan,h,rows,d,f,t⟩
 
-private def predEdges (t : MidIR.Terminator) : List MidIR.Edge :=
+def predEdges (t : MidIR.Terminator) : List MidIR.Edge :=
   match t with | .ret .. => [] | .jump e => [e] | .branch _ y n => [y,n]
 
 def exitOf (output : Width) : MidIR.Terminator → Exit
@@ -138,13 +138,16 @@ def FunctionImage.body (image : FunctionImage) (symbol : Nat) : Func :=
 
 abbrev Incoming := Array (Array (Nat × List MidIR.Ref))
 
-def incomingEdges (blocks : Array (MidIR.Block .execution)) : Option Incoming := do
-  let mut incoming : Incoming := Array.replicate blocks.size #[]
-  for (b,i) in blocks.toList.zipIdx do
-    for e in predEdges b.term do
-      let p ← incoming[e.dest]?
-      incoming := incoming.set! e.dest (p.push (i,e.args))
-  return incoming
+def recordEdge (fromBlock : Nat) (incoming : Incoming) (e : MidIR.Edge) : Option Incoming :=
+  if h : e.dest < incoming.size then
+    some (incoming.set e.dest (incoming[e.dest].push (fromBlock, e.args)) h)
+  else none
+
+def recordBlock (incoming : Incoming) (row : MidIR.Block .execution × Nat) : Option Incoming :=
+  (predEdges row.1.term).foldlM (recordEdge row.2) incoming
+
+def incomingEdges (blocks : Array (MidIR.Block .execution)) : Option Incoming :=
+  blocks.toList.zipIdx.foldlM recordBlock (Array.replicate blocks.size #[])
 
 def blockPhis (isEntry : Bool) (incoming : Incoming) (i : Nat) (params : Array MidIR.Ty) :
     Option (List Instr) := do

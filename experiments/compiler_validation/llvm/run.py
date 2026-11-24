@@ -185,7 +185,9 @@ def run(args):
                     suite["reference_exit_status"] = result.returncode
                 if stem == "StructuredLookupComparison":
                     for case, arguments, expected in [("selected", [], 42), ("fallback", ["fallback"], 7),
-                                                      ("swapped", ["swapped"], 7)]:
+                                                      ("swapped", ["swapped"], 7),
+                                                      ("joined-hit", ["joined-hit"], 23),
+                                                      ("joined-miss", ["joined-miss"], 19)]:
                         result = measured(f"lean_lookup_{case}", [lean_bin, "--run", source, *arguments],
                                           comparison, expect_success=None)
                         if result.returncode != expected:

@@ -27,6 +27,32 @@ private def diamond := [choice 1 "a" "b", jump "a" "out", jump "b" "out"]
   choice 1 "a" "b",⟨"a",[.binary "v" .add .word (.literal 0) (.literal 1)],.jump "out"⟩,
   jump "b" "out",⟨"out",[],.ret ⟨.word,.reg "v"⟩⟩]).print).isNone
 
+/-- The predecessors send opposite Boolean slots and different word slots to
+the same three-parameter join. All five input registers dominate both arms. -/
+private def joinedArguments (flag a b : UInt32) : Option UInt32 := do
+  let owner : Indexed.DeclId := ⟨⟨⟨"/join", "test", "1"⟩, []⟩, "Color"⟩
+  let tag : Indexed.FiniteSort := .carrier owner
+  let env : Indexed.Environment := [⟨owner, .finiteCarrier ["zero","left","right"]⟩]
+  let params : Array MidIR.Ty := #[.bool,.bool,.bool,.finite tag,.finite tag]
+  let f : MidIR.Function .optimization := ⟨⟨{owner with name := "pick"}⟩, 0, ⟨0,[]⟩, params, .finite tag, #[
+    ⟨params, #[], .branch ⟨0,0⟩ ⟨1,⟨0⟩,[]⟩ ⟨2,⟨0⟩,[]⟩⟩,
+    ⟨#[], #[], .jump ⟨3,⟨1⟩,[⟨0,1⟩,⟨0,2⟩,⟨0,3⟩]⟩⟩,
+    ⟨#[], #[], .jump ⟨3,⟨2⟩,[⟨0,2⟩,⟨0,1⟩,⟨0,4⟩]⟩⟩,
+    ⟨#[.bool,.bool,.finite tag], #[⟨.boolNot,[⟨3,1⟩]⟩,⟨.boolAnd,[⟨3,0⟩,⟨3,3⟩]⟩],
+      .branch ⟨3,4⟩ ⟨4,⟨3⟩,[]⟩ ⟨5,⟨3⟩,[]⟩⟩,
+    ⟨#[], #[], .ret ⟨4⟩ ⟨3,2⟩⟩,
+    ⟨#[], #[⟨.finiteTag tag "zero",[]⟩], .ret ⟨5⟩ ⟨5,0⟩⟩]⟩
+  let exe ← f.execute env
+  let image ← translateFn env 1 exe
+  let host := app [⟨"start",[],ret 0⟩]
+  let model ← parse ({host with functions := image.body 0 :: host.functions}).print
+  model.code.invoke "f0" [(.bit,flag),(.bit,a),(.bit,b),(.word,1),(.word,2)] 64
+
+#guard joinedArguments 1 1 0 == some 1
+#guard joinedArguments 0 1 0 == some 0
+#guard joinedArguments 1 0 1 == some 0
+#guard joinedArguments 0 0 1 == some 2
+
 private def rectangular (dims rows : List Nat) (digits : List UInt32) : Option UInt32 := do
   let helper ← table "lookupTable" dims rows
   let f := (app [⟨"start",[],ret 0⟩]).functions

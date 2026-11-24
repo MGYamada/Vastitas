@@ -71,6 +71,7 @@ in Git. No release/publication histories.
 
 ## Validation
 
+- Check free RAM and active jobs. Run Lean proofs and checks serially by default.
 - Run `python3 scripts/check_docs.py`. Book changes also run `mdbook build`
   and `python3 scripts/check_book.py`. Add meaningful behavior regressions.
 - Rust: `cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings`,

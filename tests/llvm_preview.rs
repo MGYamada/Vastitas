@@ -119,6 +119,52 @@ fn assembled_selector_order_drives_both_native_exit_edges() {
 }
 
 #[test]
+fn boolean_comparison_replays_the_selected_truth_table_and_checks_the_other_method() {
+    let s = Scratch::empty("boxed Boolean comparison");
+    let source = include_str!("../llvm/fixtures/BoolComparison.vast");
+    let selected = preview(&s, source);
+    success(&selected);
+    let text = std::str::from_utf8(&selected.stdout).unwrap();
+    for predicate in ["eq", "ne"] {
+        let operation = format!(
+            "%cmp0_2 = icmp {predicate} i32 %b0v0, %b0v1\n  %b0v2 = zext i1 %cmp0_2 to i32"
+        );
+        assert_eq!(text.matches(&operation).count(), 1);
+    }
+    let revision = s
+        .command("check", "app/Vastitas.toml")
+        .arg("--print-function-revision")
+        .output()
+        .unwrap();
+    success(&revision);
+    s.write(
+        "selected.json",
+        std::str::from_utf8(&revision.stdout).unwrap(),
+    );
+
+    let fallback = preview(&s, &source.replace("apply equality;", ""));
+    success(&fallback);
+    assert_ne!(selected.stdout, fallback.stdout);
+    let stale = s
+        .command("check", "app/Vastitas.toml")
+        .args(TARGET)
+        .args(["--expect-function-revision", "selected.json"])
+        .output()
+        .unwrap();
+    expect_code(&stale, "E_FUNCTION_REVISION");
+    assert!(stale.stdout.is_empty());
+
+    for invalid in [
+        source.replace("left != right", "left < right"),
+        source.replace("left == right", "left >= right"),
+    ] {
+        let rejected = preview(&s, &invalid);
+        expect_code(&rejected, "E_OPERATOR");
+        assert!(rejected.stdout.is_empty());
+    }
+}
+
+#[test]
 fn repeated_assembled_calls_retain_both_occurrences_in_the_revision_and_llvm() {
     let s = Scratch::empty("repeated assembled comparison");
     let original = include_str!("../llvm/fixtures/ComparisonMethod.vast");

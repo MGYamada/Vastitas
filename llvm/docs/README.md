@@ -18,6 +18,7 @@ The corpus contains 37 complete LLVM assembly files from edition 2026 Vastitas s
 | [borrowed-operator.ll](../src/borrowed-operator.ll) · 2,051 bytes | [Borrowed operator package](../fixtures/borrowed-operator/Vastitas.toml) | The caller borrows an edit grant on the imported family. Its selected implementation adds 40 and 2. The module also contains four unselected specializations of the method that returns zero. | `borrowed_operator_verified` |
 | [uncalled-operator.ll](../src/uncalled-operator.ll) · 1,829 bytes | [Uncalled operator package](../fixtures/uncalled-operator/Vastitas.toml) | The entry returns 7. Sealing the borrowed family retains its addition method and four fallback specializations. | `uncalled_operator_verified` |
 | [assembled-comparison.ll](../src/assembled-comparison.ll) · 2,382 bytes | [ComparisonMethod.vast](../fixtures/ComparisonMethod.vast) | The selected method compares two boxed integers and returns an `i32` Boolean. A branch passes 42 or 7 to a pointer `phi`. Each taken edge retains its boxed arguments and releases its owned temporaries. | `assembled_comparison_verified` |
+| [bool-comparison.ll](../src/bool-comparison.ll) · 4,254 bytes | [BoolComparison.vast](../fixtures/BoolComparison.vast) | Four calls exercise the complete Boolean truth table. Assembly selects equality or inequality, giving the integer 2^128 + 10 or 2^128 + 7. The retained module selects equality. | `bool_comparison_verified` |
 | [integer-predicate.ll](../src/integer-predicate.ll) · 873 bytes | [IntegerPredicate.vast](../fixtures/IntegerPredicate.vast) | Subtracts 256 from the first boxed integer, compares it with the second, releases both owned temporaries and returns a 32-bit Boolean. | `integer_predicate_verified` |
 | [boxed-arithmetic.ll](../src/boxed-arithmetic.ll) · 1,021 bytes | [BoxedArithmetic.vast](../fixtures/BoxedArithmetic.vast) | The two borrowed arguments determine the result. The function subtracts 5 from the Nat, divides by the Int, adds the quotient to itself, releases three intermediate references and returns an owned Int. | `boxed_arithmetic_verified` |
 | [assembled-bool.ll](../src/assembled-bool.ll) · 688 bytes | [AssembledBool.vast](../fixtures/AssembledBool.vast) | `main` calls the selected Boolean method and branches on the result. The two incoming edges supply 42 and 7 to the `phi`. The selected contribution returns its argument. The nonselected method also has a definition and returns false. | `assembled_bool_verified` |
@@ -47,6 +48,15 @@ The corpus contains 37 complete LLVM assembly files from edition 2026 Vastitas s
 Each file can be read or assembled independently. The 29 entry modules export `i32 @main()`. Four unary libraries export `i32 @vq_lookup(i32)`. The binary library exports `i32 @vq_lookup2(i32, i32)`. The call example also exports `i32 @vq_forward(i32)`. The two exact libraries export `ptr @vq_exact(ptr, ptr)` for arithmetic and `i32 @vq_exact(ptr, ptr)` for the predicate. Their signature comments identify the mathematical argument and result types.
 
 The printer spells each target-header byte as an LLVM hexadecimal escape (for example, `\61` is `a`). Within the switch, `u0x0002` is the unsigned ordinal 2. The `i32 -1` at `%miss` has the unsigned value 4,294,967,295.
+
+For each of the eleven public emission cases, `Output.decodes_iff` relates
+its model parser to the complete UTF-8 buffer passed to the driver. A second
+buffer parses to that model exactly when its bytes equal the published bytes.
+The native regression changes `choose(true)` to `choose(false)`. Each program
+passes the public compiler and gives its own exit value, 42 or 7. Their LLVM
+modules differ only in the one-byte Boolean call argument. The handoff test
+supplies each module as the other's readback and requires rejection before an
+object is created. [Emission and readback theorem](../../lean-kernel/VastitasKernel/LLVM/Emission.lean) · [Native handoff regression](../check_exact_native.py)
 
 The table's nominal input and output types are checked before lowering to the foreign `i32` ABI. The general `correspondence` theorems connect the selected Core function and both MidIR phases to the parsed module for every in-domain ordinal. Their `foreign_miss` theorems cover out-of-domain inputs. For the empty carrier, the latter theorem covers all 32-bit words. [Unary function theorems](../../lean/VastitasOracle/UnaryFunction.lean) · [Static call theorems](../../lean/VastitasOracle/CallFunction.lean)
 
@@ -143,6 +153,14 @@ For an object-valued Nat literal, Lean's `emitNumLit` calls `lean_unsigned_to_na
 
 For a jump to a join point, Lean's `emitJmp` checks the number of arguments, writes each incoming value to the formal parameter's slot and branches. The assembled Boolean example uses an `i1` call and branch. Its exit block reads a single `i32 phi` with an incoming value from each predecessor. The correspondence theorem identifies the checked winner and contribution. A second theorem covers both Boolean inputs for every method body in the module. [Pinned emitJmp](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1050) · [Dispatch theorems](../../lean/VastitasOracle/DispatchFunction.lean)
 
+Compiling the same source in a package with an unused indexed marker in
+a dependency reproduces all 688 bytes of `assembled-bool.ll` for the pinned
+macOS arm64 header. Three valid manifest spellings give identical bytes,
+including the call to the selected Boolean method and both predecessors of the `i32 phi`. Replaying
+the revision from the first spelling against either other spelling fails
+because the physical manifest text belongs to the revision.
+[Manifest and LLVM regression](../../tests/protocol_epoch.rs)
+
 Two edition 2026 packages give `Cold` and `Warm` opposite parent orders. Both
 use the same `Bool` dispatch key and assemble the same two methods. The more
 specific method returns true in one package and false in the other. In each
@@ -226,6 +244,18 @@ its original numerical expectation. Lean 4.35.0's `emitSimpleExternalCall`
 builds the argument list in parameter order. Here the checked storage schedule
 also supplies the concrete buffer number for each operand.
 [Pinned external calls](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L679) · [Public GEMM operand regression](../../tests/numerical_source.rs)
+
+The contraction-tree example writes a 2 × 3 × 4 tensor into scratch storage
+with shape 8 × 3 before its first GEMM. Its second packing step regroups the
+2 × 4 × 5 intermediate from axis order `[0,1 | 2]` to `[0,2 | 1]`.
+Lean 4.35.0's `emitSimpleExternalCall` constructs an LLVM function type and
+passes arguments in declaration order. Vastitas passes an arena pointer, two
+six-word physical views and the three dimensions to `vq_storage_pack3`.
+`vq_storage_regroup3` also receives the input and output grouping codes,
+48 and 42 for the intermediate. The storage checker supplies the allocation
+IDs and verifies that the input and output bytes are disjoint. The C adapter
+returns a status that selects the next LLVM block or the arena cleanup.
+[Pinned external calls](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L671) · [Contraction-tree source](../../examples/packages/numerical/contraction-tree/src/real/mod.vast) · [Public native regression](../../tests/tree_source.rs)
 
 The physical return type of that resource entry is checked before LLVM emission.
 Changing only `main() -> Int` to `main() -> Nat` in its saved protocol request
@@ -474,6 +504,17 @@ then recovers the original Core symbols and their occurrence counts through
 both SSA phases. For a dispatch target it also identifies the source caller
 and the method selected by assembly at the published revision.
 [Lean direct-call emitter](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L755-L773) · [Vastitas call correspondence](../../lean/VastitasOracle/FlowCertificate.lean)
+
+In the Boolean comparison fixture, both parameters use the boxed program's
+scalar Boolean ABI. The printer compares two `i32` values with `icmp eq` or
+`icmp ne`, then widens the `i1` result to `i32` with `zext`. The parser
+checks that the extension consumes that comparison in the same block.
+The source calls the selected method for all four ordered input pairs.
+Their weights are 1, 2, 4 and 8, so equality contributes 9 and inequality 6
+to the same unbounded integer. Lean 4.35.0 uses an `i8` Boolean ABI in
+`buildLeanBoolTrue?` and compares it with zero to obtain a branch condition.
+The native regression compares the two full integer results with a compiled
+Lean control. [Lean Boolean conversion](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L485-L488) · [Lean control](../fixtures/ComparisonMethodControl.lean) · [Word comparison proof](../../lean/VastitasOracle/ExactFlow.lean)
 
 On macOS arm64, Lean 4.35.0 and nanoda 0.4.19 checked the same export for
 the selected comparison. It covers two physical files, three retained

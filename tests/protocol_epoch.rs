@@ -306,6 +306,7 @@ fn physical_manifest_editions_bind_the_root_and_unused_dependencies() {
             ("2026", "2025"),
             ("edition =", "missing ="),
             ("\"2026\"", "2026  "),
+            ("root='main.vast'", "#oot='main.vast'"),
         ] {
             let mut changed = raw.clone();
             let text = &mut changed["root_source"]["files"][row]["text"];
@@ -330,6 +331,98 @@ fn physical_manifest_editions_bind_the_root_and_unused_dependencies() {
 }
 
 #[test]
+fn manifest_table_ownership_is_checked_before_revision_or_llvm_output() {
+    let s = common::Scratch::empty("manifest table ownership");
+    s.write_package("dep", "pub indexed marker Spare;", "");
+    s.write(
+        "app/main.vast",
+        include_str!("../llvm/fixtures/AssembledBool.vast"),
+    );
+    let manifest = "app/Vastitas.toml";
+    let package = "[package]\nname='app'\nversion='0.1.0'\nedition='2026'\nroot='main.vast'";
+    let metadata = "name='app',version='0.1.0',edition='2026'";
+    let dep = "[dependencies.dep]\npath='../dep'";
+    // Keep every source offset outside this manifest fixed across the mutations.
+    let padded = |doc: String| format!("{doc:<256}\n");
+    let pinned: Value = serde_json::from_str(include_str!(
+        "../experiments/compiler_validation/llvm/results/macos-arm64/unary-table.json"
+    ))
+    .unwrap();
+    let target = [
+        "llvm-check",
+        pinned["target"]["triple"].as_str().unwrap(),
+        pinned["target"]["layout"].as_str().unwrap(),
+    ];
+    let mut first_revision: Option<Value> = None;
+    for valid in [
+        format!("{dep}\n[dependencies]\n{package}"),
+        format!("package={{{metadata},root='main.vast'}}\ndependencies={{dep.path='../dep'}}"),
+        format!("dependencies.dep.path='../dep'\n{package}"),
+    ] {
+        s.write(manifest, &padded(valid));
+        let output = s
+            .command("check", manifest)
+            .args([
+                "--llvm-preview",
+                "--target-triple",
+                target[1],
+                "--data-layout",
+                target[2],
+            ])
+            .output()
+            .unwrap();
+        common::success(&output);
+        assert_eq!(
+            output.stdout,
+            include_bytes!("../llvm/src/assembled-bool.ll").as_slice()
+        );
+        let mut raw = s.captured(manifest, CURRENT_PROTOCOL);
+        if let Some(revision) = &first_revision {
+            raw["expected_function_revision"] = revision.clone();
+            assert_wire_rejected(
+                &common::kernel_with_args(&raw, &target),
+                "E_FUNCTION_REVISION",
+            );
+        } else {
+            let response = common::kernel_with_args(&raw, &["function-revision"]);
+            assert_eq!(response["ok"], true, "{response}");
+            first_revision = Some(response["function_revision"].clone());
+        }
+    }
+    let raw = s.captured(manifest, CURRENT_PROTOCOL);
+    for invalid in [
+        format!("{package}\n['package']\n{dep}"),
+        format!(
+            "package.name='app'\n[package]\nversion='0.1.0'\nedition='2026'\nroot='main.vast'\n{dep}"
+        ),
+        format!("package={{{metadata}}}\npackage.root='main.vast'\n{dep}"),
+        format!("package.root='main.vast'\npackage={{{metadata}}}\n{dep}"),
+        format!("{dep}\n[dependencies.\"dep\"]\n{package}"),
+        format!("dependencies={{}}\n{dep}\n{package}"),
+        format!("dependencies={{dep={{}},dep.path='../dep'}}\n{package}"),
+    ] {
+        let doc = padded(invalid);
+        s.write(manifest, &doc);
+        common::expect_code(&s.check_manifest(manifest), "E_MANIFEST");
+        let mut changed = raw.clone();
+        let original = &mut changed["root_source"]["files"][0]["text"];
+        assert_eq!(original.as_str().unwrap().len(), doc.len());
+        *original = json!(doc);
+        for args in [
+            &["check"][..],
+            &["emit"],
+            &["function-revision"],
+            &target,
+            &["llvm-build", target[1], target[2]],
+        ] {
+            let response = common::kernel_with_args(&changed, args);
+            assert_wire_rejected(&response, "E_PROTOCOL");
+            assert!(response.get("function_revision").is_none() && response.get("llvm").is_none());
+        }
+    }
+}
+
+#[test]
 fn physical_edition_accepts_equivalent_toml_and_ignores_decoys() {
     let s = common::Scratch::empty("manifest edition syntax");
     s.write("app/main.vast", PROGRAM);
@@ -343,14 +436,17 @@ fn physical_edition_accepts_equivalent_toml_and_ignores_decoys() {
         s.write(manifest, doc);
         common::success(&s.check_manifest(manifest));
     }
-    let doc =
-        "[package]\n#dition='2026'\nedition='2026'\nname='app'\nversion='0.1.0'\nroot='main.vast'";
+    let doc = "[package]\n#dition='2026'\n#oot='alias'\nedition='2026'\nname='app'\nversion='0.1.0'\nroot='main.vast'";
     s.write(manifest, doc);
     let raw = s.captured(manifest, CURRENT_PROTOCOL);
     for (old, new) in [
         ("#dition", "edition"),
         ("\nedition='2026'", "\nedition='2025'"),
+        ("#oot='alias'", "root='alias'"),
+        ("#oot='alias'", "typo='alias'"),
+        ("root='main.vast'", "root=''         "),
     ] {
+        assert_eq!(old.len(), new.len());
         let mut changed = raw.clone();
         changed["root_source"]["files"][0]["text"] = common::checked_replace(doc, old, new).into();
         assert_wire_rejected(&kernel(changed, "check"), "E_PROTOCOL");

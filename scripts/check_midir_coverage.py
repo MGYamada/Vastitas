@@ -68,6 +68,10 @@ EXACT_MAPPINGS = {
         "VastitasOracle.MidIR.projection_constructor_coverage"),
     STATIC_CALL_ORIGIN: ("static call", "midir.static.call.v1", STATIC_CALL_THEOREM),
     CONVERSION_ORIGIN: ("Nat-to-Int conversion", "midir.nat_to_int.v1", CONVERSION_THEOREM),
+    "VastitasKernel.Storage.Native.Instruction.pack3": (
+        "rank-three packing", "midir.storage.pack3", "VastitasOracle.StorageProgram.pack3_operands"),
+    "VastitasKernel.Storage.Native.Instruction.regroup3": (
+        "rank-three regrouping", "midir.storage.regroup3", "VastitasOracle.StorageProgram.regroup3_operands"),
 }
 STRUCTURAL_THEOREMS = {
     "VastitasKernel.Indexed.Core.Term." + origin: "VastitasOracle.MidIR." + theorem + "_constructor_coverage"

@@ -132,6 +132,7 @@
     {"name": "VastitasOracle.ExactComplex.complex_isField", "module": "VastitasOracle.ExactComplexField", "kind": "theorem", "statement": "sha256:0c498a626e5a32511781f3eef8b993213b7cafceba581d0729e330e820572fb2"},
     {"name": "VastitasOracle.ExactComplex.ofRat_injective", "module": "VastitasOracle.ExactComplex", "kind": "theorem", "statement": "sha256:f408041d439d47061f3ebd073af319cbdb95e418eeb80f05e01167df6dd1d753"},
     {"name": "VastitasOracle.ExactComplex.real_isField", "module": "VastitasOracle.ExactComplexField", "kind": "theorem", "statement": "sha256:41b0e5b574fcf26b52bc8d3f2bd103ac76dc7a1904c98534b6a6a74903c6ba8f"},
+    {"name": "VastitasOracle.ExactFlow.bool_comparison", "module": "VastitasOracle.ExactFlow", "kind": "theorem", "statement": "sha256:3049da4e34df7fcc42b8b44ec28c7cb754683fba9a5866212c229c94b9c6409d"},
     {"name": "VastitasOracle.ExactFlow.correspondence", "module": "VastitasOracle.ExactFlow", "kind": "theorem", "statement": "sha256:5c4e1c459d519c0ec9fef3d37aa5505eb3159c80683ddbdeb453bad6fb2fce48"},
     {"name": "VastitasOracle.ExactFlow.edge_ownership", "module": "VastitasOracle.ExactFlow", "kind": "theorem", "statement": "sha256:7736951d192d11ec5f159cef059835b855ee122479132f20b462d54182cbae1b"},
     {"name": "VastitasOracle.ExactFold.evaluates", "module": "VastitasOracle.ExactFold", "kind": "theorem", "statement": "sha256:757d1dea8088f3905c54f4fbe536ba6ed9fdbf8c3878b6f33ac91c3541f8cfe7"},

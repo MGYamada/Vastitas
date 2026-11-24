@@ -77,6 +77,7 @@ evidence = [
   "tests/packages.rs::edition_is_explicit_and_exact_in_root_and_dependency_manifests",
   "tests/protocol_epoch.rs::every_package_carries_the_edition_including_flat_library_inputs",
   "tests/protocol_epoch.rs::physical_manifest_editions_bind_the_root_and_unused_dependencies",
+  "tests/protocol_epoch.rs::manifest_table_ownership_is_checked_before_revision_or_llvm_output",
   "tests/protocol_epoch.rs::physical_edition_accepts_equivalent_toml_and_ignores_decoys",
   "tests/protocol_epoch.rs::each_physical_dependency_alias_belongs_to_the_manifest_that_declares_it",
   "tests/protocol_epoch.rs::implicit_package_roots_match_the_first_physical_token_or_eof",
@@ -87,7 +88,7 @@ evidence = [
 ]
 note = """
 This claim covers implicit root module locations, manifest dependency aliases, the physical legacy geometry export,
-the required manifest string edition = "2026", the
+the required manifest string edition = "2026", a single nonempty package.root string, TOML table definitions, the
 fixed edition of protected flat and --lib envelopes, and independent Lean
 rejection of missing, different or non-string wire editions in every package.
 Source check/build reject before a backend runs; raw-wire check/emit use the
@@ -476,7 +477,7 @@ coverage check instead of silently inheriting admission.
 """
 specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.coverage)"
 example = "Adding a Core constructor without an admitted mapping or rejection prevents the coverage ledger from passing."
-example_not_executed = "The source-schema guard, twelve instruction mappings and five structural mappings run in CI. Whole-module release coverage remains pending."
+example_not_executed = "The source-schema guard, fourteen instruction mappings and five structural mappings run in CI. Whole-module release coverage remains pending."
 
 [property."compiler-ir.coverage".claim.ledger]
 status = "planned"
@@ -500,7 +501,8 @@ source drift, incomplete inventories and JSON-only promotion to admission.
 Four ground literals, finite tags, finite lookups, explicit Nat-to-Int conversion, homogeneous pairs and projections, unary Boolean and integer operations, binary operators, and first-order static calls have local lowering proofs.
 Variable references, scopes, typed ascriptions, let bindings and conditionals have structural
 mappings without an opcode. A constructor with several opcodes names every alternative in registry order.
-CI compares each origin, opcode or alternatives, and theorem with the compiled Lean registry. The other 595 rows await review. Whole-module acceptance remains a separate obligation
+The two physical storage packing instructions preserve source and destination layouts, dimensions and, for regrouping, both axis orders and splits in the execution call.
+CI compares each origin, opcode or alternatives, and theorem with the compiled Lean registry. The other 593 rows await review. Whole-module acceptance remains a separate obligation
 for every row. The release coverage check enforces that distinction.
 """
 
@@ -1555,7 +1557,7 @@ and handoff remain labeled host premises and receive adversarial tests.
 """
 specified_in = "[Compiler IR v1](spec/compiler-ir.md#compiler-ir.llvm-bytes)"
 example = "Changing one byte after verification prevents native code generation even if a stored hash or theorem name remains unchanged."
-example_not_executed = "Unary and binary lookup, the static forwarder, literal and folded integer entries, an assembled Boolean branch and closed finite package entries have complete canonical-byte theorems. General functions and release verification modes remain pending."
+example_not_executed = "Every current public emitter has a canonical parser. For each output, a candidate buffer parses to its model exactly when the candidate equals the full published UTF-8 payload. General functions and release verification modes remain pending."
 
 [property."compiler-ir.llvm-bytes".claim.bytes]
 status = "planned"
@@ -1666,10 +1668,10 @@ note = "The original Core, the optimization and execution MidIR and the reconstr
 
 [property."compiler-ir.llvm-bytes".claim.boxed-control-flow]
 status = "proved-oracle"
-evidence = ["VastitasOracle.ExactFlow.correspondence", "VastitasOracle.ExactFlow.edge_ownership", "VastitasOracle.FlowCertificate.corresponds", "VastitasOracle.FlowCertificate.published_function", "VastitasOracle.FlowCertificate.published_calls"]
+evidence = ["VastitasOracle.ExactFlow.correspondence", "VastitasOracle.ExactFlow.edge_ownership", "VastitasOracle.FlowCertificate.corresponds", "VastitasOracle.FlowCertificate.published_function", "VastitasOracle.FlowCertificate.published_calls", "VastitasOracle.ExactFlow.bool_comparison"]
 premises = ["The checked, closed integer entry has a linked control-flow artifact and the complete module parses to its model.", "The stage certificate and the dependent publication witness describe the same subject."]
 assumes = ["rust-frontend"]
-note = "The parsed graph, both MidIR phases and Core yield the same full integer under the checked evaluation budgets. The published bytes have the certified function revision, target and physical source layout. Every emitted function slot has the checked Core owner, specialization and call signature from both MidIR phases, including retained uncalled methods. The two SSA phases and the LLVM instructions have the same ordered list of direct callees in each function. Relocating those symbols back to Core preserves each callee’s occurrence count. Each taken edge transfers one reference per boxed argument occurrence and releases each owned local once in the model. The runtime ABI and object code are checked separately."
+note = "The parsed graph, both MidIR phases and Core yield the same full integer under the checked evaluation budgets. The published bytes have the certified function revision, target and physical source layout. Every emitted function slot has the checked Core owner, specialization and call signature from both MidIR phases, including retained uncalled methods. The two SSA phases and the LLVM instructions have the same ordered list of direct callees in each function. Relocating those symbols back to Core preserves each callee’s occurrence count. For dynamic Bool equality and inequality, the execution opcode and modeled LLVM computation agree with comparing canonical 32-bit words and zero-extending the one-bit answer. Each taken edge transfers one reference per boxed argument occurrence and releases each owned local once in the model. The runtime ABI and object code are checked separately."
 
 [property."compiler-ir.llvm-bytes".claim.boxed-regression]
 status = "tested"

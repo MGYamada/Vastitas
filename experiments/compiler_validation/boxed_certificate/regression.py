@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise the live proof using the complete boxed program from the LLVM corpus."""
 from argparse import ArgumentParser, Namespace
+from copy import deepcopy
 import filecmp
 import json
 import subprocess
@@ -15,13 +16,41 @@ sys.path.insert(0, str(verify.ROOT / "scripts"))
 from proof_worker import run_proof_worker
 
 
-def run(work, suite, frontend):
+BOOL_COMPARISON = ("bool-comparison", "BoolComparison", "apply equality;", 4, 2**128 + 10, 2**128 + 7)
+
+
+def check_method_selection(work, source, check, label, fixture, apply, functions, selected_result, default_result):
+    body = (verify.ROOT / f"llvm/fixtures/{fixture}.vast").read_text()
+    require(body.count(apply) == 1, f"{label}: expected one selection")
+    source.write_text(body)
+    selected, _ = check(label, "official")
+    candidate = work / label / "sealed.ndjson"
+    peer, _ = check(f"{label}-fast", "fast", candidate=candidate)
+    retained = verify.ROOT / f"llvm/src/{label}.ll"
+    require(selected["integer_result"] == str(selected_result) and selected["functions"] == functions
+            and selected["certificate"] == peer["certificate"]
+            and (work / label / "preview.ll").read_bytes() == retained.read_bytes(),
+            f"{label}: incorrect selected method, result or module")
+    source.write_text(body.replace(apply, ""))
+    default, _ = check(f"{label}-default", "official")
+    require(default["integer_result"] == str(default_result)
+            and default["revision_sha256"] != selected["revision_sha256"], f"{label}: wrong default method")
+    if label == "bool-comparison":
+        saved = work / f"{label}-default" / "sealed.ndjson"
+        replay, _ = check(f"{label}-default-fast", "fast", candidate=saved)
+        require(replay["certificate"] == default["certificate"], "wrong default comparison certificate")
+    check(f"{label}-stale", "fast", candidate=candidate, rejection="declaration environment differs")
+    candidate.unlink()
+    (work / f"{label}-default" / "sealed.ndjson").unlink()
+
+
+def run(work, suite, frontend, memory):
     # Both modes consume the same public path, bytes, target and function revision.
     source = work / "main.vast"
     source.write_bytes((verify.ROOT / "llvm/fixtures/BoxedProgram.vast").read_bytes())
     target = json.loads(verify.official.TARGET_REPORT.read_bytes())["target"]
     args = Namespace(source=source, lib=[], manifest_path=None, frontend=frontend,
-                     mode="official", candidate=None, save_candidate=None, timeout=120,
+                     mode="official", candidate=None, save_candidate=None, timeout=120, memory=memory,
                      target_triple=target["triple"], data_layout=target["layout"])
 
     def check(label, mode, *, candidate=None, rejection=None, keep_authority=False, keep_snapshot=False):
@@ -33,13 +62,19 @@ def run(work, suite, frontend):
             roots = verify.verify(args, private, report)
         except ValueError as e:
             if rejection is None or rejection not in str(e):
+                print(f"{label} ({mode}) failed: {e}", flush=True)
                 raise
             print(f"{label} rejected ({rejection})", flush=True)
             return report, None
         finally:
             # The generated export is already sealed. Keep the authority module
             # only for the producer that elaborates the alternate proof terms.
-            for name in ("authority.ndjson", "generated.ndjson", "Certificate.olean"):
+            for result in report["phases"]:
+                if result["phase"] in {"evaluation", "printing"} or result["status"] != "passed":
+                    print(f"{label} {result['phase']}: {result['status']}, {result['wall_seconds']:.2f}s, "
+                          f"{result['peak_rss_bytes'] / 1024**2:.1f} MiB peak RSS", flush=True)
+            for name in ("authority.ndjson", "generated.ndjson", "Certificate.olean",
+                         "FlowEvaluation.olean", "FlowPrinting.olean"):
                 (private / name).unlink(missing_ok=True)
             if not keep_authority:
                 (private / "Authority.olean").unlink(missing_ok=True)
@@ -53,12 +88,15 @@ def run(work, suite, frontend):
     if suite == "inputs":
         check_physical_inputs(work, args, source, check)
         return
-    if suite == "assembly":
-        source.write_bytes((verify.ROOT / "llvm/fixtures/BoxedPairs.vast").read_bytes())
+    if suite in {"assembly", "host"}:
         args.source = None
         args.manifest_path = work / "Vastitas.toml"
         args.manifest_path.write_text('[package]\nname = "boxed_pairs"\nversion = "0.1.0"\n'
                                       'edition = "2026"\nroot = "main.vast"\n')
+        if suite == "host":
+            check_method_selection(work, source, check, *BOOL_COMPARISON)
+            return
+        source.write_bytes((verify.ROOT / "llvm/fixtures/BoxedPairs.vast").read_bytes())
         checked, _ = check("pairs", "official")
         pair_dir = work / "pairs"
         replay, _ = check("pairs-fast", "fast", candidate=pair_dir / "sealed.ndjson")
@@ -69,29 +107,13 @@ def run(work, suite, frontend):
                 "pair certificate differs from the retained LLVM module")
         (pair_dir / "sealed.ndjson").unlink()
         magnitude = 2**128 + 43
-        for label, fixture, apply, functions, selected_result, default_result in [
+        for case in [
+            BOOL_COMPARISON,
             ("selected-projection", "SelectedProjection", "apply second_field;", 5, 19, 7),
             ("assembled-comparison", "ComparisonMethod", "apply ordered;", 3, 42, 7),
             ("assembled-negation", "AssembledNegation", "apply reversing;", 4, -magnitude, magnitude),
         ]:
-            body = (verify.ROOT / f"llvm/fixtures/{fixture}.vast").read_text()
-            require(body.count(apply) == 1, f"{label}: expected one selection")
-            source.write_text(body)
-            selected, _ = check(label, "official")
-            candidate = work / label / "sealed.ndjson"
-            peer, _ = check(f"{label}-fast", "fast", candidate=candidate)
-            retained = verify.ROOT / f"llvm/src/{label}.ll"
-            require(selected["integer_result"] == str(selected_result) and selected["functions"] == functions
-                    and selected["certificate"] == peer["certificate"]
-                    and (work / label / "preview.ll").read_bytes() == retained.read_bytes(),
-                    f"{label}: incorrect selected method, result or module")
-            source.write_text(body.replace(apply, ""))
-            default, _ = check(f"{label}-default", "official")
-            require(default["integer_result"] == str(default_result)
-                    and default["revision_sha256"] != selected["revision_sha256"], f"{label}: wrong default method")
-            check(f"{label}-stale", "fast", candidate=candidate, rejection="declaration environment differs")
-            candidate.unlink()
-            (work / f"{label}-default" / "sealed.ndjson").unlink()
+            check_method_selection(work, source, check, *case)
         conversion_source = (verify.ROOT / "llvm/fixtures/AssembledConversion.vast").read_text()
         source.write_text(conversion_source)
         converted, _ = check("conversion", "official")
@@ -141,10 +163,11 @@ def run(work, suite, frontend):
     producer = work / "fast"
     prefix = fast.pinned_tools()
     env = verify.environment(producer, prefix)
+    lean = verify.lean_command(prefix, memory)
 
     def export(label, text):
         (producer / "Certificate.lean").write_text(text)
-        run_proof_worker([prefix / "bin/lean", "-DwarningAsError=true", "-o", "Certificate.olean", "Certificate.lean"],
+        run_proof_worker([*lean, "-DwarningAsError=true", "-o", "Certificate.olean", "Certificate.lean"],
                        cwd=producer, env=env, timeout=args.timeout, check=True, stdout=subprocess.DEVNULL)
         target = work / (label + ".ndjson")
         with target.open("xb") as out:
@@ -196,9 +219,9 @@ def run(work, suite, frontend):
             verify.authority(revision, model, args.target_triple, args.data_layout, data, inputs))
         (altered / "Certificate.lean").write_text(verify.certificate())
         env = verify.environment(altered, prefix)
-        run_proof_worker([prefix / "bin/lean", "-o", "Authority.olean", "Authority.lean"], cwd=altered,
+        run_proof_worker([*lean, "-o", "Authority.olean", "Authority.lean"], cwd=altered,
                        env=env, timeout=args.timeout, check=True)
-        result = run_proof_worker([prefix / "bin/lean", "-DwarningAsError=true", "Certificate.lean"], cwd=altered,
+        result = run_proof_worker([*lean, "-DwarningAsError=true", "Certificate.lean"], cwd=altered,
                                 env=env, timeout=args.timeout, capture_output=True, text=True)
         require(result.returncode != 0 and diagnostic in result.stdout, f"{label} must fail its proof")
         print(f"{label} rejected by Lean", flush=True)
@@ -226,8 +249,67 @@ def run(work, suite, frontend):
             "single-function certificate differs from the retained LLVM module")
 
 
+def check_external_inputs(work, frontend):
+    """Exercise disk resolution without starting a proof worker."""
+    root = (work / "module-paths").resolve()
+    base = root / "src"
+    nested = base / "space/child"
+    nested.mkdir(parents=True)
+    manifest = root / "Vastitas.toml"
+    manifest.write_text('[package]\nname="module_paths"\nversion="0.1.0"\nedition="2026"\nroot="src/main.vast"\n')
+    (base / "main.vast").write_text("mod space { pub mod child; } mod other; mod alias; "
+                                    "fn main() -> Int { space::child::leaf::answer() }")
+    (nested / "mod.vast").write_text("pub mod leaf;")
+    body = "pub fn answer() -> Int { 42 }"
+    leaf = nested / "leaf.vast"
+    leaf.write_text(body)
+    (base / "other.vast").write_text(body)
+    (base / "alias.vast").symlink_to(leaf)
+    output = subprocess.check_output([frontend, "check", "--manifest-path", manifest, "--print-function-revision"])
+    wire = json.loads(output)["input"]
+    files, _ = verify.read_sources(wire, manifest, None)
+    require([Path(p.decode()).relative_to(root).as_posix() for p, _, _ in files] ==
+            ["Vastitas.toml", "src/main.vast", "src/space/child/mod.vast", "src/space/child/leaf.vast",
+             "src/other.vast", "src/space/child/leaf.vast"], "incorrect physical module visit order")
+
+    def rejected(candidate, message):
+        try:
+            verify.read_sources(candidate, manifest, None)
+        except ValueError as error:
+            require(message in str(error), str(error))
+        else:
+            raise ValueError("accepted incorrect physical module inputs")
+
+    changed = deepcopy(wire)
+    rows = changed["root_source"]["files"]
+    rows[3]["path"], rows[4]["path"] = rows[4]["path"], rows[3]["path"]
+    rejected(changed, "module path differs")
+    (base / "unused.vast").write_text(body)
+    changed = deepcopy(wire)
+    changed["root_source"]["files"][3]["path"] = str(base / "unused.vast")
+    rejected(changed, "module path differs")
+    changed = deepcopy(wire)
+    _, last, text = files[-1]
+    changed["root_source"]["files"].append({"path": str(base / "unused.vast"), "text": body,
+                                            "offset": last + len(text.encode()) + 1})
+    rejected(changed, "no declaring manifest or module")
+    flat = base / "space/child.vast"
+    flat.mkdir()
+    verify.read_sources(wire, manifest, None)
+    flat.rmdir()
+    flat.write_text("pub mod leaf;")
+    rejected(wire, "one exactly spelled source")
+    flat.unlink()
+    (base / "other.vast").rename(base / "OTHER.vast")
+    changed = deepcopy(wire)
+    changed["root_source"]["files"][4]["path"] = str(base / "OTHER.vast")
+    rejected(changed, "one exactly spelled source")
+    print("nested external modules, repeated source paths and file substitutions checked", flush=True)
+
+
 def check_physical_inputs(work, args, source, check):
     """Compile the same helper through each loader and replay a stale proof."""
+    check_external_inputs(work, args.frontend)
     # The same long source text passes through both the wire and the physical layout.
     helper = 'fn helper(x: Int) -> Int { x + x } // "λ1" 🪐 e\u0301 \\end\r\n'
     library = work / "helper.vast"
@@ -240,13 +322,14 @@ def check_physical_inputs(work, args, source, check):
     dep_manifest = dep / "Vastitas.toml"
     metadata = '\ufeff[package]\nedition="2026"\nname="dep"\nversion="0.1.0"\nroot="main.vast"\n'
     dep_manifest.write_text(metadata + "# revision A")
-    (dep / "main.vast").write_text("pub " + helper)
+    (dep / "main.vast").write_text("pub mod units;")
+    (dep / "units.vast").write_text("pub " + helper)
     for label, changed_file, replacement, count in [
             ("library", library, helper.replace("λ1", "λ2"), 2),
-            ("manifest", dep_manifest, metadata + "# revision B", 4)]:
+            ("manifest", dep_manifest, metadata + "# revision B", 5)]:
         if label == "manifest":
             manifest.write_text(metadata.replace('"dep"', '"app"') + '[dependencies]\ndep={path="dep"}\n')
-            source.write_text("pub fn main() -> Int { dep::helper(21) }")
+            source.write_text("pub fn main() -> Int { dep::units::helper(21) }")
             args.manifest_path, args.source, args.lib = manifest, None, []
         baseline, _ = check(label, "official")
         image = work / label / "sealed.ndjson"
@@ -376,9 +459,10 @@ def check_borrowed_operator(work, args, check):
 if __name__ == "__main__":
     parser = ArgumentParser(description=__doc__)
     suites = ["boxed", "inputs", "assembly"]
-    parser.add_argument("--suite", choices=suites, help="run one suite (default: all)")
+    parser.add_argument("--suite", choices=[*suites, "host"], help="run one suite (default: all full suites)")
     parser.add_argument("--frontend", type=Path, default=verify.ROOT / "target/debug/vastitas")
+    verify.add_memory_argument(parser)
     args = parser.parse_args()
     for suite in ([args.suite] if args.suite else suites):
         with tempfile.TemporaryDirectory(prefix=f"vastitas-{suite}-regression-") as tmp:
-            run(Path(tmp), suite, args.frontend.resolve())
+            run(Path(tmp), suite, args.frontend.resolve(), args.memory)

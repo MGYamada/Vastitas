@@ -88,6 +88,28 @@ theorem assembled_comparison_verified : assembledComparisonBytes = assembledComp
   (VastitasOracle.FlowCertificate.printedLines assembledComparison comparisonText.1 comparisonText.2
     rfl (by with_unfolding_all rfl)).symm
 
+def boolComparison : ExactFlow.Code :=
+  let predicate (op : ExactFlow.Op) : ExactFlow.Func := ⟨.bool, #[⟨[.bool,.bool],[op],.ret 2⟩]⟩
+  let weight : ExactFlow.Func := ⟨.int, #[
+    ⟨[.bool,.bool,.int],[.invoke 0 [0,1]],.branch 3 ⟨1,[2]⟩ ⟨2,[]⟩⟩,
+    ⟨[.int],[],.jump ⟨3,[0]⟩⟩, ⟨[],[.exact (.int 0)],.jump ⟨3,[0]⟩⟩, ⟨[.int],[],.ret 0⟩]⟩
+  let int (n : Int) := ExactFlow.Op.exact (.int n)
+  let add (a b : Nat) := ExactFlow.Op.exact (.apply (.int .add) [a,b])
+  let entry : ExactFlow.Func := ⟨.int, #[⟨[],[
+    int (2^128+1), int 0, .exact (.compare .int .lt 0 1), int 0, .exact (.compare .int .gt 0 3),
+    int 1, .invoke 1 [2,2,5], int 2, .invoke 1 [2,4,7], add 6 8,
+    int 4, .invoke 1 [4,2,10], int 8, .invoke 1 [4,4,12], add 11 13, add 9 14, add 0 15],.ret 16⟩]⟩
+  ⟨header,#[predicate (.boolEq 0 1),weight,entry,predicate (.boolNe 0 1)],2⟩
+
+private def boolComparisonText : List UInt8 × List String := corpus_module_lines "src/bool-comparison.ll"
+
+def boolComparisonBytes :=
+  boolComparisonText.1 ++ ("\n" ++ String.intercalate "\n" boolComparisonText.2 ++ "\n").toUTF8.data.toList
+
+theorem bool_comparison_verified : boolComparisonBytes = boolComparison.print :=
+  (VastitasOracle.FlowCertificate.printedLines boolComparison boolComparisonText.1 boolComparisonText.2
+    rfl (by with_unfolding_all rfl)).symm
+
 def boxedProgram : ExactProgram.Code :=
   ⟨header,#[
     ⟨[.int],.int,[],0⟩,
@@ -740,6 +762,7 @@ def checkedFiles : List (String × ByteArray) :=
   [("exit-status.ll", forExit exit_status_verified),
    ("folded-arithmetic.ll", forExit folded_arithmetic_verified),
    ("assembled-comparison.ll", forFlow assembled_comparison_verified),
+   ("bool-comparison.ll", forFlow bool_comparison_verified),
    ("boxed-program.ll", forProgram boxed_program_verified),
    ("ordered-calls.ll", forProgram ordered_calls_verified),
    ("assembled-negation.ll", forProgram assembled_negation_verified),
@@ -834,6 +857,22 @@ def main (args : List String) : IO Unit := do
     let changed := moduleText.replace before after
     unless changed != moduleText && (VastitasKernel.LLVM.ExactProgram.parse changed.toUTF8.data.toList).isNone do
       throw (IO.userError "boxed-program.ll: accepted a damaged call, startup or ownership instruction")
+  let boolBytes := Vastitas.LLVMCorpus.boolComparisonBytes
+  let boolModel := Vastitas.LLVMCorpus.boolComparison
+  unless VastitasKernel.LLVM.ExactFlow.parse boolBytes == some boolModel &&
+      boolModel.entryValue == some (2^128+10) do
+    throw (IO.userError "bool-comparison.ll: incorrect comparison, call target or truth table")
+  let boolText := (String.fromUTF8? ⟨boolBytes.toArray⟩).get!
+  for (old,new) in [("icmp eq i32", "icmp ult i32"), ("zext i1", "sext i1"),
+      ("zext i1 %cmp0_2", "zext i1 %cmp0_1"), ("to i32", "to i64")] do
+    let damaged := boolText.replace old new
+    unless damaged != boolText && (VastitasKernel.LLVM.ExactFlow.parse damaged.toUTF8.data.toList).isNone do
+      throw (IO.userError s!"bool-comparison.ll: accepted invalid comparison or widening at {old}")
+  let changed := boolText.replace "icmp eq i32" "icmp ne i32"
+  let some mutated := VastitasKernel.LLVM.ExactFlow.parse changed.toUTF8.data.toList
+    | throw (IO.userError "bool-comparison.ll: valid predicate change did not parse")
+  unless mutated != boolModel && mutated.entryValue == some (2^128+7) do
+    throw (IO.userError "bool-comparison.ll: predicate change did not change the observed full integer")
   let flow := Vastitas.LLVMCorpus.assembledComparison
   let bytes := Vastitas.LLVMCorpus.assembledComparisonBytes
   unless VastitasKernel.LLVM.ExactFlow.parse bytes == some flow && flow.entryValue == some 42 do

@@ -10,23 +10,25 @@ namespace VastitasKernel.MidIR.StorageEffects
 open Storage
 
 inductive Callee where
-  | allocate | drop | fill | store | expect | copy | gemm
+  | allocate | drop | fill | store | expect | copy | gemm | pack3 | regroup3
   deriving DecidableEq, BEq, Repr
 
 def Callee.name : Callee → String
   | .allocate => "allocate" | .drop => "drop" | .fill => "fill"
   | .store => "store" | .expect => "expect" | .copy => "copy" | .gemm => "gemm"
+  | .pack3 => "pack3" | .regroup3 => "regroup3"
 
-def Callee.all : List Callee := [.allocate, .drop, .fill, .store, .expect, .copy, .gemm]
+def Callee.all : List Callee := [.allocate, .drop, .fill, .store, .expect, .copy, .gemm, .pack3, .regroup3]
 
 /-- All integer arguments use i64 at the C boundary. Layouts are flattened to
 five words so the platform ABI for C struct values does not enter the IR. -/
 inductive Operand where
-  | allocation | extent | flag | scalar | bits | coefficientKind
+  | allocation | extent | flag | scalar | bits | coefficientKind | dimension | grouping
 
 private def viewSignature : List Operand := [.extent, .extent, .extent, .extent, .flag]
 
 private def matrixSignature := [.allocation] ++ viewSignature
+private def packingSignature := matrixSignature ++ matrixSignature ++ [.dimension, .dimension, .dimension]
 private def inputMatrixSignature := matrixSignature ++ [.flag]
 private def coefficientSignature : List Operand :=
   [.coefficientKind, .scalar, .bits, .bits, .allocation, .extent]
@@ -37,6 +39,8 @@ def Callee.signature : Callee → List Operand
   | .fill => [.allocation] ++ viewSignature ++ [.scalar, .bits, .bits]
   | .store | .expect => [.allocation] ++ viewSignature ++ [.extent, .extent, .scalar, .bits, .bits]
   | .copy => matrixSignature ++ matrixSignature
+  | .pack3 => packingSignature
+  | .regroup3 => packingSignature ++ [.grouping, .grouping]
   | .gemm => [.scalar] ++ inputMatrixSignature ++ inputMatrixSignature ++ matrixSignature ++
       [.flag] ++ coefficientSignature ++ coefficientSignature
 
@@ -49,6 +53,8 @@ def Operand.accepts : Operand → Nat → Bool
   | .coefficientKind, n => n < 3
   | .scalar, n => n < 4
   | .bits, n => n < 2^64
+  | .dimension, n => n ≤ Storage.dimensionLimit
+  | .grouping, n => n < 54
 
 structure Call where
   target : Callee
@@ -74,6 +80,17 @@ private def validGemm (arguments : List Nat) : Bool := Id.run do
   return validCoefficient scalar (coefficients.take coefficientSignature.length) &&
     validCoefficient scalar beta && (mode != 0 || beta.head? == some 0)
 
+private def matchesGrouping (dimensions : List Nat) (code rows columns : Nat) : Bool :=
+  let g : Tensor.Grouping := ⟨[code % 3, code / 3 % 3, code / 9 % 3], code / 27 + 1⟩
+  decide (g.Valid 3) && g.rows dimensions == rows && g.columns dimensions == columns
+
+private def validPacking : List Nat → Bool
+  | [_, _, rows, cols, _, 0, _, _, rows', cols', _, 0, i, k, j] =>
+    rows == i && cols == k*j && rows' == i*j && cols' == k
+  | [_, _, rows, cols, _, 0, _, _, rows', cols', _, 0, i, k, j, src, dst] =>
+    matchesGrouping [i,k,j] src rows cols && matchesGrouping [i,k,j] dst rows' cols'
+  | _ => false
+
 def Call.valid (c : Call) : Bool :=
   c.arguments.length == c.target.arity &&
     (c.target.signature.zip c.arguments).all (fun (ty, n) => ty.accepts n) &&
@@ -83,6 +100,7 @@ def Call.valid (c : Call) : Bool :=
        | imaginary :: real :: scalar :: _ => literalBits scalar real imaginary
        | _ => false
      | .gemm => validGemm c.arguments
+     | .pack3 | .regroup3 => validPacking c.arguments
      | _ => true)
 
 private def layout (v : Layout) : List Nat :=
@@ -110,6 +128,10 @@ def resolveInstruction (live : Std.HashMap Nat Scalar) : Native.Instruction → 
   | .store a v r c x => some ⟨.store, [a] ++ layout v ++ [r,c] ++ literal x⟩
   | .expect a v r c x => some ⟨.expect, [a] ++ layout v ++ [r,c] ++ literal x⟩
   | .copy a v b w => some ⟨.copy, [a] ++ layout v ++ [b] ++ layout w⟩
+  | .pack3 a v b w i k j => some ⟨.pack3, [a] ++ layout v ++ [b] ++ layout w ++ [i,k,j]⟩
+  | .regroup3 a v b w dims src dst => do
+    guard (dims.length == 3 && decide (src.Valid 3) && decide (dst.Valid 3))
+    return ⟨.regroup3, [a] ++ layout v ++ [b] ++ layout w ++ dims ++ [src.code, dst.code]⟩
   | .gemm a va ca b vb cb out vo mode .nativeFast alpha beta => do
     let scalar ← live[out]?
     if live[a]? = some scalar ∧ live[b]? = some scalar ∧

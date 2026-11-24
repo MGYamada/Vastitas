@@ -65,6 +65,47 @@ def Output.kind {json header} : Output json header → String
   | .dispatch .. => "assembled-bool"
   | .finite .. => "finite-program"
 
+/-- Reparse a candidate buffer as the specific model in the public output. -/
+def Output.Decodes {json header} (o : Output json header) (bytes : List UInt8) : Prop :=
+  match o with
+  | .storage a .. => StorageModule.parse bytes = some a.model
+  | .exactProgram a .. => ExactProgram.parse bytes = some a.model
+  | .exactFlow a .. => ExactFlow.parse bytes = some a.model
+  | .exactLibrary a .. => ExactLibrary.parse bytes = some a.model
+  | .lookup a .. => TableSwitch.parse bytes = some a.image.toModule
+  | .binary a .. => BinaryTable.parse bytes = some a.image.code
+  | .forwarding a .. => ForwardCall.parse bytes = some ⟨a.image.toModule⟩
+  | .executable a .. => ExitMain.parse bytes = some a.toModule
+  | .folded a .. => ExitMain.parse bytes = some a.toModule
+  | .dispatch a .. => DispatchBool.parse bytes = some (a.toModule header)
+  | .finite a .. => FiniteModule.parse bytes = some a.model
+
+private theorem sameReadback {α : Type} {parse : List UInt8 → Option α} {m : α}
+    {printed published candidate : List UInt8}
+    (canonical : ∀ b, parse b = some m → b = printed) (accepted : parse published = some m) :
+    parse candidate = some m ↔ candidate = published := by
+  constructor
+  · exact fun h => (canonical _ h).trans (canonical _ accepted).symm
+  · rintro rfl
+    exact accepted
+
+/-- Equality with the exact UTF-8 payload handed to the driver is necessary and
+sufficient for the candidate to decode to the published model, for every emitter. -/
+theorem Output.decodes_iff {json header} (o : Output json header) (bytes : List UInt8) :
+    o.Decodes bytes ↔ bytes = o.text.toUTF8.data.toList := by
+  match o with
+  | .storage _ _ h => exact sameReadback (fun _ p => StorageModule.parse_sound p) h
+  | .exactProgram _ _ h => exact sameReadback (fun _ p => (ExactProgram.parse_sound p).2) h
+  | .exactFlow _ _ h => exact sameReadback (fun _ p => (ExactFlow.parse_sound p).2) h
+  | .exactLibrary _ _ h => exact sameReadback (fun _ p => (ExactLibrary.parse_sound p).2) h
+  | .lookup _ _ h => exact sameReadback (fun b => (TableSwitch.parse_iff b _).mp) h
+  | .binary _ _ h => exact sameReadback (fun b => (BinaryTable.parse_iff b _).mp) h
+  | .forwarding _ _ h => exact sameReadback (fun b => (ForwardCall.parse_iff b _).mp) h
+  | .executable _ _ h => exact sameReadback (fun b => (ExitMain.parse_iff b _).mp) h
+  | .folded _ _ h => exact sameReadback (fun b => (ExitMain.parse_iff b _).mp) h
+  | .dispatch _ _ h => exact sameReadback (fun b => (DispatchBool.parse_iff b _).mp) h
+  | .finite _ _ h => exact sameReadback (fun b => (FiniteModule.parse_iff b _).mp) h
+
 private def checkedText {α : Type} [DecidableEq α] (m : α) (print : α → List UInt8)
     (parse : List UInt8 → Option α) : Option { s : String // parse s.toUTF8.data.toList = some m } := do
   let s ← String.fromUTF8? ⟨(print m).toArray⟩

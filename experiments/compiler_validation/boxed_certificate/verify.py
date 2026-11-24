@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Verify a live public boxed program's execution-model/bytes certificate."""
 import argparse
+from bisect import bisect_right
+from collections import defaultdict
 import hashlib
 import json
 import os
@@ -32,15 +34,29 @@ for element in ("nat", "int"):
     OPS[f"{element}_pair_second"] = f"(.project .{element} false)"
 
 
-def stage_proof(namespace):
-    body = "(by with_unfolding_all rfl)" if namespace == "FlowCertificate" else "rfl"
-    return f"""by
+def add_memory_argument(parser):
+    def positive_mib(value):
+        amount = int(value)
+        if amount <= 0:
+            raise argparse.ArgumentTypeError("expected a positive MiB limit")
+        return amount
+
+    parser.add_argument("--memory", type=positive_mib, default=1536, metavar="MiB",
+                        help="Lean memory limit per capture or elaboration process (default: 1536 MiB)")
+
+
+def lean_command(prefix, memory):
+    return [prefix / "bin/lean", "-M", str(memory)]
+
+
+PROOF = """by
   refine ⟨rfl, ?_, rfl, rfl, rfl, ?_⟩
   · with_unfolding_all rfl
-  · exact VastitasOracle.{namespace}.printedLines code headerBytes lines rfl {body}"""
+  · exact VastitasOracle.BoxedCertificate.printedLines code headerBytes lines rfl rfl"""
 
-
-PROOF = stage_proof("BoxedCertificate")
+FLOW_PROOF = """by
+  refine ⟨rfl, ?_, rfl, rfl, evaluated, printed⟩
+  · with_unfolding_all rfl"""
 
 
 def natural(value):
@@ -75,7 +91,7 @@ def flow_op(step):
             return ".boolean " + ("true" if v else "false")
         case ["not", a]:
             return ".boolNot " + natural(a)
-        case ["and" | "or" as op, a, b]:
+        case ["and" | "or" | "eq" | "ne" as op, a, b]:
             return f".bool{op.title()} {natural(a)} {natural(b)}"
         case _:
             return instruction(step).replace(".primitive ", ".exact ", 1)
@@ -101,11 +117,88 @@ def flow_block(b):
     return f"⟨[{params}], [{ops}], {end}⟩"
 
 
+def resolve_module(base, logical, names, listings):
+    # Match each directory entry's actual spelling, including on case-insensitive hosts.
+    candidates = []
+    for parts in [(*logical[:-1], logical[-1] + ".vast"), (*logical, "mod.vast")]:
+        path = base.joinpath(*parts)
+        try:
+            mode = path.stat().st_mode
+        except (FileNotFoundError, NotADirectoryError):
+            continue
+        if stat.S_ISDIR(mode):
+            continue
+        parent = base
+        for part in parts:
+            if parent not in listings:
+                with os.scandir(parent) as entries:
+                    listings[parent] = names.intersection(entry.name for entry in entries)
+            if part not in listings[parent]:
+                break
+            parent /= part
+        else:
+            candidates.append(path)
+    require(len(candidates) == 1, "external module requires one exactly spelled source file")
+    return candidates[0].resolve(strict=True)
+
+
+def check_module_files(package, root, directory, files, offsets, claimed):
+    # Lean checks each mod declaration against its tokens. An inline span covers
+    # just 'mod'. An external span extends through its semicolon. Reconstruct the
+    # loader's depth-first file order, keeping separate occurrences of aliased paths.
+    owners = {}
+    sites = defaultdict(list)
+    external = defaultdict(list)
+    names = {"mod.vast"}
+    for module in sorted(package["modules"], key=lambda m: len(m["path"])):
+        logical = tuple(module["path"])
+        span = module["span"]
+        require(logical not in owners, "duplicate module path")
+        if not logical:
+            owners[()] = ()
+            sites[()].append(span)
+            continue
+        require(logical[:-1] in owners and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", logical[-1]),
+                "invalid declared module path")
+        names.add(logical[-1])
+        host = owners[logical[:-1]]
+        sites[host].append(span)
+        if span["end"] - span["start"] == len("mod"):
+            owners[logical] = host
+        else:
+            owners[logical] = logical
+            names.add(logical[-1] + ".vast")
+            external[host].append((span["start"], logical))
+
+    require(() in owners, "missing package root module")
+    first = bisect_right(offsets, sites[()][0]["start"]) - 1
+    index = first
+    listings = {}
+    pending = [()]
+    while pending:
+        logical = pending.pop()
+        path = resolve_module(root.parent, logical, names, listings) if logical else root
+        require(path.is_relative_to(directory) and path.suffix == ".vast",
+                "module file outside package or invalid extension")
+        require(0 <= index < len(files) and index not in claimed and files[index][0] == os.fsencode(path),
+                "module path differs from its physical source")
+        claimed.add(index)
+        start = offsets[index]
+        end = offsets[index + 1] - 1 if index + 1 < len(files) else start + len(files[index][2].encode())
+        require(all(start <= s["start"] <= s["end"] <= end for s in sites[logical]),
+                "module declaration lies outside its declaring file")
+        pending.extend(child for _, child in sorted(external[logical], reverse=True))
+        index += 1
+    return first
+
+
 def check_manifest_inputs(wire, manifest, files, entry):
     """Follow the paths declared by the physical TOML files from the user's root."""
     by_path = {}
-    for path, offset, text in files:
-        by_path.setdefault(path, []).append((offset, text))
+    for i, (path, _, _) in enumerate(files):
+        by_path.setdefault(path, []).append(i)
+    offsets = [offset for _, offset, _ in files]
+    claimed = set()
     packages = {p["source"]: p for p in wire["packages"]}
     require(len(packages) == len(wire["packages"]) and wire["root"] == str(manifest),
             "package owners differ from the physical root")
@@ -118,21 +211,18 @@ def check_manifest_inputs(wire, manifest, files, entry):
         seen.add(path)
         rows = by_path.get(os.fsencode(path), [])
         require(len(rows) == 1 and str(path) in packages, "missing or duplicate physical package manifest")
+        claimed.add(rows[0])
         package = packages[str(path)]
         # The frontend accepts one UTF-8 BOM at the start of a manifest.
         # Keep the original text in the certificate's physical layout.
-        doc = tomllib.loads(rows[0][1].removeprefix("\ufeff"))
+        doc = tomllib.loads(files[rows[0]][2].removeprefix("\ufeff"))
         metadata = doc["package"]
         require(metadata["edition"] == "2026" and all(metadata[key] == package[key]
                 for key in ("name", "version", "edition")), "manifest and wire package identities differ")
         module = (path.parent / metadata["root"]).resolve(strict=True)
-        sources = by_path.get(os.fsencode(module), [])
-        roots = [m["span"] for m in package["modules"] if not m["path"]]
-        require(module.is_relative_to(path.parent) and len(roots) == 1 and
-                any(base <= roots[0]["start"] <= roots[0]["end"] <= base + len(text.encode())
-                    for base, text in sources), "package root module lies outside its physical input")
+        first = check_module_files(package, module, path.parent, files, offsets, claimed)
         if path == manifest:
-            require(files[entry][0] == os.fsencode(module), "manifest and physical entry differ")
+            require(first == entry, "manifest and physical entry differ")
         targets = {alias: (path.parent / dep["path"] / "Vastitas.toml").resolve(strict=True)
                    for alias, dep in doc.get("dependencies", {}).items()}
         edges = package["dependencies"]
@@ -141,6 +231,7 @@ def check_manifest_inputs(wire, manifest, files, entry):
                 "manifest and wire dependencies differ")
         pending.extend(targets.values())
     require(len(seen) == len(packages), "wire contains a package outside the manifest closure")
+    require(len(claimed) == len(files), "physical input has no declaring manifest or module")
 
 
 def read_sources(wire, source, flat_names):
@@ -207,7 +298,11 @@ def authority(revision, model, triple, layout, data, sources):
     header_bytes = list(b"\n".join(header_lines[:2]) + b"\n")
     body = header_lines[2].decode("utf-8").split("\n")
     require(len(body) >= 3 and body[0] == body[-1] == "", "noncanonical body delimiters")
-    lines = ", ".join(map(quote, body[1:-1]))
+    flow = model.get("kind") == "flow"
+    # Match the literal lines embedded by the corpus. Source strings shared
+    # between the revision and physical layout still use the balanced bindings.
+    quote_line = official.lean_string if flow else quote
+    lines = ", ".join(map(quote_line, body[1:-1]))
     fields = [(quote(k), 'wire' if k == 'input' else official.json_term(revision[k], quote)) for k in sorted(revision)]
     rev = ", ".join(f"({k}, {v})" for k, v in fields)
     files, entry = sources
@@ -218,7 +313,6 @@ def authority(revision, model, triple, layout, data, sources):
         except UnicodeDecodeError:
             label = f"ByteArray.mk #{list(path)}"
         physical.append(f"⟨{label}, {natural(offset)}, {quote(text)}⟩")
-    flow = model.get("kind") == "flow"
     namespace = "FlowCertificate" if flow else "BoxedCertificate"
     code_type = "ExactFlow" if flow else "ExactProgram"
     functions = []
@@ -256,8 +350,8 @@ end VastitasProof
 """
 
 
-def certificate(proof=PROOF):
-    return f"""import Authority
+def certificate(proof=PROOF, module="Authority"):
+    return f"""import {module}
 set_option maxRecDepth 65536
 set_option maxHeartbeats 8000000
 namespace VastitasProof
@@ -265,6 +359,34 @@ theorem checked : obligation := {proof}
 #print axioms checked
 end VastitasProof
 """
+
+
+def flow_helpers(model, work, lean, phase):
+    # Prove exactly the same two fields on the current code, in separate workers.
+    # The full declarations and their proofs enter the authenticated export.
+    # Reduce repeated calls in the kernel. In Lean 4.35.0 cbv can generate an
+    # ill-typed ite_true application for a StateT guard in this computation.
+    repeated_calls = any(sum(op[0] == "invoke" for op in block["ops"]) > 1
+                         for function in model["functions"] for block in function["blocks"])
+    evaluation = "by decide +kernel" if repeated_calls else "rfl"
+    modules = [
+        ("evaluation", "FlowEvaluation", "Authority",
+         f"theorem evaluated : code.entryValue = some ({integer(model['value'])} : Int) := {evaluation}"),
+        ("printing", "FlowPrinting", "FlowEvaluation",
+         "theorem printed : code.print = subject.bytes :=\n"
+         "  VastitasOracle.FlowCertificate.printedLines code headerBytes lines rfl (by with_unfolding_all rfl)"),
+    ]
+    for name, module, dependency, theorem in modules:
+        source = f"""import {dependency}
+set_option autoImplicit false
+set_option maxRecDepth 65536
+set_option maxHeartbeats 8000000
+namespace VastitasProof
+{theorem}
+end VastitasProof
+"""
+        (work / f"{module}.lean").write_text(source)
+        phase(name, [*lean, "-DwarningAsError=true", "-o", f"{module}.olean", f"{module}.lean"])
 
 
 def snapshot(candidate, authority_path, destination):
@@ -294,7 +416,8 @@ def environment(work, prefix):
 
 def verify(args, work, report):
     prefix = fast.pinned_lean("leanchecker") if args.mode == "official" else fast.pinned_tools()
-    lean = prefix / "bin/lean"
+    lean = lean_command(prefix, args.memory)
+    report["lean_memory_limit_mib"] = args.memory
     env = environment(work, prefix)
     reduction = official.load_reduction()
 
@@ -329,23 +452,30 @@ def verify(args, work, report):
     data = preview.read_bytes()
     graph = "flow" if b"\n; flow -> " in data else "program"
     namespace = "FlowCertificate" if graph == "flow" else "BoxedCertificate"
-    model = json.loads(phase("capture", [lean, "--run", HERE / "Capture.lean", revision_path,
+    model = json.loads(phase("capture", [*lean, "--run", HERE / "Capture.lean", revision_path,
                                          args.target_triple, args.data_layout, graph]), object_pairs_hook=fast.unique_fields)
     require(model["kind"] == graph and model["ir"].encode("utf-8") == data, "captured model and public LLVM bytes differ")
     report.update(bytes=len(data), llvm_sha256=official.digest(data), revision_sha256=official.digest(revision_path.read_bytes()),
                   functions=len(model["functions"]), integer_result=integer(model["value"]))
     (work / "Authority.lean").write_text(authority(revision, model, args.target_triple, args.data_layout, data, sources))
-    phase("authority", [lean, "-DwarningAsError=true", "-o", "Authority.olean", "Authority.lean"])
+    phase("authority", [*lean, "-DwarningAsError=true", "-o", "Authority.olean", "Authority.lean"])
+    module = "Authority"
+    proof = PROOF
+    required_roots = [root.replace("BoxedCertificate", namespace) for root in ROOTS]
+    if graph == "flow":
+        flow_helpers(model, work, lean, phase)
+        module = "FlowPrinting"
+        proof = FLOW_PROOF
+        required_roots.extend(["VastitasProof.evaluated", "VastitasProof.printed"])
     if args.candidate is None:
-        (work / "Certificate.lean").write_text(certificate(stage_proof(namespace)))
-        axioms = phase("proof", [lean, "-DwarningAsError=true", "-o", "Certificate.olean", "Certificate.lean"])
+        (work / "Certificate.lean").write_text(certificate(proof, module))
+        axioms = phase("proof", [*lean, "-DwarningAsError=true", "-o", "Certificate.olean", "Certificate.lean"])
         official_axioms = re.fullmatch(r"'VastitasProof.checked' (?:does not depend on any axioms|depends on axioms: \[([^\]]*)\])\s*", axioms)
         require(official_axioms and set(filter(None, (official_axioms.group(1) or "").split(", "))) <= official.ALLOWED,
                 "unexpected proof axioms")
     report["standard_environment"] = fast.standard(prefix, work)
     baseline = work / "authority.ndjson"
-    required_roots = [root.replace("BoxedCertificate", namespace) for root in ROOTS]
-    closure, roots = fast.export_roots(work, env, prefix, baseline, "Authority", required_roots, GOAL, "def",
+    closure, roots = fast.export_roots(work, env, prefix, baseline, module, required_roots, GOAL, "def",
                                        "boxed", args.timeout, reduction.measure)
     report["authority_closure"] = closure
     supplied = args.candidate
@@ -397,6 +527,7 @@ def main():
     p.add_argument("--candidate", type=Path)
     p.add_argument("--save-candidate", type=Path)
     p.add_argument("--timeout", type=int, default=120, help="wall seconds per worker")
+    add_memory_argument(p)
     args = p.parse_args()
     if args.manifest_path and args.lib:
         p.error("--lib requires a flat source")

@@ -11,6 +11,13 @@ phases carry its specialization to the same printed function slot. The assembly 
 checks the selected comparison and rejects its saved certificate after removing the
 contribution. [Certificate subject](../../../lean/VastitasOracle/FlowCertificate/Subject.lean) · [Publication theorem](../../../lean/VastitasOracle/FlowCertificate.lean)
 
+For a control-flow graph, separate Lean workers prove the evaluated integer and
+the printed bytes. For blocks containing several calls, the evaluation proof uses
+Lean's kernel to decide the equality of the computed and expected integers.
+Each verifier includes both proofs and their dependencies in the regenerated
+declaration prefix. The assembly log
+reports elapsed seconds and peak resident memory for each worker.
+
 From the repository root, build the matching frontend, checker and oracle, then run the qualification.
 
 ```sh
@@ -32,13 +39,20 @@ python3 experiments/compiler_validation/boxed_certificate/verify.py \
 
 Using the same inputs, replace `--save-candidate` with `--candidate` to check an existing export in either mode. Both verifiers regenerate the statement and declaration prefix from the current input and check the exact standard axioms and transitive references. A supplied proof may use any supported proof term in this environment. The verifier reads the input once and passes a private snapshot to its worker.
 
+The driver and regression suite pass a 1,536 MiB memory limit to Lean during capture and elaboration.
+Use `--memory MiB` to select another budget. A failed elaboration stops that case.
+The CI runners use 6,144 MiB for the full suites. Each measured phase reports its peak RSS separately,
+including the external checkers, whose memory use is outside Lean's allocator limit.
+
 Official passes that snapshot to Lean 4.35.0’s `leanchecker --from-export`. It starts from an empty kernel environment and checks the reconstructed quotient primitives. Fast passes the same export to nanoda 0.4.19 and requires its exact declaration count. The qualification depends on the frontend, execution of the public Lean checker, the exporter and construction of the concrete subject from their outputs.
 
 The four functions in `boxed-program.ll` return −226854911280625642308916404954512140972 before the host projects this integer to status 84. Both workers accepted the same 5,613-declaration export for all 1,830 bytes. The regression also accepts an alternative proof of the same proposition and rejects a foreign theorem, an ill-typed proof, a one-byte change to an add operand and a substituted source text. [Retained LLVM module](../../../llvm/src/boxed-program.ll)
 
 The single-function program computes the integer quotient of 3²⁵⁶ by 7. Its intermediate squares exceed the constant folder’s work budget, so the compiled entry contains eight calls to the multiplication shim. Both workers check the same certificate for the full 403-bit result and all 1,977 bytes. [Vastitas source](../../../llvm/fixtures/SingletonPower.vast) · [LLVM module](../../../llvm/src/singleton-power.ll)
 
-For each compilation the driver reopens the physical files, compares their bytes with the captured input and recomputes their offsets. The proof identifies this ordered snapshot with the layout decoded from the wire. For packages the driver independently follows the TOML dependencies from the root manifest and checks the package names, versions, editions and root module locations. External Vastitas module discovery and declaration parsing still use the frontend. A two-file flat program and a four-file package each return 42 and produce 1,127 LLVM bytes for the macOS arm64 target. Editing a comment in the library or dependency manifest preserves all 1,127 bytes and invalidates the earlier proof. [Physical input decoder](../../../lean-kernel/VastitasKernel/PhysicalSources.lean)
+For each compilation the driver reopens the physical files, compares their bytes with the captured input and recomputes their offsets. The proof identifies this ordered snapshot with the layout decoded from the wire. For packages the driver follows the TOML dependencies from the root manifest and checks the package names, versions, editions and root source paths. Lean replays each module declaration at its source tokens. From these declarations the driver looks up both supported file names for each external module and checks the spelling of each path component. It checks every file occurrence in depth-first declaration order, including two names that resolve to the same file. Directory lookup and symlink resolution depend on the host filesystem. [Physical input decoder](../../../lean-kernel/VastitasKernel/PhysicalSources.lean) · [Checked module spans](../../../lean-kernel/VastitasKernel/FiniteSourceFiles.lean)
+
+The inputs suite calls the same integer helper through a flat library and through an external module in a dependency. The package has five physical inputs. Editing a comment in its dependency manifest changes the function revision and preserves all 1,127 LLVM bytes. The suite checks both verifier modes and rejects the earlier proof after that edit.
 
 The boxed publication theorem places each resolved implementation, classification and indexed family
 in Core and in both MidIR environments for the same revision and complete bytes.

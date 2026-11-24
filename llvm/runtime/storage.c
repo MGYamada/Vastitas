@@ -74,3 +74,25 @@ int32_t vq_storage_copy(VStorageArena *arena, uint64_t source, uint64_t in_offse
     return checked(vstorage_copy(arena, (uint32_t)source, view(in_offset, in_rows, in_columns, in_leading, in_transposed),
                                  (uint32_t)target, view(out_offset, out_rows, out_columns, out_leading, out_transposed)));
 }
+
+int32_t vq_storage_pack3(VStorageArena *arena, uint64_t source, uint64_t in_offset,
+                         uint64_t in_rows, uint64_t in_columns, uint64_t in_leading, uint64_t in_transposed,
+                         uint64_t target, uint64_t out_offset, uint64_t out_rows, uint64_t out_columns,
+                         uint64_t out_leading, uint64_t out_transposed, uint64_t i, uint64_t k, uint64_t j) {
+    if (source > UINT32_MAX || target > UINT32_MAX) return checked(VS_HANDLE);
+    if (in_transposed != 0 || out_transposed != 0) return checked(VS_OPERATION);
+    return checked(vstorage_pack3(arena, (uint32_t)source, view(in_offset, in_rows, in_columns, in_leading, 0),
+                                  (uint32_t)target, view(out_offset, out_rows, out_columns, out_leading, 0), i, k, j));
+}
+
+int32_t vq_storage_regroup3(VStorageArena *arena, uint64_t source, uint64_t in_offset,
+                            uint64_t in_rows, uint64_t in_columns, uint64_t in_leading, uint64_t in_transposed,
+                            uint64_t target, uint64_t out_offset, uint64_t out_rows, uint64_t out_columns,
+                            uint64_t out_leading, uint64_t out_transposed, uint64_t d0, uint64_t d1, uint64_t d2,
+                            uint64_t input_grouping, uint64_t output_grouping) {
+    if (source > UINT32_MAX || target > UINT32_MAX) return checked(VS_HANDLE);
+    if (in_transposed != 0 || out_transposed != 0) return checked(VS_OPERATION);
+    return checked(vstorage_regroup3(arena, (uint32_t)source, view(in_offset, in_rows, in_columns, in_leading, 0),
+                                    (uint32_t)target, view(out_offset, out_rows, out_columns, out_leading, 0),
+                                    d0, d1, d2, input_grouping, output_grouping));
+}

@@ -82,6 +82,56 @@ fn tensor_column_contraction_executes_without_implicit_conjugation() {
     run("llvm-program", &["--llvm-preview"]);
 }
 
+#[test]
+#[cfg(feature = "llvm-native")]
+#[ignore = "requires pinned LLVM and OpenBLAS"]
+fn packed_tree_preserves_axis_order_through_llvm() {
+    for (real, complex) in [
+        (REAL.to_owned(), COMPLEX.to_owned()),
+        (
+            common::binary32_fixture(REAL).replace("layout(8,", "layout(4,"),
+            common::binary32_fixture(COMPLEX).replace("layout(16,", "layout(8,"),
+        ),
+    ] {
+        let s = fixture(&real, &complex);
+        let emitted = command(&s, "check")
+            .args([
+                "--llvm-preview",
+                "--target-triple",
+                "aarch64-apple-darwin",
+                "--data-layout",
+                "e-m:o-i64:64-n32:64-S128",
+            ])
+            .output()
+            .unwrap();
+        success(&emitted);
+        let text = std::str::from_utf8(&emitted.stdout).unwrap();
+        let packing: Vec<_> = text
+            .lines()
+            .filter(|line| {
+                line.contains("call i32 @vq_storage_pack3(")
+                    || line.contains("call i32 @vq_storage_regroup3(")
+            })
+            .collect();
+        assert_eq!(packing.len(), 4);
+        for pair in packing.chunks_exact(2) {
+            assert!(pair[0].contains("@vq_storage_pack3("));
+            assert!(pair[0].ends_with(", i64 2, i64 3, i64 4)"));
+            assert!(pair[1].contains("@vq_storage_regroup3("));
+            assert!(pair[1].ends_with(", i64 2, i64 4, i64 5, i64 48, i64 42)"));
+        }
+        success(
+            &command(&s, "build")
+                .args(["--llvm-preview", "-o", "program"])
+                .args(common::numerical_build_options(None))
+                .output()
+                .unwrap(),
+        );
+        let run = Command::new(s.0.join("program")).output().unwrap();
+        assert_eq!(common::ran(&run), common::exits(0));
+    }
+}
+
 fn fixture(real: &str, complex: &str) -> Scratch {
     common::example_package(
         "contraction tree",

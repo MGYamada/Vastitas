@@ -228,6 +228,18 @@ builds the argument list in parameter order. Here the checked storage schedule
 also supplies the concrete buffer number for each operand.
 [Pinned external calls](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L679) · [Public GEMM operand regression](../../tests/numerical_source.rs)
 
+The contraction-tree example writes a 2 × 3 × 4 tensor into scratch storage
+with shape 8 × 3 before its first GEMM. Its second packing step regroups the
+2 × 4 × 5 intermediate from axis order `[0,1 | 2]` to `[0,2 | 1]`.
+Lean 4.35.0's `emitSimpleExternalCall` constructs an LLVM function type and
+passes arguments in declaration order. Vastitas passes an arena pointer, two
+six-word physical views and the three dimensions to `vq_storage_pack3`.
+`vq_storage_regroup3` also receives the input and output grouping codes,
+48 and 42 for the intermediate. The storage checker supplies the allocation
+IDs and verifies that the input and output bytes are disjoint. The C adapter
+returns a status that selects the next LLVM block or the arena cleanup.
+[Pinned external calls](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L656-L671) · [Contraction-tree source](../../examples/packages/numerical/contraction-tree/src/real/mod.vast) · [Public native regression](../../tests/tree_source.rs)
+
 The physical return type of that resource entry is checked before LLVM emission.
 Changing only `main() -> Int` to `main() -> Nat` in its saved protocol request
 fails at the result type and produces no module. Lean 4.35.0's `emitFnDeclAux`

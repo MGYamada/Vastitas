@@ -6,6 +6,7 @@ import VastitasOracle.UnaryCoverage
 import VastitasOracle.BindingCoverage
 import VastitasOracle.BranchCoverage
 import VastitasOracle.BinaryCoverage
+import VastitasOracle.StorageProgram
 import Lean.Data.Json
 
 open Lean VastitasKernel.Indexed VastitasKernel.MidIR
@@ -31,6 +32,11 @@ def main : IO Unit := do
   let lookup := row lookupRegistryRow ``VastitasOracle.MidIR.finite_lookup_constructor_coverage
   let conversion := row natToIntRegistryRow ``VastitasOracle.MidIR.nat_to_int_constructor_coverage
   let call := row staticCallRegistryRow ``VastitasOracle.MidIR.static_call_constructor_coverage
+  let packing (origin : Name) (callee : StorageEffects.Callee) (proof : Name) :=
+    row (origin, "storage." ++ callee.name) proof
+  let storageRows := [
+    packing ``VastitasKernel.Storage.Native.Instruction.pack3 .pack3 ``VastitasOracle.StorageProgram.pack3_operands,
+    packing ``VastitasKernel.Storage.Native.Instruction.regroup3 .regroup3 ``VastitasOracle.StorageProgram.regroup3_operands]
   let structural (origin proof : Name) := Json.mkObj [
     ("origin", toJson origin.toString), ("opcode", Json.null), ("theorem", toJson proof.toString)]
   let alternatives (origin : Name) (tags : List String) (proof : Name) := Json.mkObj [
@@ -46,4 +52,4 @@ def main : IO Unit := do
     structural ``Core.Term.scope ``VastitasOracle.MidIR.scope_constructor_coverage,
     structural ``Core.Term.ascribe ``VastitasOracle.MidIR.ascription_constructor_coverage,
     structural ``Core.Term.letE ``VastitasOracle.MidIR.let_constructor_coverage]
-  IO.println (toJson (literals ++ [finite, lookup, call, conversion] ++ alternativesRows ++ structureRows)).compress
+  IO.println (toJson (literals ++ [finite, lookup, call, conversion] ++ alternativesRows ++ structureRows ++ storageRows)).compress

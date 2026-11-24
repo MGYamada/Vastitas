@@ -8274,19 +8274,23 @@
     },
     {
       "origin": "VastitasKernel.Storage.Native.Instruction.pack3",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Storage.Native.Instruction.pack3",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": "midir.storage.pack3",
+      "reason": "Execution lowering preserves both physical layouts and the three ordered dimensions.",
+      "evidence": [
+        "VastitasOracle.StorageProgram.pack3_operands"
+      ]
     },
     {
       "origin": "VastitasKernel.Storage.Native.Instruction.regroup3",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Storage.Native.Instruction.regroup3",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": "midir.storage.regroup3",
+      "reason": "Execution lowering preserves both physical layouts, three dimensions and the codes of both valid groupings.",
+      "evidence": [
+        "VastitasOracle.StorageProgram.regroup3_operands"
+      ]
     },
     {
       "origin": "VastitasKernel.Storage.Native.Instruction.skip",

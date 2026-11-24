@@ -500,7 +500,8 @@ source drift, incomplete inventories and JSON-only promotion to admission.
 Four ground literals, finite tags, finite lookups, explicit Nat-to-Int conversion, homogeneous pairs and projections, unary Boolean and integer operations, binary operators, and first-order static calls have local lowering proofs.
 Variable references, scopes, typed ascriptions, let bindings and conditionals have structural
 mappings without an opcode. A constructor with several opcodes names every alternative in registry order.
-CI compares each origin, opcode or alternatives, and theorem with the compiled Lean registry. The other 595 rows await review. Whole-module acceptance remains a separate obligation
+The two physical storage packing instructions preserve source and destination layouts, dimensions and, for regrouping, both axis orders and splits in the execution call.
+CI compares each origin, opcode or alternatives, and theorem with the compiled Lean registry. The other 593 rows await review. Whole-module acceptance remains a separate obligation
 for every row. The release coverage check enforces that distinction.
 """
 

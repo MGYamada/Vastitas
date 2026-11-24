@@ -40,6 +40,20 @@ theorem erased_unit {json main callee} {req : ResourceSource.Wire.CheckedInput j
   rw [u.literal]
   rfl
 
+/-- The fixed packing call preserves both physical views and the ordered i,k,j dimensions. -/
+theorem pack3_operands (live : Std.HashMap Nat Storage.Scalar) (a b i k j : Nat) (v w : Storage.Layout) :
+    resolveInstruction live (.pack3 a v b w i k j) = some ⟨.pack3, [
+      a, v.offset, v.rows, v.columns, v.leading, v.transposed.toNat,
+      b, w.offset, w.rows, w.columns, w.leading, w.transposed.toNat, i,k,j]⟩ := rfl
+
+/-- A regroup of two valid rank-three groupings preserves the input and output codes in order. -/
+theorem regroup3_operands (live : Std.HashMap Nat Storage.Scalar) (a b i k j : Nat) (v w : Storage.Layout)
+    (src dst : Storage.Tensor.Grouping) (hs : src.Valid 3) (hd : dst.Valid 3) :
+    resolveInstruction live (.regroup3 a v b w [i,k,j] src dst) = some ⟨.regroup3, [
+      a, v.offset, v.rows, v.columns, v.leading, v.transposed.toNat,
+      b, w.offset, w.rows, w.columns, w.leading, w.transposed.toNat, i,k,j,src.code,dst.code]⟩ := by
+  simp [resolveInstruction, hs, hd] <;> rfl
+
 /-- The tag crossing the GEMM ABI denotes the common representation of the
 three matrix allocations in the checked physical schedule. -/
 theorem gemm_representation {live : Std.HashMap Nat Storage.Scalar} {a va ca b vb cb out vo mode alpha beta call}

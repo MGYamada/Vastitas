@@ -35,6 +35,25 @@ private def matrixCall (tag : Nat) : Call :=
   (matrixOps .f32).drop 3)).isNone
 #guard (resolveCalls ((matrixOps .complexF32).take 3 ++ [.drop 0] ++ (matrixOps .complexF32).drop 3)).isNone
 
+private def sourceView : Layout := ⟨8, 2, 12, 3, false⟩
+private def packedView : Layout := ⟨16, 8, 3, 9, false⟩
+private def pack : Call := ⟨.pack3, [4,8,2,12,3,0, 7,16,8,3,9,0, 2,3,4]⟩
+private def regroup : Call := ⟨.regroup3, pack.arguments ++ [21,42]⟩
+
+#guard resolveInstruction {} (.pack3 4 sourceView 7 packedView 2 3 4) == some pack
+#guard resolveInstruction {} (.regroup3 4 sourceView 7 packedView [2,3,4] ⟨[0,1,2],1⟩ ⟨[0,2,1],2⟩) == some regroup
+#guard pack.valid && regroup.valid
+#guard !(Call.mk .pack3 (pack.arguments.set 5 1)).valid
+#guard !(Call.mk .pack3 (pack.arguments.set 11 1)).valid
+#guard !(Call.mk .pack3 (pack.arguments.set 3 6)).valid
+#guard !(Call.mk .pack3 [4,0,0,0,1,0, 7,0,0,0,1,0, 0,0,2^31]).valid
+#guard (Call.mk .pack3 [4,0,0,0,1,0, 7,0,0,0,1,0, 0,0,2^31-1]).valid
+#guard !(Call.mk .regroup3 (regroup.arguments.set 15 0)).valid
+#guard !(Call.mk .regroup3 (regroup.arguments.set 16 54)).valid
+#guard !(Call.mk .regroup3 (regroup.arguments.set 16 21)).valid
+#guard (resolveInstruction {} (.regroup3 4 sourceView 7 packedView [2,3] ⟨[0,1,2],1⟩ ⟨[0,2,1],2⟩)).isNone
+#guard (resolveInstruction {} (.regroup3 4 sourceView 7 packedView [2,3,4] ⟨[0,1,2,0],1⟩ ⟨[0,2,1],2⟩)).isNone
+
 private def header : TargetHeader :=
   ⟨⟨"x86_64-unknown-linux-gnu".toUTF8.data.toList, by decide⟩,
    ⟨"e-p:64:64".toUTF8.data.toList, by decide⟩⟩
@@ -43,6 +62,9 @@ private def printed := (String.fromUTF8? ⟨model.print.toArray⟩).get!
 private def modified (old new : String) := (printed.replace old new).toUTF8.data.toList
 
 #guard parse model.print == some model
+private def packingModel : Code := ⟨header, [pack, regroup], 0⟩
+#guard parse packingModel.print == some packingModel
+#guard (parse ({ packingModel with calls := [⟨.regroup3, regroup.arguments.set 16 0⟩] }).print).isNone
 #guard (parse (modified "br i1 %ok0, label %next1" "br i1 %ok0, label %next2")).isNone
 #guard (parse (modified "call void @vstorage_delete(ptr %arena)" "")).isNone
 #guard (parse (modified "call i32" "tail call i32")).isNone

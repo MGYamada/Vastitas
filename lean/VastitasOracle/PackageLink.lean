@@ -1,6 +1,7 @@
 import VastitasKernel.MidIR.PackageObservation
 import VastitasOracle.IndexedFunctions
 import VastitasOracle.MidIR
+import VastitasOracle.Support
 
 set_option autoImplicit false
 
@@ -152,6 +153,33 @@ def entry {p : VastitasKernel.MidIR.Phase} (m : VastitasKernel.MidIR.Module p)
   let id ← m.entry
   let f ← m.functions[id]?
   MidIR.invoke m depth f.target []
+
+open VastitasKernel.MidIR in
+/-- Read the family, specialization and call signature of an execution slot
+from its original Core function, including retained uncalled methods. -/
+theorem executed_origin {json main} {req : Request json main} (a : Artifact req)
+    {i : Nat} {exe : Function .execution} (atExe : a.exe.functions[i]? = some exe) :
+    ∃ id orig key target opt, a.originals[i]? = some id ∧ (core req).functions.toArray[id]? = some orig ∧
+      orig.id = id ∧ req.checked.pureProgram.executable.lowered.origins[id]? = some key ∧
+      validOrigin req.checked.pureProgram orig key = true ∧ CallTarget.ofCore orig key = some target ∧
+      a.opt.functions[i]? = some opt ∧ opt.target = {target with symbol := i} ∧ exe.target = opt.target := by
+  have converted := a.executed
+  simp only [Module.execute, bind, Option.bind_eq_some_iff] at converted
+  obtain ⟨_, _, funcs, mapped, result⟩ := converted
+  have list : a.opt.functions.toList.mapM (Function.execute a.opt.env) = some funcs.toList := by
+    rw [← Array.toList_mapM, mapped]; rfl
+  rw [← Option.some.inj result] at atExe
+  have atSlot := (Support.mapM_some_index list).2 i
+  simp only [Array.getElem?_toList] at atSlot
+  obtain ⟨opt, atOpt, step⟩ := Option.bind_eq_some_iff.mp (atSlot.trans atExe)
+  have same : exe.target = opt.target := by
+    simp only [Function.execute, bind, Option.bind_eq_some_iff] at step
+    obtain ⟨_, _, _, _, _, _, last⟩ := step
+    cases Option.some.inj last
+    rfl
+  obtain ⟨id, orig, key, target, atId, atCore, symbol, atKey, valid, signature, relocated⟩ :=
+    aligned_target req _ _ a.lowering i opt atOpt
+  exact ⟨id, orig, key, target, opt, atId, atCore, symbol, atKey, valid, signature, atOpt, relocated, same⟩
 
 /-- Package acceptance links the actual full Core and selected submodule to
 both MidIR phases at the observed closed entry; all use the same entire Int. -/

@@ -135,7 +135,8 @@ def run(args):
             else {"flag": value} for value in system_libraries]
         report["inputs"] = {name: digest(HERE / name) for name in (
             "Cargo.toml", "Cargo.lock", "src/main.rs", "shim.c", "RuntimeProbe.lean", "program.ll.in",
-            "Comparison.lean", "FamilyComparison.lean", "OppositeComparison.lean", "GemmComparison.lean", "run.py", "measure.py")}
+            "Comparison.lean", "FamilyComparison.lean", "OppositeComparison.lean", "StructuredLookupComparison.lean",
+            "GemmComparison.lean", "run.py", "measure.py")}
         predicate_source = Path("llvm/fixtures/ComparisonMethodControl.lean")
         report["inputs"][str(predicate_source)] = digest(ROOT / predicate_source)
         family_source = Path("tests/fixtures/FamilyComparison.vast")
@@ -164,7 +165,7 @@ def run(args):
         with tempfile.TemporaryDirectory(prefix="vastitas-lean-llvm-") as temporary:
             comparison = Path(temporary)
             fixtures = {name: HERE / (name + ".lean") for name in
-                        ("Comparison", "FamilyComparison", "OppositeComparison", "GemmComparison")}
+                        ("Comparison", "FamilyComparison", "OppositeComparison", "StructuredLookupComparison", "GemmComparison")}
             fixtures["IntegerPredicateComparison"] = ROOT / predicate_source
             for stem, fixture in fixtures.items():
                 suite = suites[stem] = {"emitted": False, "disassembled": False}
@@ -182,6 +183,13 @@ def run(args):
                     if result.returncode != 42:
                         raise ValueError("opposite S3 comparison did not return 42")
                     suite["reference_exit_status"] = result.returncode
+                if stem == "StructuredLookupComparison":
+                    for method, arguments, expected in [("selected", [], 42), ("fallback", ["fallback"], 7)]:
+                        result = measured(f"lean_lookup_{method}", [lean_bin, "--run", source, *arguments],
+                                          comparison, expect_success=None)
+                        if result.returncode != expected:
+                            raise ValueError(f"structured lookup {method} returned {result.returncode}, expected {expected}")
+                        suite[f"{method}_exit_status"] = result.returncode
                 if "LLVM" not in features:
                     suite["execution_gap"] = "pinned Lean binary reports no LLVM feature"
                     continue

@@ -2,6 +2,7 @@ import VastitasKernel.LLVM.FiniteProgram
 import VastitasOracle.FiniteEntryEvaluation
 import VastitasOracle.PackageLink
 import VastitasOracle.ResourceSource
+import VastitasOracle.IndexedDispatch
 
 set_option autoImplicit false
 
@@ -62,5 +63,115 @@ theorem physical_declaration_bytes {json main header} {req : ResourceSource.Wire
   exact ⟨physical, by rw [env, a.linked.environment]; exact inventory,
     ⟨cache, entry, built, resolved, member, opt, env.symm ▸ opt⟩,
     a.linked.revision, rev, a.lowered, (FiniteModule.parse_iff _ _).mp parsed⟩
+
+private theorem certified_code {c : FiniteModule.Code} {m : FiniteModule.Module}
+    (accepted : FiniteModule.certify c = some m) : m.code = c := by
+  unfold FiniteModule.certify at accepted
+  split at accepted <;> try contradiction
+  split at accepted <;> try contradiction
+  cases accepted
+  rfl
+
+private theorem emitted_images {env entry} (fs : List (VastitasKernel.MidIR.Function .execution))
+    (slot : Nat) (acc out : Array FiniteModule.Func)
+    (emitted : FiniteModule.emitFunctions env entry fs slot acc = some out) :
+    ∃ images, fs.mapM (FiniteModule.translateFn env entry) = some images ∧
+      out.toList = acc.toList ++ ((images.zipIdx slot).flatMap fun (g,i) => g.helpers.toList ++ [g.body i]) := by
+  induction fs generalizing slot acc with
+  | nil =>
+    cases emitted
+    exact ⟨[], rfl, by simp⟩
+  | cons f fs ih =>
+    simp only [FiniteModule.emitFunctions, bind, Option.bind_eq_some_iff] at emitted
+    obtain ⟨head, lowered, rest⟩ := emitted
+    obtain ⟨tail, mapped, layout⟩ := ih _ _ rest
+    exact ⟨head :: tail, by simp [List.mapM_cons, lowered, mapped],
+      by simpa [List.zipIdx_cons, List.append_assoc] using layout⟩
+
+open VastitasKernel.MidIR in
+/-- Every retained execution slot has one LLVM body. Its lookup helpers
+immediately precede that body and the public C entry follows the last slot. -/
+theorem function_inventory {json main header} {req : ResourceSource.Wire.CheckedInput json main}
+    (a : LLVM.FiniteProgram.Artifact req header) :
+    ∃ entry images, a.linked.exe.entry = some entry ∧
+      a.linked.exe.functions.toList.mapM (FiniteModule.translateFn a.linked.exe.env entry) = some images ∧
+      images.length = a.linked.originals.size ∧
+      a.model.code.functions =
+        (images.zipIdx.flatMap fun (image,i) => image.helpers.toList ++ [image.body i]) ++ [FiniteModule.hostMain entry] ∧
+      ∀ i image, images[i]? = some image → ∃ id orig key target opt exe,
+        a.linked.originals[i]? = some id ∧
+        (VastitasKernel.MidIR.PackageLink.core req).functions.toArray[id]? = some orig ∧
+        orig.id = id ∧ req.checked.pureProgram.executable.lowered.origins[id]? = some key ∧
+        validOrigin req.checked.pureProgram orig key = true ∧ CallTarget.ofCore orig key = some target ∧
+        a.linked.opt.functions[i]? = some opt ∧ opt.target = {target with symbol := i} ∧
+        a.linked.exe.functions[i]? = some exe ∧ exe.target = opt.target ∧
+        FiniteModule.translateFn a.linked.exe.env entry exe = some image := by
+  have accepted := a.lowered
+  simp only [FiniteModule.lower, FiniteModule.translate, bind, Option.bind_eq_some_iff] at accepted
+  obtain ⟨code, ⟨entry, atEntry, _, _, functions, emitted, final⟩, certified⟩ := accepted
+  obtain ⟨images, mapped, layout⟩ := emitted_images _ _ _ _ emitted
+  have size := (Support.mapM_some_index mapped).1
+  have aligned := a.linked.lowering
+  simp only [MidIR.PackageLink.aligned, Bool.and_eq_true, beq_iff_eq] at aligned
+  have executed := a.linked.executed
+  simp only [MidIR.Module.execute, bind, Option.bind_eq_some_iff] at executed
+  obtain ⟨_, _, funcs, converted, endExec⟩ := executed
+  have list : a.linked.opt.functions.toList.mapM (MidIR.Function.execute a.linked.opt.env) = some funcs.toList := by
+    rw [← Array.toList_mapM, converted]; rfl
+  refine ⟨entry, images, atEntry, mapped, ?_, ?_, ?_⟩
+  · rw [size, ← Option.some.inj endExec]
+    simpa using ((Support.mapM_some_index list).1.trans (by simpa using aligned.1.symm))
+  · rw [certified_code certified, ← Option.some.inj final]
+    simpa using congrArg (· ++ [FiniteModule.hostMain entry]) layout
+  · intro i image atImage
+    have slot := ((Support.mapM_some_index mapped).2 i).trans atImage
+    simp only [Array.getElem?_toList] at slot
+    obtain ⟨exe, atExe, lowered⟩ := Option.bind_eq_some_iff.mp slot
+    obtain ⟨id, orig, key, target, opt, atId, found, symbol, origin, valid, signature, atOpt, remap, same⟩ :=
+      PackageLink.executed_origin a.linked atExe
+    exact ⟨id, orig, key, target, opt, exe, atId, found, symbol, origin, valid, signature,
+      atOpt, remap, atExe, same, lowered⟩
+
+open VastitasKernel.MidIR Indexed.FunctionSource.Compiler in
+/-- A selected method retains its checked family, specialization and signature
+at the local LLVM body slot, even when other slots emit table helpers. The
+equations describe the entire parsed executable and its function revision. -/
+theorem dispatch_method_bytes {json main header} {req : ResourceSource.Wire.CheckedInput json main}
+    (a : LLVM.FiniteProgram.Artifact req header) (bytes : List UInt8)
+    (parsed : FiniteModule.parse bytes = some a.model) (call : DispatchCall)
+    (recorded : call ∈ req.checked.pureProgram.executable.lowered.dispatchCalls)
+    {i : Nat} (relocated : a.linked.originals[i]? = some call.emittedId) :
+    ∃ (entry : Nat) (images : List FiniteModule.FunctionImage), ∃ image family orig opt exe,
+      req.checked.pureProgram.compiler.input.dispatch.families[call.target.owner]? = some family ∧
+      call.key ∈ family.domain ∧
+      Dispatch.Selection family.nominals.hierarchy family.checked.methods call.key (some call.method) ∧
+      req.checked.pureProgram.compiler.input.dispatch.definitions[(call.method, call.key)]? = some call.definition ∧
+      (VastitasKernel.MidIR.PackageLink.core req).functions.toArray[call.emittedId]? = some orig ∧
+      a.linked.opt.functions[i]? = some opt ∧ a.linked.exe.functions[i]? = some exe ∧
+      exe.target = opt.target ∧ exe.target.family = ⟨orig.definition⟩ ∧ exe.target.symbol = i ∧
+      exe.target.key = Key.mk call.definition [] ∧
+      a.linked.exe.entry = some entry ∧ FiniteModule.translateFn a.linked.exe.env entry exe = some image ∧
+      images[i]? = some image ∧ a.model.code.functions =
+        (images.zipIdx.flatMap fun (g,j) => g.helpers.toList ++ [g.body j]) ++ [FiniteModule.hostMain entry] ∧
+      a.linked.opt.revision = ResourceSource.FunctionRevision.artifact (ResourceSource.Wire.revisionInput json) req.checked ∧
+      a.linked.exe.revision = a.linked.opt.revision ∧ bytes = FiniteModule.print a.model := by
+  obtain ⟨entry, images, atEntry, _, size, layout, slots⟩ := function_inventory a
+  have bound : i < images.length := size ▸ (Array.getElem?_eq_some_iff.mp relocated).1
+  let image := images[i]
+  have atImage : images[i]? = some image := List.getElem?_eq_getElem bound
+  obtain ⟨id, orig, key, target, opt, exe, atId, found, _, origin, _, signature, atOpt, remap, atExe, same, lowered⟩ :=
+    slots i image atImage
+  cases Option.some.inj (atId.symm.trans relocated)
+  let src := req.checked.pureProgram.executable
+  obtain ⟨family, atFamily, domain, selected, definition⟩ :=
+    (IndexedDispatch.dispatch_call_selected src call recorded).2.2.2
+  have keyEq := Option.some.inj (origin.symm.trans (IndexedDispatch.dispatch_call_emitted src call recorded))
+  simp only [CallTarget.ofCore, bind, Option.bind_eq_some_iff] at signature
+  obtain ⟨_, _, _, _, result⟩ := signature
+  cases Option.some.inj result
+  exact ⟨entry, images, image, family, orig, opt, exe, atFamily, domain, selected, definition, found,
+    atOpt, atExe, same, by rw [same, remap], by rw [same, remap], by simpa [same, remap] using keyEq,
+    atEntry, lowered, atImage, layout, a.linked.revision, (execute_identity _ _ a.linked.executed).2,
+    (FiniteModule.parse_iff _ _).mp parsed⟩
 
 end VastitasOracle.FiniteProgram

@@ -224,6 +224,7 @@ fn assembled_predicate_and_nominal_multi_axis_lookup_share_the_checked_module() 
             7,
         ),
         (SOURCE.replace("!a || b", "!a && b"), 7),
+        (SOURCE.replace("apply selected;", ""), 7),
     ] {
         project.write("app/main.vast", &source);
         assert_eq!(

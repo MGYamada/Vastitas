@@ -199,6 +199,17 @@ def check_structured_targets(command, targets, work):
     """One source revision retains both method bodies under either target header."""
     path = work / "revision.json"
     path.write_bytes(subprocess.check_output([*command, "--print-function-revision"], cwd=ROOT))
+    revision = json.loads(path.read_bytes())
+    pure = revision["pure"]
+    first, second = pure["dispatch_calls"]
+    chosen, = [s for s in pure["symbols"] if s["core"] == first["core"]]
+    sibling, = [s for s in pure["symbols"] if s["id"] == chosen["id"] and s["core"] != chosen["core"]]
+    if not all(c["id"] == chosen["id"] and c["core"] == chosen["core"] and
+               c["definition"] == chosen["specialization"]["definition"] for c in (first, second)):
+        raise ValueError("both calls must select the same specialization of choose")
+    wrong = work / "sibling.json"
+    first["core"] = sibling["core"]
+    wrong.write_text(json.dumps(revision), encoding="utf-8")
     source = work / "main.vast"
     original = source.read_text(encoding="utf-8")
     for target, name in [("macos-arm64", "structured-lookup"), ("linux-x86_64", "structured-lookup-linux-x86_64")]:
@@ -208,6 +219,13 @@ def check_structured_targets(command, targets, work):
         expected = (HERE / "src" / f"{name}.ll").read_bytes()
         if subprocess.check_output(replay, cwd=ROOT) != expected:
             raise ValueError(f"{target}: the same function revision did not reproduce the retained bytes")
+        # This root-only fixture retains every Core slot. Table helpers introduce
+        # extra LLVM definitions before those slots, including the chosen method.
+        if expected.count(f"call i1 @f{chosen['core']} (".encode()) != 2:
+            raise ValueError(f"{target}: LLVM calls differ from the two checked method targets")
+        forged = subprocess.run([*preview, "--expect-function-revision", wrong], cwd=ROOT, capture_output=True)
+        if forged.returncode == 0 or forged.stdout or b"E_FUNCTION_REVISION" not in forged.stderr:
+            raise ValueError(f"{target}: a call was redirected to its same-signature sibling")
         for old, new in [("!a || b", "!a && b"), ("!a && !b", "!a || !b")]:
             if original.count(old) != 1:
                 raise ValueError(f"expected one method body containing {old}")

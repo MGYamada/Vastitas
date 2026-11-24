@@ -125,8 +125,20 @@ private def operation (env : Environment) (entry : Bool) (fi : Nat) (dst : MidIR
     return (.call d .word n (args.map (fun r => ⟨.word,value r⟩)),some image.function)
   | _, _ => none
 
-private def translateFn (env : Environment) (entry : Nat) (f : MidIR.Function .execution) :
-    Option (List Func) := do
+/-- A linked source function owns the lookup helpers emitted along with its body.
+The body takes its LLVM name from the checked dense symbol table. -/
+structure FunctionImage where
+  helpers : Array Func
+  result : Width
+  params : List (Width × String)
+  blocks : List Block
+
+def FunctionImage.body (image : FunctionImage) (symbol : Nat) : Func :=
+  ⟨functionName symbol, true, image.result, image.params, image.blocks⟩
+
+def translateFn (env : Environment) (entry : Nat) (f : MidIR.Function .execution) :
+    Option FunctionImage := do
+  guard (MidIR.validFunction env f)
   let output ← widthOf f.result
   let isEntry := f.coreId == entry
   guard (!f.params.contains .int && (isEntry || f.result != .int))
@@ -151,7 +163,7 @@ private def translateFn (env : Environment) (entry : Nat) (f : MidIR.Function .e
       ops := ops.push line
     blocks := blocks.push ⟨label i,ops.toList,exitOf output b.term⟩
   let params ← f.params.toList.zipIdx.mapM fun (ty,j) => do return (← widthOf ty,refName ⟨0,j⟩)
-  return (helpers.push ⟨functionName f.coreId,true,output,params,blocks.toList⟩).toList
+  return ⟨helpers, output, params, blocks.toList⟩
 
 /-- Charge branch/phi and table work before building case blocks, allocating
 their text, or asking the nominal checker to expand a dense Cartesian product. -/
@@ -174,16 +186,24 @@ private def withinLimit (m : MidIR.Module .execution) : Bool := Id.run do
       if cost > maxUnits then return false
   return cost ≤ maxUnits
 
+def hostMain (entry : Nat) : Func :=
+  ⟨"main",false,.word,[],[⟨"start",[.call "result" .word (functionName entry) []],
+    .ret ⟨.word,.reg "result"⟩⟩]⟩
+
+/-- Consume one function image at a time. The emitted array holds the final
+definitions while the next function's control-flow graph is translated. -/
+def emitFunctions (env : Environment) (entry : Nat) :
+    List (MidIR.Function .execution) → Nat → Array Func → Option (Array Func)
+  | [], _, emitted => some emitted
+  | f :: fs, slot, emitted => do
+    let image ← translateFn env entry f
+    emitFunctions env entry fs (slot + 1) ((emitted ++ image.helpers).push (image.body slot))
+
 def translate (m : MidIR.Module .execution) (target : TargetHeader) : Option Code := do
   let entry ← m.entry
   guard (withinLimit m && MidIR.validSymbols m)
-  let mut functions : Array Func := #[]
-  for f in m.functions do
-    guard (MidIR.validFunction m.env f)
-    functions := functions ++ (← translateFn m.env entry f).toArray
-  let main : Func := ⟨"main",false,.word,[],[⟨"start",[.call "result" .word (functionName entry) []],
-    .ret ⟨.word,.reg "result"⟩⟩]⟩
-  return ⟨target,(functions.push main).toList⟩
+  let functions ← emitFunctions m.env entry m.functions.toList 0 #[]
+  return ⟨target, (functions.push (hostMain entry)).toList⟩
 
 def lower (m : MidIR.Module .execution) (target : TargetHeader) : Option Module := do
   certify (← translate m target)

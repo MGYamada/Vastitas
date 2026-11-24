@@ -183,6 +183,8 @@
     {"name": "VastitasOracle.FiniteOpposite.involution", "module": "VastitasOracle.FiniteOpposite", "kind": "theorem", "statement": "sha256:9f535f288ede9c6a1cfb2385deba75e5838b755ae22197b0975fde28067f52f6"},
     {"name": "VastitasOracle.FiniteOpposite.plan_reverses", "module": "VastitasOracle.FiniteOpposite", "kind": "theorem", "statement": "sha256:20d7d3b53abb9caa82b8282f169fb7a973636b1959b90b4123331b4efd39857b"},
     {"name": "VastitasOracle.FiniteProgram.correspondence", "module": "VastitasOracle.FiniteProgram", "kind": "theorem", "statement": "sha256:110803586e26aa8c60978ed638a47c645aec620eff9c53e1eb443888ea1f2619"},
+    {"name": "VastitasOracle.FiniteProgram.dispatch_method_bytes", "module": "VastitasOracle.FiniteProgram", "kind": "theorem", "statement": "sha256:e20d43522c0615a29924bb33611d0b787c697c3e121e9f9cd83026789303673e"},
+    {"name": "VastitasOracle.FiniteProgram.function_inventory", "module": "VastitasOracle.FiniteProgram", "kind": "theorem", "statement": "sha256:1115f2026d89145cda73f0220cab0800d7f0bef1fcb59a4774c83352fa1c356a"},
     {"name": "VastitasOracle.FiniteProgram.physical_declaration_bytes", "module": "VastitasOracle.FiniteProgram", "kind": "theorem", "statement": "sha256:529ffb5219836217f5a63f1d1bb08edf3d676ddea6271a51fe88f54958469f17"},
     {"name": "VastitasOracle.FiniteTables.checked_table", "module": "VastitasOracle.IndexedSource", "kind": "theorem", "statement": "sha256:1fdd301b86fadb31f62317318235c8c0e7f12216521fea14eea101a616af2b2a"},
     {"name": "VastitasOracle.FiniteTables.lookup_total", "module": "VastitasOracle.IndexedSource", "kind": "theorem", "statement": "sha256:856f3230c88611f98d3bd2669bcb73975008c19cd51f6638d4904d05ea01dcd8"},

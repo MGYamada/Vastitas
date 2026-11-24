@@ -217,14 +217,15 @@ fn assembled_predicate_and_nominal_multi_axis_lookup_share_the_checked_module() 
         .unwrap();
     success(&revision);
     std::fs::write(project.0.join("checked.json"), &revision.stdout).unwrap();
-    for (source, expected) in [
-        (SOURCE.to_owned(), 42),
+    for (source, expected, linked_methods) in [
+        (SOURCE.to_owned(), 42, 2),
         (
             SOURCE.replace("(hi, middle, on) => d9", "(hi, middle, on) => d8"),
             7,
+            2,
         ),
-        (SOURCE.replace("!a || b", "!a && b"), 7),
-        (SOURCE.replace("apply selected;", ""), 7),
+        (SOURCE.replace("!a || b", "!a && b"), 7, 2),
+        (SOURCE.replace("apply selected;", ""), 7, 1),
     ] {
         project.write("app/main.vast", &source);
         assert_eq!(
@@ -253,7 +254,7 @@ fn assembled_predicate_and_nominal_multi_axis_lookup_share_the_checked_module() 
         let result = preview(&project);
         success(&result);
         let ll = std::str::from_utf8(&result.stdout).unwrap();
-        assert_eq!(ll.matches("define internal i1 @").count(), 2);
+        assert_eq!(ll.matches("define internal i1 @").count(), linked_methods);
         assert!(ll.contains("switch i32 0 , label %miss"));
         assert_eq!(ll.matches("icmp ult i32").count(), 3);
         assert_eq!(ll.matches("mul i32").count(), 2);

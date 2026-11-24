@@ -90,6 +90,7 @@ Claims:
     - `edition_is_explicit_and_exact_in_root_and_dependency_manifests` in [`tests/packages.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/packages.rs)
     - `every_package_carries_the_edition_including_flat_library_inputs` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
     - `physical_manifest_editions_bind_the_root_and_unused_dependencies` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
+    - `manifest_table_ownership_is_checked_before_revision_or_llvm_output` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
     - `physical_edition_accepts_equivalent_toml_and_ignores_decoys` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
     - `each_physical_dependency_alias_belongs_to_the_manifest_that_declares_it` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
     - `implicit_package_roots_match_the_first_physical_token_or_eof` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
@@ -97,7 +98,7 @@ Claims:
     - `legacy_geometry_exports_replay_the_physical_manifest_roles_and_presence` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
     - `the_frontend_the_kernel_and_version_share_one_epoch` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
     - `every_version_below_the_epoch_fails_closed` in [`tests/protocol_epoch.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/protocol_epoch.rs)
-  - Note: This claim covers implicit root module locations, manifest dependency aliases, the physical legacy geometry export, the required manifest string edition = "2026", a single nonempty package.root string, the fixed edition of protected flat and --lib envelopes, and independent Lean rejection of missing, different or non-string wire editions in every package. Source check/build reject before a backend runs; raw-wire check/emit use the real kernel. Package identities and wire epoch 10 are unchanged. CI builds the kernel before `cargo test --locked --all-targets`. This is regression evidence, not a source-to-Core theorem or acceptance of the planned fn, assemble, finite-indexed and numerical-realization grammar.
+  - Note: This claim covers implicit root module locations, manifest dependency aliases, the physical legacy geometry export, the required manifest string edition = "2026", a single nonempty package.root string, TOML table definitions, the fixed edition of protected flat and --lib envelopes, and independent Lean rejection of missing, different or non-string wire editions in every package. Source check/build reject before a backend runs; raw-wire check/emit use the real kernel. Package identities and wire epoch 10 are unchanged. CI builds the kernel before `cargo test --locked --all-targets`. This is regression evidence, not a source-to-Core theorem or acceptance of the planned fn, assemble, finite-indexed and numerical-realization grammar.
 - `manifest-source`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.ResourceSource`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/ResourceSource.lean): `VastitasOracle.ResourceSource.physical_manifest_metadata`, `VastitasOracle.ResourceSource.physical_manifest_bindings`
@@ -408,7 +409,7 @@ Claims:
 A ledger at a named source revision must enumerate every accepted Core, storage action, native storage instruction and runtime-extent constructor. For each constructor it records an admitted typed MidIR mapping or an explicit finite-profile rejection. Each admitted entry identifies its source fixture, family and method, model, ownership facts, opcode and downstream proof obligation. Any constructor or runtime change regenerates the ledger. The runtime inventory follows the transitive closure of the admitted snapshot, including frame and spectral runtimes where used; an older list of runtime modules is not a completeness argument. Missing entries must fail the coverage check instead of silently inheriting admission.
 
 - Example: Adding a Core constructor without an admitted mapping or rejection prevents the coverage ledger from passing.
-- Not executed: The source-schema guard, twelve instruction mappings and five structural mappings run in CI. Whole-module release coverage remains pending.
+- Not executed: The source-schema guard, fourteen instruction mappings and five structural mappings run in CI. Whole-module release coverage remains pending.
 
 Claims:
 

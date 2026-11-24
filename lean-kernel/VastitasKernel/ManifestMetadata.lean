@@ -142,8 +142,29 @@ private inductive Field where
   | geometry | setting (name : String) | role (key : List String)
   deriving BEq
 
-private def path (base : Field) : Parse Field := do
+private inductive TableForm where
+  | implicitParent | header | dotted | inlineTable
+
+private abbrev Tables := Std.TreeMap (List String) TableForm
+
+/-- Absolute key segments identify a table even when its spelling or source span changes. -/
+private def recordTable (tables : Tables) (field : Field) (form : TableForm) : Option Tables := do
+  let key ← match field with
+    | .package => some ["package"]
+    | .dependencies => some ["dependencies"]
+    | .dependency alias => some ["dependencies", alias.text]
+    | .geometry => some ["geometry_compat"]
+    | .setting name => some ["geometry_compat", name]
+    | _ => none
+  match tables.get? key, form with
+  | none, _ | some .implicitParent, .header => return tables.insert key form
+  | some .inlineTable, _ => none
+  | some _, .implicitParent | some .dotted, .dotted => return tables
+  | _, _ => none
+
+private def path (base : Field) (tables : Tables) (parentForm : TableForm) : Parse (Field × Tables) := do
   let mut field := base
+  let mut tables := tables
   let text ← read
   for _ in [:text.utf8ByteSize - (← get).byteIdx + 1] do
     space
@@ -165,12 +186,10 @@ private def path (base : Field) : Parse Field := do
         | _ => failure
       | .name | .version | .edition | .sourceRoot => failure
     space
-    unless ← accept '.' do return field
+    unless ← accept '.' do return (field, tables)
+    let some updated := recordTable tables field parentForm | failure
+    tables := updated
   failure
-
-private def Field.table : Field → Bool
-  | .package | .dependencies | .dependency _ | .geometry | .setting _ => true
-  | _ => false
 
 structure Document where
   metadata : Metadata
@@ -204,6 +223,7 @@ private def document : Parse Document := do
   discard (accept '\uFEFF')
   let mut tableField := Field.root
   let mut inlineTables : List Field := []
+  let mut tables : Tables := {}
   let mut name := none
   let mut version := none
   let mut edition := none
@@ -230,16 +250,21 @@ private def document : Parse Document := do
         if (← peek).isNone then break
         if ← newline then continue
         if ← accept '[' then
-          tableField ← path .root
-          guard (tableField.table && (← accept ']'))
+          let (field, parents) ← path .root tables .implicitParent
+          guard (← accept ']')
+          let some updated := recordTable parents field .header | failure
+          tableField := field
+          tables := updated
           decls := decls.table tableField
           endValue := true
           continue
-      let field ← path (inlineTables.headD tableField)
+      let (field, parents) ← path (inlineTables.headD tableField) tables .dotted
+      tables := parents
       guard (← accept '=')
       space
       if ← accept '{' then
-        guard field.table
+        let some updated := recordTable tables field .inlineTable | failure
+        tables := updated
         decls := decls.table field
         space
         if ← accept '}' then endValue := true

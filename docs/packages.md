@@ -36,9 +36,12 @@ Rules:
   when the program uses none of its exports. It checks the edition, package
   name and version against the corresponding wire record. It also requires
   one nonempty `package.root` string and recognizes only the declared
-  top-level and package keys. Flat programs,
-  including `--lib` inputs, use edition 2026 through their protected
-  synthetic package.
+  top-level and package keys. A table introduced by a dotted key cannot be
+  redeclared with a header. An inline table is complete at its closing brace.
+  For example, `[dependencies.dep]` may precede the first `[dependencies]`
+  header. A second `[dependencies.dep]` is an error even if it adds no keys.
+  Flat programs, including `--lib` inputs, use edition 2026 through their
+  protected synthetic package. [TOML tables](https://toml.io/en/v1.0.0#table)
 - `root` must name a file inside the package directory whose name ends in
   `.vast`. Another file is an error (`E_INPUT`).
 - A dependency alias must be an ASCII

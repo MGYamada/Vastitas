@@ -144,6 +144,14 @@ For an object-valued Nat literal, Lean's `emitNumLit` calls `lean_unsigned_to_na
 
 For a jump to a join point, Lean's `emitJmp` checks the number of arguments, writes each incoming value to the formal parameter's slot and branches. The assembled Boolean example uses an `i1` call and branch. Its exit block reads a single `i32 phi` with an incoming value from each predecessor. The correspondence theorem identifies the checked winner and contribution. A second theorem covers both Boolean inputs for every method body in the module. [Pinned emitJmp](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1050) · [Dispatch theorems](../../lean/VastitasOracle/DispatchFunction.lean)
 
+Compiling the same source in a package with an unused indexed marker in
+a dependency reproduces all 688 bytes of `assembled-bool.ll` for the pinned
+macOS arm64 header. Three valid manifest spellings give identical bytes,
+including the call to the selected Boolean method and both predecessors of the `i32 phi`. Replaying
+the revision from the first spelling against either other spelling fails
+because the physical manifest text belongs to the revision.
+[Manifest and LLVM regression](../../tests/protocol_epoch.rs)
+
 Two edition 2026 packages give `Cold` and `Warm` opposite parent orders. Both
 use the same `Bool` dispatch key and assemble the same two methods. The more
 specific method returns true in one package and false in the other. In each

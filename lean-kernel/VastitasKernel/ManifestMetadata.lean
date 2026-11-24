@@ -137,7 +137,7 @@ structure Dependency where
 
 /-- Key segments stay separate so quoted TOML keys containing periods cannot introduce a nested role. -/
 private inductive Field where
-  | root | package | name | version | edition | other
+  | root | package | name | version | edition | sourceRoot
   | dependencies | dependency (alias : Written) | dependencyPath (alias : Written)
   | geometry | setting (name : String) | role (key : List String)
   deriving BEq
@@ -151,27 +151,25 @@ private def path (base : Field) : Parse Field := do
     let name ← key
     let endKey ← get
     field ← match field with
-      | .root => pure <| match name with
-        | "package" => .package | "dependencies" => .dependencies | "geometry_compat" => .geometry | _ => .other
+      | .root => match name with
+        | "package" => pure .package | "dependencies" => pure .dependencies | "geometry_compat" => pure .geometry
+        | _ => failure
       | .dependencies => pure (.dependency ⟨name, beginKey.byteIdx, endKey.byteIdx⟩)
       | .dependency alias => do guard (name == "path"); pure (.dependencyPath alias)
       | .geometry =>
         pure (if name == "scheme" || name == "smooth" then .setting name else .role [name])
       | .setting setting => pure (.role [setting, name])
       | .role _ | .dependencyPath _ => failure
-      | .package => pure <| match name with
-        | "name" => .name
-        | "version" => .version
-        | "edition" => .edition
-        | _ => .other
-      | .name | .version | .edition => failure
-      | .other => pure .other
+      | .package => match name with
+        | "name" => pure .name | "version" => pure .version | "edition" => pure .edition | "root" => pure .sourceRoot
+        | _ => failure
+      | .name | .version | .edition | .sourceRoot => failure
     space
     unless ← accept '.' do return field
   failure
 
 private def Field.table : Field → Bool
-  | .package | .other | .dependencies | .dependency _ | .geometry | .setting _ => true
+  | .package | .dependencies | .dependency _ | .geometry | .setting _ => true
   | _ => false
 
 structure Document where
@@ -209,6 +207,7 @@ private def document : Parse Document := do
   let mut name := none
   let mut version := none
   let mut edition := none
+  let mut hasSourceRoot := false
   let mut decls : Declarations := {}
   let mut endValue := false
   for _ in [:text.utf8ByteSize + 2] do
@@ -259,11 +258,14 @@ private def document : Parse Document := do
         | .edition =>
           guard edition.isNone
           edition := some value
+        | .sourceRoot =>
+          guard (!hasSourceRoot && !value.isEmpty && !value.contains (Char.ofNat 0))
+          hasSourceRoot := true
         | field =>
           let some next := decls.leaf field ⟨value, start.byteIdx, (← get).byteIdx⟩ | failure
           decls := next
         endValue := true
-  guard (inlineTables.isEmpty && (← peek).isNone)
+  guard (inlineTables.isEmpty && (← peek).isNone && hasSourceRoot)
   let some packageName := name | failure
   let some packageVersion := version | failure
   let some packageEdition := edition | failure

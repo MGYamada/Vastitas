@@ -34,7 +34,9 @@ Rules:
   The loader reports another value as `E_MANIFEST`. The Lean checker reads
   `package.edition` from the manifest text supplied for each package, even
   when the program uses none of its exports. It checks the edition, package
-  name and version against the corresponding wire record. Flat programs,
+  name and version against the corresponding wire record. It also requires
+  one nonempty `package.root` string and recognizes only the declared
+  top-level and package keys. Flat programs,
   including `--lib` inputs, use edition 2026 through their protected
   synthetic package.
 - `root` must name a file inside the package directory whose name ends in

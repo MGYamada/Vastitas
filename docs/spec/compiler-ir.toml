@@ -87,7 +87,7 @@ evidence = [
 ]
 note = """
 This claim covers implicit root module locations, manifest dependency aliases, the physical legacy geometry export,
-the required manifest string edition = "2026", the
+the required manifest string edition = "2026", a single nonempty package.root string, the
 fixed edition of protected flat and --lib envelopes, and independent Lean
 rejection of missing, different or non-string wire editions in every package.
 Source check/build reject before a backend runs; raw-wire check/emit use the

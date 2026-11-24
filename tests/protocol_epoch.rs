@@ -306,6 +306,7 @@ fn physical_manifest_editions_bind_the_root_and_unused_dependencies() {
             ("2026", "2025"),
             ("edition =", "missing ="),
             ("\"2026\"", "2026  "),
+            ("root='main.vast'", "#oot='main.vast'"),
         ] {
             let mut changed = raw.clone();
             let text = &mut changed["root_source"]["files"][row]["text"];
@@ -343,14 +344,17 @@ fn physical_edition_accepts_equivalent_toml_and_ignores_decoys() {
         s.write(manifest, doc);
         common::success(&s.check_manifest(manifest));
     }
-    let doc =
-        "[package]\n#dition='2026'\nedition='2026'\nname='app'\nversion='0.1.0'\nroot='main.vast'";
+    let doc = "[package]\n#dition='2026'\n#oot='alias'\nedition='2026'\nname='app'\nversion='0.1.0'\nroot='main.vast'";
     s.write(manifest, doc);
     let raw = s.captured(manifest, CURRENT_PROTOCOL);
     for (old, new) in [
         ("#dition", "edition"),
         ("\nedition='2026'", "\nedition='2025'"),
+        ("#oot='alias'", "root='alias'"),
+        ("#oot='alias'", "typo='alias'"),
+        ("root='main.vast'", "root=''         "),
     ] {
+        assert_eq!(old.len(), new.len());
         let mut changed = raw.clone();
         changed["root_source"]["files"][0]["text"] = common::checked_replace(doc, old, new).into();
         assert_wire_rejected(&kernel(changed, "check"), "E_PROTOCOL");

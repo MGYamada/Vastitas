@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise the live proof using the complete boxed program from the LLVM corpus."""
 from argparse import ArgumentParser, Namespace
+from copy import deepcopy
 import filecmp
 import json
 import subprocess
@@ -228,8 +229,67 @@ def run(work, suite, frontend, memory):
             "single-function certificate differs from the retained LLVM module")
 
 
+def check_external_inputs(work, frontend):
+    """Exercise disk resolution without starting a proof worker."""
+    root = (work / "module-paths").resolve()
+    base = root / "src"
+    nested = base / "space/child"
+    nested.mkdir(parents=True)
+    manifest = root / "Vastitas.toml"
+    manifest.write_text('[package]\nname="module_paths"\nversion="0.1.0"\nedition="2026"\nroot="src/main.vast"\n')
+    (base / "main.vast").write_text("mod space { pub mod child; } mod other; mod alias; "
+                                    "fn main() -> Int { space::child::leaf::answer() }")
+    (nested / "mod.vast").write_text("pub mod leaf;")
+    body = "pub fn answer() -> Int { 42 }"
+    leaf = nested / "leaf.vast"
+    leaf.write_text(body)
+    (base / "other.vast").write_text(body)
+    (base / "alias.vast").symlink_to(leaf)
+    output = subprocess.check_output([frontend, "check", "--manifest-path", manifest, "--print-function-revision"])
+    wire = json.loads(output)["input"]
+    files, _ = verify.read_sources(wire, manifest, None)
+    require([Path(p.decode()).relative_to(root).as_posix() for p, _, _ in files] ==
+            ["Vastitas.toml", "src/main.vast", "src/space/child/mod.vast", "src/space/child/leaf.vast",
+             "src/other.vast", "src/space/child/leaf.vast"], "incorrect physical module visit order")
+
+    def rejected(candidate, message):
+        try:
+            verify.read_sources(candidate, manifest, None)
+        except ValueError as error:
+            require(message in str(error), str(error))
+        else:
+            raise ValueError("accepted incorrect physical module inputs")
+
+    changed = deepcopy(wire)
+    rows = changed["root_source"]["files"]
+    rows[3]["path"], rows[4]["path"] = rows[4]["path"], rows[3]["path"]
+    rejected(changed, "module path differs")
+    (base / "unused.vast").write_text(body)
+    changed = deepcopy(wire)
+    changed["root_source"]["files"][3]["path"] = str(base / "unused.vast")
+    rejected(changed, "module path differs")
+    changed = deepcopy(wire)
+    _, last, text = files[-1]
+    changed["root_source"]["files"].append({"path": str(base / "unused.vast"), "text": body,
+                                            "offset": last + len(text.encode()) + 1})
+    rejected(changed, "no declaring manifest or module")
+    flat = base / "space/child.vast"
+    flat.mkdir()
+    verify.read_sources(wire, manifest, None)
+    flat.rmdir()
+    flat.write_text("pub mod leaf;")
+    rejected(wire, "one exactly spelled source")
+    flat.unlink()
+    (base / "other.vast").rename(base / "OTHER.vast")
+    changed = deepcopy(wire)
+    changed["root_source"]["files"][4]["path"] = str(base / "OTHER.vast")
+    rejected(changed, "one exactly spelled source")
+    print("nested external modules, repeated source paths and file substitutions checked", flush=True)
+
+
 def check_physical_inputs(work, args, source, check):
     """Compile the same helper through each loader and replay a stale proof."""
+    check_external_inputs(work, args.frontend)
     # The same long source text passes through both the wire and the physical layout.
     helper = 'fn helper(x: Int) -> Int { x + x } // "λ1" 🪐 e\u0301 \\end\r\n'
     library = work / "helper.vast"
@@ -242,13 +302,14 @@ def check_physical_inputs(work, args, source, check):
     dep_manifest = dep / "Vastitas.toml"
     metadata = '\ufeff[package]\nedition="2026"\nname="dep"\nversion="0.1.0"\nroot="main.vast"\n'
     dep_manifest.write_text(metadata + "# revision A")
-    (dep / "main.vast").write_text("pub " + helper)
+    (dep / "main.vast").write_text("pub mod units;")
+    (dep / "units.vast").write_text("pub " + helper)
     for label, changed_file, replacement, count in [
             ("library", library, helper.replace("λ1", "λ2"), 2),
-            ("manifest", dep_manifest, metadata + "# revision B", 4)]:
+            ("manifest", dep_manifest, metadata + "# revision B", 5)]:
         if label == "manifest":
             manifest.write_text(metadata.replace('"dep"', '"app"') + '[dependencies]\ndep={path="dep"}\n')
-            source.write_text("pub fn main() -> Int { dep::helper(21) }")
+            source.write_text("pub fn main() -> Int { dep::units::helper(21) }")
             args.manifest_path, args.source, args.lib = manifest, None, []
         baseline, _ = check(label, "official")
         image = work / label / "sealed.ndjson"

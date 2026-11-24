@@ -585,7 +585,7 @@ def mismatchedManifest? (layout : PhysicalSources.Layout) (p : Program) : Option
 def exactSources (j : Json) (p : Program) : Except String Unit := do
   let layout ← PhysicalSources.layout j
   if let some pkg := mismatchedManifest? layout p then
-    throw s!"manifest {toJson pkg.id.source} must match the wire package name, version and package.edition = \"{currentEdition}\""
+    throw s!"manifest {toJson pkg.id.source} must declare package.root and match the wire package name, version and package.edition = \"{currentEdition}\""
   ExactModelSource.check layout p
 
 def program (j : Json) : Except String Program := do

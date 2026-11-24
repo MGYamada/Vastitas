@@ -364,10 +364,11 @@ end VastitasProof
 def flow_helpers(model, work, lean, phase):
     # Prove exactly the same two fields on the current code, in separate workers.
     # The full declarations and their proofs enter the authenticated export.
-    # Repeated calls in one block would re-expand the accumulated state under rfl.
+    # Reduce repeated calls in the kernel. In Lean 4.35.0 cbv can generate an
+    # ill-typed ite_true application for a StateT guard in this computation.
     repeated_calls = any(sum(op[0] == "invoke" for op in block["ops"]) > 1
                          for function in model["functions"] for block in function["blocks"])
-    evaluation = "by cbv" if repeated_calls else "rfl"
+    evaluation = "by decide +kernel" if repeated_calls else "rfl"
     modules = [
         ("evaluation", "FlowEvaluation", "Authority",
          f"theorem evaluated : code.entryValue = some ({integer(model['value'])} : Int) := {evaluation}"),

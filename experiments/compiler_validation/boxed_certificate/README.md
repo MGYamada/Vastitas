@@ -13,8 +13,9 @@ contribution. [Certificate subject](../../../lean/VastitasOracle/FlowCertificate
 
 For a control-flow graph, separate Lean workers prove the evaluated integer and
 the printed bytes. For blocks containing several calls, the evaluation proof uses
-Lean's proof-producing call-by-value tactic. Each verifier includes both proofs
-and their dependencies in the regenerated declaration prefix. The assembly log
+Lean's kernel to decide the equality of the computed and expected integers.
+Each verifier includes both proofs and their dependencies in the regenerated
+declaration prefix. The assembly log
 reports elapsed seconds and peak resident memory for each worker.
 
 From the repository root, build the matching frontend, checker and oracle, then run the qualification.

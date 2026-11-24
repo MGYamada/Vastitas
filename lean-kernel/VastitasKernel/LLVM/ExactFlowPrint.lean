@@ -13,17 +13,24 @@ def fnName (id : Nat) := s!"@vq_f{id}"
 private def typedArg (kinds : Array Kind) (b r : Nat) :=
   (kinds[r]?.getD .int).abi ++ " " ++ reg b r
 
-private def opLine (fs : Array Func) (kinds : Array Kind) (f b dst : Nat) (op : Op) : String :=
+def cmpReg (block slot : Nat) := s!"%cmp{block}_{slot}"
+
+private def opLines (fs : Array Func) (kinds : Array Kind) (f b dst : Nat) (op : Op) : List String :=
   let assign := "  " ++ reg b dst ++ " = "
+  let comparison (predicate : String) (a c : Nat) :=
+    ["  " ++ cmpReg b dst ++ " = icmp " ++ predicate ++ " i32 " ++ reg b a ++ ", " ++ reg b c,
+     assign ++ "zext i1 " ++ cmpReg b dst ++ " to i32"]
   match op with
-  | .exact step => callWith step dst (constantScope f b) (reg b)
+  | .exact step => [callWith step dst (constantScope f b) (reg b)]
   | .invoke callee args =>
-    assign ++ "call " ++ ((fs[callee]?).map Func.result |>.getD .int).abi ++ " " ++ fnName callee ++
-      "(" ++ String.intercalate ", " (args.map (typedArg kinds b)) ++ ")"
-  | .boolean bit => assign ++ "or i32 0, " ++ (if bit then "1" else "0")
-  | .boolNot a => assign ++ "xor i32 " ++ reg b a ++ ", 1"
-  | .boolAnd a c => assign ++ "and i32 " ++ reg b a ++ ", " ++ reg b c
-  | .boolOr a c => assign ++ "or i32 " ++ reg b a ++ ", " ++ reg b c
+    [assign ++ "call " ++ ((fs[callee]?).map Func.result |>.getD .int).abi ++ " " ++ fnName callee ++
+      "(" ++ String.intercalate ", " (args.map (typedArg kinds b)) ++ ")"]
+  | .boolean bit => [assign ++ "or i32 0, " ++ (if bit then "1" else "0")]
+  | .boolNot a => [assign ++ "xor i32 " ++ reg b a ++ ", 1"]
+  | .boolAnd a c => [assign ++ "and i32 " ++ reg b a ++ ", " ++ reg b c]
+  | .boolOr a c => [assign ++ "or i32 " ++ reg b a ++ ", " ++ reg b c]
+  | .boolEq a c => comparison "eq" a c
+  | .boolNe a c => comparison "ne" a c
 
 /-- A called function borrows its entry parameters. Later block parameters each
 own the reference passed on the taken edge. Every boxed instruction result owns one. -/
@@ -52,7 +59,7 @@ private def blockLines (fs : Array Func) (fn i : Nat) (b : Block)
     let legs := incoming.map fun (pred,args) =>
       "[ " ++ reg pred (args[s]?.getD 0) ++ ", %" ++ edgeLabel pred i ++ " ]"
     "  " ++ reg i s ++ " = phi " ++ k.abi ++ " " ++ String.intercalate ", " legs
-  let ops := (b.ops.zipIdx b.params.length).map fun (op,dst) => opLine fs kinds fn i dst op
+  let ops := (b.ops.zipIdx b.params.length).flatMap fun (op,dst) => opLines fs kinds fn i dst op
   let drops := (ownedSlots i b.params.length kinds).map (rc "release" i)
   let transfer (args : List Nat) := (retainedSlots args kinds).map (rc "retain" i) ++ drops
   let gotoEdge (e : Edge) := "label %" ++ edgeLabel i e.dest

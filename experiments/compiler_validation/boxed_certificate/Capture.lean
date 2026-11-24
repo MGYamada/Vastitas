@@ -23,6 +23,8 @@ private def flowOp : ExactFlow.Op → Json
   | .boolNot a => Json.arr #[toJson "not",toJson a]
   | .boolAnd a b => Json.arr #[toJson "and",toJson a,toJson b]
   | .boolOr a b => Json.arr #[toJson "or",toJson a,toJson b]
+  | .boolEq a b => Json.arr #[toJson "eq",toJson a,toJson b]
+  | .boolNe a b => Json.arr #[toJson "ne",toJson a,toJson b]
 
 private def edge (e : ExactFlow.Edge) := Json.arr #[toJson e.dest,toJson e.args]
 

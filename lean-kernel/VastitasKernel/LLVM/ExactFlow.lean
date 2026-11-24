@@ -16,6 +16,8 @@ inductive Op where
   | boolNot (a : Nat)
   | boolAnd (a b : Nat)
   | boolOr (a b : Nat)
+  | boolEq (a b : Nat)
+  | boolNe (a b : Nat)
   deriving DecidableEq
 
 structure Edge where
@@ -66,7 +68,7 @@ private def Op.inputs (fs : Array Func) (o : Op) : Option (List Nat × List Kind
     return ([a,b],[k,k])
   | .invoke i args => return (args, ← (← fs[i]?).params)
   | .boolNot a => return ([a],[.bool])
-  | .boolAnd a b | .boolOr a b => return ([a,b],[.bool,.bool])
+  | .boolAnd a b | .boolOr a b | .boolEq a b | .boolNe a b => return ([a,b],[.bool,.bool])
 
 def Block.slotKinds (b : Block) (fs : Array Func) : Option (Array Kind) := do
   return (b.params ++ (← b.ops.mapM (·.result fs))).toArray
@@ -134,6 +136,8 @@ def translateOp (code : Opcode .execution) (refs : List Nat) : Option Op := do
   | .exactOp op, args => return .exact (.apply op args)
   | .compare op .nat, [a,b] => return .exact (.compare .nat op a b)
   | .compare op .int, [a,b] => return .exact (.compare .int op a b)
+  | .compare .eq .bool, [a,b] => return .boolEq a b
+  | .compare .ne .bool, [a,b] => return .boolNe a b
   | .boolean b, [] => return .boolean b
   | .boolNot, [a] => return .boolNot a
   | .boolAnd, [a,b] => return .boolAnd a b

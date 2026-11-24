@@ -360,13 +360,13 @@ jobs:
         run: python3 -u llvm/check.py 2>&1 | tee "$RUNNER_TEMP/proof-corpus.log"
       - name: Check the boxed program and proof substitutions in both modes
         if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
-        run: python3 experiments/compiler_validation/boxed_certificate/regression.py --suite boxed 2>&1 | tee "$RUNNER_TEMP/proof-boxed.log"
+        run: python3 experiments/compiler_validation/boxed_certificate/regression.py --suite boxed --memory 6144 2>&1 | tee "$RUNNER_TEMP/proof-boxed.log"
       - name: Check library and manifest revisions in both modes
         if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
-        run: python3 experiments/compiler_validation/boxed_certificate/regression.py --suite inputs 2>&1 | tee "$RUNNER_TEMP/proof-inputs.log"
+        run: python3 experiments/compiler_validation/boxed_certificate/regression.py --suite inputs --memory 6144 2>&1 | tee "$RUNNER_TEMP/proof-inputs.log"
       - name: Verify the assembled method and its operator in the published revision
         if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
-        run: python3 experiments/compiler_validation/boxed_certificate/regression.py --suite assembly 2>&1 | tee "$RUNNER_TEMP/proof-assembly.log"
+        run: python3 experiments/compiler_validation/boxed_certificate/regression.py --suite assembly --memory 6144 2>&1 | tee "$RUNNER_TEMP/proof-assembly.log"
       - name: Retain compiler proof qualification results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

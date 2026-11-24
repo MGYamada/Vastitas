@@ -32,6 +32,11 @@ python3 experiments/compiler_validation/boxed_certificate/verify.py \
 
 Using the same inputs, replace `--save-candidate` with `--candidate` to check an existing export in either mode. Both verifiers regenerate the statement and declaration prefix from the current input and check the exact standard axioms and transitive references. A supplied proof may use any supported proof term in this environment. The verifier reads the input once and passes a private snapshot to its worker.
 
+The driver and regression suite pass a 1,536 MiB memory limit to Lean during capture and elaboration.
+Use `--memory MiB` to select another budget. A failed elaboration stops that case.
+The CI runners use 6,144 MiB for the full suites. Each measured phase reports its peak RSS separately,
+including the external checkers, whose memory use is outside Lean's allocator limit.
+
 Official passes that snapshot to Lean 4.35.0’s `leanchecker --from-export`. It starts from an empty kernel environment and checks the reconstructed quotient primitives. Fast passes the same export to nanoda 0.4.19 and requires its exact declaration count. The qualification depends on the frontend, execution of the public Lean checker, the exporter and construction of the concrete subject from their outputs.
 
 The four functions in `boxed-program.ll` return −226854911280625642308916404954512140972 before the host projects this integer to status 84. Both workers accepted the same 5,613-declaration export for all 1,830 bytes. The regression also accepts an alternative proof of the same proposition and rejects a foreign theorem, an ill-typed proof, a one-byte change to an add operand and a substituted source text. [Retained LLVM module](../../../llvm/src/boxed-program.ll)

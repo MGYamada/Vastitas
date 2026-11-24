@@ -32,6 +32,21 @@ for element in ("nat", "int"):
     OPS[f"{element}_pair_second"] = f"(.project .{element} false)"
 
 
+def add_memory_argument(parser):
+    def positive_mib(value):
+        amount = int(value)
+        if amount <= 0:
+            raise argparse.ArgumentTypeError("expected a positive MiB limit")
+        return amount
+
+    parser.add_argument("--memory", type=positive_mib, default=1536, metavar="MiB",
+                        help="Lean memory limit per capture or elaboration process (default: 1536 MiB)")
+
+
+def lean_command(prefix, memory):
+    return [prefix / "bin/lean", "-M", str(memory)]
+
+
 def stage_proof(namespace):
     body = "(by with_unfolding_all rfl)" if namespace == "FlowCertificate" else "rfl"
     return f"""by
@@ -75,7 +90,7 @@ def flow_op(step):
             return ".boolean " + ("true" if v else "false")
         case ["not", a]:
             return ".boolNot " + natural(a)
-        case ["and" | "or" as op, a, b]:
+        case ["and" | "or" | "eq" | "ne" as op, a, b]:
             return f".bool{op.title()} {natural(a)} {natural(b)}"
         case _:
             return instruction(step).replace(".primitive ", ".exact ", 1)
@@ -294,7 +309,8 @@ def environment(work, prefix):
 
 def verify(args, work, report):
     prefix = fast.pinned_lean("leanchecker") if args.mode == "official" else fast.pinned_tools()
-    lean = prefix / "bin/lean"
+    lean = lean_command(prefix, args.memory)
+    report["lean_memory_limit_mib"] = args.memory
     env = environment(work, prefix)
     reduction = official.load_reduction()
 
@@ -329,16 +345,16 @@ def verify(args, work, report):
     data = preview.read_bytes()
     graph = "flow" if b"\n; flow -> " in data else "program"
     namespace = "FlowCertificate" if graph == "flow" else "BoxedCertificate"
-    model = json.loads(phase("capture", [lean, "--run", HERE / "Capture.lean", revision_path,
+    model = json.loads(phase("capture", [*lean, "--run", HERE / "Capture.lean", revision_path,
                                          args.target_triple, args.data_layout, graph]), object_pairs_hook=fast.unique_fields)
     require(model["kind"] == graph and model["ir"].encode("utf-8") == data, "captured model and public LLVM bytes differ")
     report.update(bytes=len(data), llvm_sha256=official.digest(data), revision_sha256=official.digest(revision_path.read_bytes()),
                   functions=len(model["functions"]), integer_result=integer(model["value"]))
     (work / "Authority.lean").write_text(authority(revision, model, args.target_triple, args.data_layout, data, sources))
-    phase("authority", [lean, "-DwarningAsError=true", "-o", "Authority.olean", "Authority.lean"])
+    phase("authority", [*lean, "-DwarningAsError=true", "-o", "Authority.olean", "Authority.lean"])
     if args.candidate is None:
         (work / "Certificate.lean").write_text(certificate(stage_proof(namespace)))
-        axioms = phase("proof", [lean, "-DwarningAsError=true", "-o", "Certificate.olean", "Certificate.lean"])
+        axioms = phase("proof", [*lean, "-DwarningAsError=true", "-o", "Certificate.olean", "Certificate.lean"])
         official_axioms = re.fullmatch(r"'VastitasProof.checked' (?:does not depend on any axioms|depends on axioms: \[([^\]]*)\])\s*", axioms)
         require(official_axioms and set(filter(None, (official_axioms.group(1) or "").split(", "))) <= official.ALLOWED,
                 "unexpected proof axioms")
@@ -397,6 +413,7 @@ def main():
     p.add_argument("--candidate", type=Path)
     p.add_argument("--save-candidate", type=Path)
     p.add_argument("--timeout", type=int, default=120, help="wall seconds per worker")
+    add_memory_argument(p)
     args = p.parse_args()
     if args.manifest_path and args.lib:
         p.error("--lib requires a flat source")

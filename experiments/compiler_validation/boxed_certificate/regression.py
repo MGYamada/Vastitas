@@ -15,13 +15,13 @@ sys.path.insert(0, str(verify.ROOT / "scripts"))
 from proof_worker import run_proof_worker
 
 
-def run(work, suite, frontend):
+def run(work, suite, frontend, memory):
     # Both modes consume the same public path, bytes, target and function revision.
     source = work / "main.vast"
     source.write_bytes((verify.ROOT / "llvm/fixtures/BoxedProgram.vast").read_bytes())
     target = json.loads(verify.official.TARGET_REPORT.read_bytes())["target"]
     args = Namespace(source=source, lib=[], manifest_path=None, frontend=frontend,
-                     mode="official", candidate=None, save_candidate=None, timeout=120,
+                     mode="official", candidate=None, save_candidate=None, timeout=120, memory=memory,
                      target_triple=target["triple"], data_layout=target["layout"])
 
     def check(label, mode, *, candidate=None, rejection=None, keep_authority=False, keep_snapshot=False):
@@ -72,6 +72,7 @@ def run(work, suite, frontend):
         for label, fixture, apply, functions, selected_result, default_result in [
             ("selected-projection", "SelectedProjection", "apply second_field;", 5, 19, 7),
             ("assembled-comparison", "ComparisonMethod", "apply ordered;", 3, 42, 7),
+            ("bool-comparison", "BoolComparison", "apply equality;", 4, 2**128 + 10, 2**128 + 7),
             ("assembled-negation", "AssembledNegation", "apply reversing;", 4, -magnitude, magnitude),
         ]:
             body = (verify.ROOT / f"llvm/fixtures/{fixture}.vast").read_text()
@@ -141,10 +142,11 @@ def run(work, suite, frontend):
     producer = work / "fast"
     prefix = fast.pinned_tools()
     env = verify.environment(producer, prefix)
+    lean = verify.lean_command(prefix, memory)
 
     def export(label, text):
         (producer / "Certificate.lean").write_text(text)
-        run_proof_worker([prefix / "bin/lean", "-DwarningAsError=true", "-o", "Certificate.olean", "Certificate.lean"],
+        run_proof_worker([*lean, "-DwarningAsError=true", "-o", "Certificate.olean", "Certificate.lean"],
                        cwd=producer, env=env, timeout=args.timeout, check=True, stdout=subprocess.DEVNULL)
         target = work / (label + ".ndjson")
         with target.open("xb") as out:
@@ -196,9 +198,9 @@ def run(work, suite, frontend):
             verify.authority(revision, model, args.target_triple, args.data_layout, data, inputs))
         (altered / "Certificate.lean").write_text(verify.certificate())
         env = verify.environment(altered, prefix)
-        run_proof_worker([prefix / "bin/lean", "-o", "Authority.olean", "Authority.lean"], cwd=altered,
+        run_proof_worker([*lean, "-o", "Authority.olean", "Authority.lean"], cwd=altered,
                        env=env, timeout=args.timeout, check=True)
-        result = run_proof_worker([prefix / "bin/lean", "-DwarningAsError=true", "Certificate.lean"], cwd=altered,
+        result = run_proof_worker([*lean, "-DwarningAsError=true", "Certificate.lean"], cwd=altered,
                                 env=env, timeout=args.timeout, capture_output=True, text=True)
         require(result.returncode != 0 and diagnostic in result.stdout, f"{label} must fail its proof")
         print(f"{label} rejected by Lean", flush=True)
@@ -378,7 +380,8 @@ if __name__ == "__main__":
     suites = ["boxed", "inputs", "assembly"]
     parser.add_argument("--suite", choices=suites, help="run one suite (default: all)")
     parser.add_argument("--frontend", type=Path, default=verify.ROOT / "target/debug/vastitas")
+    verify.add_memory_argument(parser)
     args = parser.parse_args()
     for suite in ([args.suite] if args.suite else suites):
         with tempfile.TemporaryDirectory(prefix=f"vastitas-{suite}-regression-") as tmp:
-            run(Path(tmp), suite, args.frontend.resolve())
+            run(Path(tmp), suite, args.frontend.resolve(), args.memory)

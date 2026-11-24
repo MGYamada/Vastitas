@@ -35,6 +35,7 @@ CASES = [
     Sample("borrowed-operator", HERE / "fixtures/borrowed-operator/Vastitas.toml", None),
     Sample("uncalled-operator", HERE / "fixtures/uncalled-operator/Vastitas.toml", None),
     Sample("assembled-comparison", HERE / "fixtures/ComparisonMethod.vast", "order_method"),
+    Sample("bool-comparison", HERE / "fixtures/BoolComparison.vast", "bool_comparison"),
     Sample("integer-predicate", HERE / "fixtures/IntegerPredicate.vast", "integer_predicate"),
     Sample("boxed-arithmetic", HERE / "fixtures/BoxedArithmetic.vast", "boxed_arithmetic"),
     Sample("assembled-bool", HERE / "fixtures/AssembledBool.vast", "assembled_bool"),

@@ -241,12 +241,19 @@ def native(args, work):
         run([work / "swap"])
 
     comparisons = (ROOT / "llvm/fixtures/ComparisonMethod.vast").read_text()
+    bool_comparison = (ROOT / "llvm/fixtures/BoolComparison.vast").read_text()
     conditional = (ROOT / "llvm/fixtures/ConditionalMethod.vast").read_text()
     flow_cases = [
         (comparisons, 42), (comparisons.replace("apply ordered;", ""), 7),
         (conditional, 2**128 + 43), (conditional.replace("choose(true,", "choose(false,"), -19),
         (conditional.replace("apply conditional;", ""), -19),
     ]
+    for predicate, source, mask in [("eq", bool_comparison, 9),
+                                    ("ne", bool_comparison.replace("apply equality;", ""), 6)]:
+        expected = int(output([work / "predicates", "Bool", predicate]))
+        if expected != 2**128 + 1 + mask:
+            raise ValueError(f"compiled Lean control returned the wrong {predicate} truth table")
+        flow_cases.append((source, expected))
     # The nested split carries the borrowed x across both joins. Two call
     # arguments alias the same heap integer, including its uses after the phi.
     for outer, inner in [(True, True), (True, False), (False, True)]:

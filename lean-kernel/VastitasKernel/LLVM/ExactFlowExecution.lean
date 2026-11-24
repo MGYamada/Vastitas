@@ -12,12 +12,12 @@ private def bounded : Value → Bool
   | .pairInt a b => a.natAbs.log2 < 4096 && b.natAbs.log2 < 4096
   | .boolean _ => true | _ => false
 
-private def boolean2 (vs : Array Value) (a b : Nat) (op : Bool → Bool → Bool) : Option Value := do
+def boolean2 (vs : Array Value) (a b : Nat) (op : Bool → Bool → Bool) : Option Value := do
   let .boolean x ← vs[a]? | none
   let .boolean y ← vs[b]? | none
   return .boolean (op x y)
 
-private def evalOp (call : Nat → List Value → StateT Nat Option Value)
+def evalOp (call : Nat → List Value → StateT Nat Option Value)
     (vs : Array Value) : Op → StateT Nat Option Value
   | .exact (.nat n) => pure (.natural n)
   | .exact (.int n) => pure (.integer n)
@@ -31,6 +31,8 @@ private def evalOp (call : Nat → List Value → StateT Nat Option Value)
     return .boolean (!x))
   | .boolAnd a b => liftM (boolean2 vs a b (· && ·))
   | .boolOr a b => liftM (boolean2 vs a b (· || ·))
+  | .boolEq a b => liftM (boolean2 vs a b (· == ·))
+  | .boolNe a b => liftM (boolean2 vs a b (· != ·))
 
 private def runBlocks (call : Nat → List Value → StateT Nat Option Value)
     (f : Func) : Nat → Nat → List Value → StateT Nat Option Value

@@ -18,6 +18,7 @@ The corpus contains 37 complete LLVM assembly files from edition 2026 Vastitas s
 | [borrowed-operator.ll](../src/borrowed-operator.ll) · 2,051 bytes | [Borrowed operator package](../fixtures/borrowed-operator/Vastitas.toml) | The caller borrows an edit grant on the imported family. Its selected implementation adds 40 and 2. The module also contains four unselected specializations of the method that returns zero. | `borrowed_operator_verified` |
 | [uncalled-operator.ll](../src/uncalled-operator.ll) · 1,829 bytes | [Uncalled operator package](../fixtures/uncalled-operator/Vastitas.toml) | The entry returns 7. Sealing the borrowed family retains its addition method and four fallback specializations. | `uncalled_operator_verified` |
 | [assembled-comparison.ll](../src/assembled-comparison.ll) · 2,382 bytes | [ComparisonMethod.vast](../fixtures/ComparisonMethod.vast) | The selected method compares two boxed integers and returns an `i32` Boolean. A branch passes 42 or 7 to a pointer `phi`. Each taken edge retains its boxed arguments and releases its owned temporaries. | `assembled_comparison_verified` |
+| [bool-comparison.ll](../src/bool-comparison.ll) · 4,254 bytes | [BoolComparison.vast](../fixtures/BoolComparison.vast) | Four calls exercise the complete Boolean truth table. Assembly selects equality or inequality, giving the integer 2^128 + 10 or 2^128 + 7. The retained module selects equality. | `bool_comparison_verified` |
 | [integer-predicate.ll](../src/integer-predicate.ll) · 873 bytes | [IntegerPredicate.vast](../fixtures/IntegerPredicate.vast) | Subtracts 256 from the first boxed integer, compares it with the second, releases both owned temporaries and returns a 32-bit Boolean. | `integer_predicate_verified` |
 | [boxed-arithmetic.ll](../src/boxed-arithmetic.ll) · 1,021 bytes | [BoxedArithmetic.vast](../fixtures/BoxedArithmetic.vast) | The two borrowed arguments determine the result. The function subtracts 5 from the Nat, divides by the Int, adds the quotient to itself, releases three intermediate references and returns an owned Int. | `boxed_arithmetic_verified` |
 | [assembled-bool.ll](../src/assembled-bool.ll) · 688 bytes | [AssembledBool.vast](../fixtures/AssembledBool.vast) | `main` calls the selected Boolean method and branches on the result. The two incoming edges supply 42 and 7 to the `phi`. The selected contribution returns its argument. The nonselected method also has a definition and returns false. | `assembled_bool_verified` |
@@ -474,6 +475,17 @@ then recovers the original Core symbols and their occurrence counts through
 both SSA phases. For a dispatch target it also identifies the source caller
 and the method selected by assembly at the published revision.
 [Lean direct-call emitter](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L755-L773) · [Vastitas call correspondence](../../lean/VastitasOracle/FlowCertificate.lean)
+
+In the Boolean comparison fixture, both parameters use the boxed program's
+scalar Boolean ABI. The printer compares two `i32` values with `icmp eq` or
+`icmp ne`, then widens the `i1` result to `i32` with `zext`. The parser
+checks that the extension consumes that comparison in the same block.
+The source calls the selected method for all four ordered input pairs.
+Their weights are 1, 2, 4 and 8, so equality contributes 9 and inequality 6
+to the same unbounded integer. Lean 4.35.0 uses an `i8` Boolean ABI in
+`buildLeanBoolTrue?` and compares it with zero to obtain a branch condition.
+The native regression compares the two full integer results with a compiled
+Lean control. [Lean Boolean conversion](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L485-L488) · [Lean control](../fixtures/ComparisonMethodControl.lean) · [Word comparison proof](../../lean/VastitasOracle/ExactFlow.lean)
 
 On macOS arm64, Lean 4.35.0 and nanoda 0.4.19 checked the same export for
 the selected comparison. It covers two physical files, three retained

@@ -1,0 +1,19 @@
+fn agrees(left: Bool, right: Bool) -> Bool { left != right }
+
+contribution equality : agrees {
+    fn agrees(left: Bool, right: Bool) requires (HasEq, HasEq) -> Bool { left == right }
+}
+assemble agrees { apply equality; }
+
+fn weight(left: Bool, right: Bool, n: Int) -> Int {
+    if agrees(left, right) { n } else { 0 }
+}
+
+fn main() -> Int {
+    let large: Int = 340282366920938463463374607431768211457;
+    let no: Bool = large < 0;
+    let yes: Bool = large > 0;
+    let low = weight(no, no, 1) + weight(no, yes, 2);
+    let high = weight(yes, no, 4) + weight(yes, yes, 8);
+    large + (low + high)
+}

@@ -50,11 +50,29 @@ private def readBlock (c : Constants) (fn i : Nat) (s : String) (inputs : PhiInp
   let params ← (fields (← strip signature "" ")")).mapM Kind.read
   guard (label == s!"b{i}:")
   let mut ops := #[]
+  let mut comparison : Option Op := none
   let mut cond := none
   let mut inputs := inputs
   let dest := fun str => indexOf str (s!"label %e{i}_")
   for line in lines do
-    if line.startsWith (s!"  %b{i}v") then
+    if let some op := comparison then
+      let dst := params.length + ops.size
+      guard (line == s!"  {reg i dst} = zext i1 {cmpReg i dst} to i32")
+      ops := ops.push op
+      comparison := none
+    else if line.startsWith "  %cmp" then
+      let dst := params.length + ops.size
+      guard (dst < 4096)
+      let expr ← strip line (s!"  {cmpReg i dst} = icmp ") ""
+      let [predicate,args] := expr.splitOn " i32 " | none
+      let [left,right] := args.splitOn ", " | none
+      let a ← readSlot i left
+      let b ← readSlot i right
+      match predicate with
+      | "eq" => comparison := some (.boolEq a b)
+      | "ne" => comparison := some (.boolNe a b)
+      | _ => return ← none
+    else if line.startsWith (s!"  %b{i}v") then
       let [lhs,rhs] := line.splitOn " = " | none
       let slot ← readSlot i (← strip lhs "  " "")
       if rhs.startsWith "phi " then

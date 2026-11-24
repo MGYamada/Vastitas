@@ -28,6 +28,29 @@ theorem correspondence {json main header} {req : ResourceSource.Wire.CheckedInpu
   · simpa only [PackageLink.entry, VastitasKernel.MidIR.PackageLink.runEntry, MidIR.checked_invoke] using a.exe
   · simp [a.modeled, ExitMain.statusOf_exact]
 
+/-- The boxed ABI represents a Boolean by zero-extending its one-bit result. -/
+def boolWord (b : Bool) : BitVec 32 := (BitVec.ofBool b).zeroExtend 32
+
+open VastitasKernel.MidIR Indexed.Core.Semantics in
+/-- On every pair of Boolean operands the execution opcode, the emitted model
+and the i32 result of the printed icmp/zext agree, including aliased SSA slots. -/
+theorem bool_comparison (different x y : Bool) (vs : Array Value) (a b fuel : Nat)
+    (atA : vs[a]? = some (.boolean x)) (atB : vs[b]? = some (.boolean y))
+    (call : Nat → List Value → StateT Nat Option Value) :
+    let k : Comparison := if different then .ne else .eq
+    let op : LLVM.ExactFlow.Op := if different then .boolNe a b else .boolEq a b
+    let bit := if different then boolWord x != boolWord y else boolWord x == boolWord y
+    ∃ result : Bool,
+      LLVM.ExactFlow.translateOp (.compare k .bool) [a,b] = some op ∧
+      Evaluation.compareValues k .bool (.boolean x) (.boolean y) = some (.boolean result) ∧
+      (LLVM.ExactFlow.evalOp call vs op).run fuel = some (.boolean result, fuel) ∧
+      (BitVec.ofBool bit).zeroExtend 32 = boolWord result := by
+  refine ⟨if different then x != y else x == y, ?_, ?_, ?_, ?_⟩
+  · cases different <;> rfl
+  · cases different <;> cases x <;> cases y <;> rfl
+  · cases different <;> simp [LLVM.ExactFlow.evalOp, LLVM.ExactFlow.boolean2, atA, atB] <;> rfl
+  · cases different <;> cases x <;> cases y <;> rfl
+
 private theorem mapM_project {α β γ : Type} {step : α → Option β} (left : α → γ) (right : β → γ)
     (agree : ∀ x y, step x = some y → left x = right y) {xs : List α} {ys : List β}
     (h : xs.mapM step = some ys) : xs.map left = ys.map right := by

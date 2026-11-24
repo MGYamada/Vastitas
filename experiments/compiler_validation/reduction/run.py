@@ -23,7 +23,10 @@ import tempfile
 import time
 
 
+
 ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT / "scripts"))
+from proof_worker import proof_slot
 HERE = Path(__file__).resolve().parent
 PIN = "leanprover/lean4:v4.35.0"
 LEAN_COMMIT = "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
@@ -201,11 +204,11 @@ def measure(command: list[str], cwd: Path, env: dict[str, str], name: str,
     """wait4 measures this child, without platform timer/sandbox side effects."""
     output_path = stdout or cwd / f"{name}.stdout"
     error_path = cwd / f"{name}.stderr"
-    started = time.monotonic()
     timed_out = False
-    with output_path.open("wb") as output, error_path.open("wb") as error:
+    with proof_slot() as slot, output_path.open("wb") as output, error_path.open("wb") as error:
+        started = time.monotonic()
         child = subprocess.Popen(command, cwd=run_from or cwd, env=env, stdout=output, stderr=error,
-                                 start_new_session=True)
+                                 start_new_session=True, pass_fds=(slot,))
         try:
             while True:
                 pid, status, usage = os.wait4(child.pid, os.WNOHANG)

@@ -3,12 +3,16 @@
 from argparse import ArgumentParser, Namespace
 import filecmp
 import json
-from pathlib import Path
 import subprocess
+from pathlib import Path
+import sys
 import tempfile
 
 import verify
 from verify import fast, require
+
+sys.path.insert(0, str(verify.ROOT / "scripts"))
+from proof_worker import run_proof_worker
 
 
 def run(work, suite, frontend):
@@ -20,7 +24,7 @@ def run(work, suite, frontend):
                      mode="official", candidate=None, save_candidate=None, timeout=120,
                      target_triple=target["triple"], data_layout=target["layout"])
 
-    def check(label, mode, *, candidate=None, rejection=None):
+    def check(label, mode, *, candidate=None, rejection=None, keep_authority=False, keep_snapshot=False):
         private = work / label
         private.mkdir()
         args.mode, args.candidate = mode, candidate
@@ -33,13 +37,14 @@ def run(work, suite, frontend):
             print(f"{label} rejected ({rejection})", flush=True)
             return report, None
         finally:
-            # Input and assembly replays retain the official sealed candidate,
-            # revision, capture and .ll. The boxed suite also inspects the exports.
-            if suite in {"inputs", "assembly"}:
-                for name in ("authority.ndjson", "generated.ndjson", "Authority.olean", "Certificate.olean"):
-                    (private / name).unlink(missing_ok=True)
-                if candidate is not None:
-                    (private / "sealed.ndjson").unlink(missing_ok=True)
+            # The generated export is already sealed. Keep the authority module
+            # only for the producer that elaborates the alternate proof terms.
+            for name in ("authority.ndjson", "generated.ndjson", "Certificate.olean"):
+                (private / name).unlink(missing_ok=True)
+            if not keep_authority:
+                (private / "Authority.olean").unlink(missing_ok=True)
+            if candidate is not None and not keep_snapshot:
+                (private / "sealed.ndjson").unlink(missing_ok=True)
         require(rejection is None, f"{label} accepted an invalid candidate")
         print(f"{label} passed ({report['bytes']} LLVM bytes, "
               f"{report['exported_declarations']} exported declarations)", flush=True)
@@ -114,8 +119,8 @@ def run(work, suite, frontend):
         check_borrowed_operator(work, args, check)
         return
 
-    official, _ = check("official", "official")
-    generated, roots = check("fast", "fast")
+    generated, roots = check("fast", "fast", keep_authority=True)
+    official, _ = check("official", "official", candidate=work / "fast/sealed.ndjson", keep_snapshot=True)
     for key in ("bytes", "llvm_sha256", "revision_sha256", "integer_result"):
         require(official[key] == generated[key], "modes disagree on " + key)
     require(official["functions"] == 4 and int(official["integer_result"]) == (-2 * (2**128 + 1)) // 3,
@@ -127,19 +132,22 @@ def run(work, suite, frontend):
     require(filecmp.cmp(work / "official/sealed.ndjson", work / "fast/sealed.ndjson", shallow=False),
             "both workers must receive the identical complete export")
 
+    (work / "official/sealed.ndjson").unlink()
+    (work / "fast/sealed.ndjson").unlink()
+
     # Elaborate independently valid proof terms in the producer directory. Only
-    # the NDJSON leaves it; verification regenerates Authority in a fresh directory.
+    # the NDJSON leaves it. Each verifier regenerates Authority in a fresh directory.
     producer = work / "fast"
     prefix = fast.pinned_tools()
     env = verify.environment(producer, prefix)
 
     def export(label, text):
         (producer / "Certificate.lean").write_text(text)
-        subprocess.run([prefix / "bin/lean", "-DwarningAsError=true", "-o", "Certificate.olean", "Certificate.lean"],
+        run_proof_worker([prefix / "bin/lean", "-DwarningAsError=true", "-o", "Certificate.olean", "Certificate.lean"],
                        cwd=producer, env=env, timeout=args.timeout, check=True, stdout=subprocess.DEVNULL)
         target = work / (label + ".ndjson")
         with target.open("xb") as out:
-            subprocess.run([prefix / "bin/leanexport", "Certificate", "--", *roots, verify.THEOREM],
+            run_proof_worker([prefix / "bin/leanexport", "Certificate", "--", *roots, verify.THEOREM],
                            cwd=producer, env=env, timeout=args.timeout, check=True, stdout=out)
         return target
 
@@ -154,6 +162,7 @@ def run(work, suite, frontend):
     other = export("other", verify.certificate().replace("theorem checked : obligation := " + verify.PROOF,
                                                          "theorem checked : True := True.intro"))
     check("other-statement", "fast", candidate=other, rejection="unexpected declaration or proof subject")
+    other.unlink()
     # Exercise the checker on a well-formed export with the correct subject but
     # an ill-typed witness. Its declaration references a valid expression index.
     with alt.open("rb") as src, (work / "invalid-term.ndjson").open("xb") as dst:
@@ -164,6 +173,7 @@ def run(work, suite, frontend):
                 line = (json.dumps(row, separators=(",", ":")) + "\n").encode()
             dst.write(line)
     rejected, _ = check("invalid-term", "fast", candidate=work / "invalid-term.ndjson", rejection="nanoda")
+    (work / "invalid-term.ndjson").unlink()
     worker = rejected["phases"][-1]
     require(worker["phase"] == "nanoda" and worker["exit_code"] > 0 and not worker["timed_out"],
             "the independent checker must reject the invalid proof itself")
@@ -185,9 +195,9 @@ def run(work, suite, frontend):
             verify.authority(revision, model, args.target_triple, args.data_layout, data, inputs))
         (altered / "Certificate.lean").write_text(verify.certificate())
         env = verify.environment(altered, prefix)
-        subprocess.run([prefix / "bin/lean", "-o", "Authority.olean", "Authority.lean"], cwd=altered,
+        run_proof_worker([prefix / "bin/lean", "-o", "Authority.olean", "Authority.lean"], cwd=altered,
                        env=env, timeout=args.timeout, check=True)
-        result = subprocess.run([prefix / "bin/lean", "-DwarningAsError=true", "Certificate.lean"], cwd=altered,
+        result = run_proof_worker([prefix / "bin/lean", "-DwarningAsError=true", "Certificate.lean"], cwd=altered,
                                 env=env, timeout=args.timeout, capture_output=True, text=True)
         require(result.returncode != 0 and diagnostic in result.stdout, f"{label} must fail its proof")
         print(f"{label} rejected by Lean", flush=True)
@@ -203,6 +213,7 @@ def run(work, suite, frontend):
     require(stale["llvm_sha256"] == official["llvm_sha256"] and stale["revision_sha256"] != official["revision_sha256"],
             "stale-source control must preserve exactly the emitted bytes")
 
+    alt.unlink()
     source.write_bytes((verify.ROOT / "llvm/fixtures/SingletonPower.vast").read_bytes())
     single, _ = check("singleton", "official")
     single_dir = work / "singleton"

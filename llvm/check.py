@@ -11,6 +11,8 @@ from typing import NamedTuple
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 EXPERIMENT = ROOT / "experiments/compiler_validation/llvm"
+sys.path.insert(0, str(ROOT / "scripts"))
+from proof_worker import run_proof_worker
 
 
 class Sample(NamedTuple):
@@ -215,7 +217,7 @@ def check_structured_targets(command, targets, work):
                 raise ValueError(f"{target}: a change to {old} did not invalidate the function revision")
 
 
-def check_conditional_method():
+def check_conditional_method(frontend):
     """Check the public revision and both MidIR phases for the boxed branch gap."""
     source = (HERE / "fixtures/ConditionalMethod.vast").read_text()
     cases = [
@@ -228,14 +230,13 @@ def check_conditional_method():
         manifest = work / "Vastitas.toml"
         manifest.write_text('[package]\nname = "branch_method"\nversion = "0.1.0"\n'
                             'edition = "2026"\nroot = "main.vast"\n')
-        command = ["cargo", "run", "--locked", "--quiet", "--bin", "vastitas", "--",
-                   "check", "--manifest-path", manifest]
+        command = [frontend, "check", "--manifest-path", manifest]
         first_revision = work / "selected.json"
         for index, (method, text, expected) in enumerate(cases):
             (work / "main.vast").write_text(text)
             current = first_revision if index == 0 else work / "current.json"
             current.write_bytes(subprocess.check_output([*command, "--print-function-revision"], cwd=ROOT))
-            subprocess.run(["lake", "-d", "lean", "env", "lean", "-j1", "-DwarningAsError=true", "--run",
+            run_proof_worker(["lake", "-d", "lean", "env", "lean", "-j1", "-DwarningAsError=true", "--run",
                             HERE / "fixtures/ConditionalMethodReplay.lean", current, str(expected), method],
                            cwd=ROOT, check=True)
             if index:
@@ -245,7 +246,7 @@ def check_conditional_method():
                     raise ValueError("the earlier conditional method revision should be stale")
 
 
-def check_comparison_method():
+def check_comparison_method(frontend):
     source = (HERE / "fixtures/ComparisonMethod.vast").read_text()
     predicates = [("eq", "==", False), ("ne", "!=", False), ("lt", "<", True),
                   ("le", "<=", True), ("gt", ">", True), ("ge", ">=", False)]
@@ -255,8 +256,7 @@ def check_comparison_method():
         manifest = work / "Vastitas.toml"
         manifest.write_text('[package]\nname = "order_method"\nversion = "0.1.0"\n'
                             'edition = "2026"\nroot = "main.vast"\n')
-        command = ["cargo", "run", "--locked", "--quiet", "--bin", "vastitas", "--",
-                   "check", "--manifest-path", manifest]
+        command = [frontend, "check", "--manifest-path", manifest]
         for kind in ["Int", "Nat"]:
             for name, symbol, truth in predicates:
                 x = 2**128 + 1 if kind == "Nat" else -(2**128 + 1)
@@ -281,8 +281,19 @@ def check_comparison_method():
                                                cwd=ROOT, capture_output=True)
                         if stale.returncode == 0 or stale.stdout or b"E_FUNCTION_REVISION" not in stale.stderr:
                             raise ValueError("removing the comparison contribution must invalidate its revision")
-        subprocess.run(["lake", "-d", "lean", "env", "lean", "-j1", "-DwarningAsError=true", "--run",
+        run_proof_worker(["lake", "-d", "lean", "env", "lean", "-j1", "-DwarningAsError=true", "--run",
                         HERE / "fixtures/ComparisonMethodReplay.lean", *cases], cwd=ROOT, check=True)
+
+
+def build_frontend():
+    result = subprocess.check_output(["cargo", "build", "--locked", "--bin", "vastitas",
+                                      "--message-format=json-render-diagnostics"], cwd=ROOT, text=True)
+    for line in result.splitlines():
+        message = json.loads(line)
+        if (message["reason"] == "compiler-artifact" and message["target"]["name"] == "vastitas"
+                and message["target"]["kind"] == ["bin"] and message.get("executable")):
+            return Path(message["executable"])
+    raise RuntimeError("Cargo did not report the Vastitas frontend executable")
 
 
 def main():
@@ -298,20 +309,21 @@ def main():
         },
     }
     subprocess.run([sys.executable, ROOT / "scripts/build_stdlib_package.py"], cwd=ROOT, check=True)
-    subprocess.run(["lake", "-d", "lean-kernel", "build", "vastitas-kernel"], cwd=ROOT, check=True)
-    subprocess.run(["lake", "-d", "lean", "build", "VastitasOracle.CallFunction", "VastitasOracle.ExitFunction",
+    run_proof_worker(["lake", "-d", "lean-kernel", "build", "vastitas-kernel"], cwd=ROOT, check=True)
+    run_proof_worker(["lake", "-d", "lean", "build", "VastitasOracle.CallFunction", "VastitasOracle.ExitFunction",
                     "VastitasOracle.DispatchFunction", "VastitasOracle.BinaryFunction",
                     "VastitasKernel.LLVM.FiniteExecution", "VastitasOracle.StorageProgram",
                     "VastitasOracle.BranchCoverage", "VastitasOracle.BinaryCoverage"], cwd=ROOT, check=True)
     # The closed equalities reduce large terms. Elaborating one declaration
     # at a time avoids holding several kernel reductions in memory at once.
     print(f"Checking closed Lean proofs for {len(registered)} LLVM files", flush=True)
-    subprocess.run(["lake", "-d", "lean", "env", "lean", "-j1", "-DwarningAsError=true", "--run",
+    run_proof_worker(["lake", "-d", "lean", "env", "lean", "-j1", "-DwarningAsError=true", "--run",
                     HERE / "Corpus.lean", HERE / "src", *sorted(registered)],
                    cwd=ROOT, check=True)
     print("Lean corpus replay passed. Comparing the public compiler output.", flush=True)
-    check_conditional_method()
-    check_comparison_method()
+    frontend = build_frontend()
+    check_conditional_method(frontend)
+    check_comparison_method(frontend)
     for name, source, package, target_name in CASES:
         target = targets[target_name]
         with tempfile.TemporaryDirectory(prefix="vastitas-llvm-corpus-") as tmp:
@@ -322,8 +334,7 @@ def main():
                 manifest = work / "Vastitas.toml"
                 manifest.write_text(f'[package]\nname = "{package}"\nversion = "0.1.0"\n'
                                     'edition = "2026"\nroot = "main.vast"\n', encoding="utf-8")
-            command = ["cargo", "run", "--locked", "--quiet", "--bin", "vastitas", "--",
-                       "check", "--manifest-path", manifest]
+            command = [frontend, "check", "--manifest-path", manifest]
             target_args = preview_args(target)
             fresh = subprocess.check_output([*command, *target_args], cwd=ROOT)
             expected = (HERE / "src" / f"{name}.ll").read_bytes()

@@ -301,6 +301,11 @@ def verify(args, work, report):
         phase("export_proof", [prefix / "bin/leanexport", "Certificate", "--", *roots, THEOREM], supplied)
     sealed = work / "sealed.ndjson"
     report["certificate"] = snapshot(supplied, baseline, sealed)
+    # Later stages read only the private, sealed file. Free the worker's copies
+    # before the external checker needs memory and swap.
+    baseline.unlink()
+    if args.candidate is None:
+        supplied.unlink()
     stats = fast.inspect_closure(sealed, THEOREM, proof_suffix=(closure["records"], tuple(GOAL.split("."))))
     report["exported_declarations"] = stats["declarations"]
     if args.mode == "official":

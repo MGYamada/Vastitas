@@ -161,7 +161,7 @@ jobs:
       - name: Build the standalone Lean kernel
         run: lake -d lean-kernel build vastitas-kernel
       - name: Check the 20,000-function watchdog in isolation
-        run: cargo test --locked --test compiler kernel_checks_twenty_thousand_functions_within_the_watchdog -- --exact --test-threads=1
+        run: cargo test --locked --test compiler kernel_checks_twenty_thousand_functions_within_the_watchdog -- --ignored --exact --test-threads=1
       - name: Compare boxed LLVM libraries and executables with generated Lean controls
         run: python3 llvm/check_exact_native.py --lean-clang
       - name: Check dependency boundary

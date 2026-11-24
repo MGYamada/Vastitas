@@ -16,6 +16,34 @@ sys.path.insert(0, str(verify.ROOT / "scripts"))
 from proof_worker import run_proof_worker
 
 
+BOOL_COMPARISON = ("bool-comparison", "BoolComparison", "apply equality;", 4, 2**128 + 10, 2**128 + 7)
+
+
+def check_method_selection(work, source, check, label, fixture, apply, functions, selected_result, default_result):
+    body = (verify.ROOT / f"llvm/fixtures/{fixture}.vast").read_text()
+    require(body.count(apply) == 1, f"{label}: expected one selection")
+    source.write_text(body)
+    selected, _ = check(label, "official")
+    candidate = work / label / "sealed.ndjson"
+    peer, _ = check(f"{label}-fast", "fast", candidate=candidate)
+    retained = verify.ROOT / f"llvm/src/{label}.ll"
+    require(selected["integer_result"] == str(selected_result) and selected["functions"] == functions
+            and selected["certificate"] == peer["certificate"]
+            and (work / label / "preview.ll").read_bytes() == retained.read_bytes(),
+            f"{label}: incorrect selected method, result or module")
+    source.write_text(body.replace(apply, ""))
+    default, _ = check(f"{label}-default", "official")
+    require(default["integer_result"] == str(default_result)
+            and default["revision_sha256"] != selected["revision_sha256"], f"{label}: wrong default method")
+    if label == "bool-comparison":
+        saved = work / f"{label}-default" / "sealed.ndjson"
+        replay, _ = check(f"{label}-default-fast", "fast", candidate=saved)
+        require(replay["certificate"] == default["certificate"], "wrong default comparison certificate")
+    check(f"{label}-stale", "fast", candidate=candidate, rejection="declaration environment differs")
+    candidate.unlink()
+    (work / f"{label}-default" / "sealed.ndjson").unlink()
+
+
 def run(work, suite, frontend, memory):
     # Both modes consume the same public path, bytes, target and function revision.
     source = work / "main.vast"
@@ -60,12 +88,15 @@ def run(work, suite, frontend, memory):
     if suite == "inputs":
         check_physical_inputs(work, args, source, check)
         return
-    if suite == "assembly":
-        source.write_bytes((verify.ROOT / "llvm/fixtures/BoxedPairs.vast").read_bytes())
+    if suite in {"assembly", "host"}:
         args.source = None
         args.manifest_path = work / "Vastitas.toml"
         args.manifest_path.write_text('[package]\nname = "boxed_pairs"\nversion = "0.1.0"\n'
                                       'edition = "2026"\nroot = "main.vast"\n')
+        if suite == "host":
+            check_method_selection(work, source, check, *BOOL_COMPARISON)
+            return
+        source.write_bytes((verify.ROOT / "llvm/fixtures/BoxedPairs.vast").read_bytes())
         checked, _ = check("pairs", "official")
         pair_dir = work / "pairs"
         replay, _ = check("pairs-fast", "fast", candidate=pair_dir / "sealed.ndjson")
@@ -76,34 +107,13 @@ def run(work, suite, frontend, memory):
                 "pair certificate differs from the retained LLVM module")
         (pair_dir / "sealed.ndjson").unlink()
         magnitude = 2**128 + 43
-        for label, fixture, apply, functions, selected_result, default_result in [
-            ("bool-comparison", "BoolComparison", "apply equality;", 4, 2**128 + 10, 2**128 + 7),
+        for case in [
+            BOOL_COMPARISON,
             ("selected-projection", "SelectedProjection", "apply second_field;", 5, 19, 7),
             ("assembled-comparison", "ComparisonMethod", "apply ordered;", 3, 42, 7),
             ("assembled-negation", "AssembledNegation", "apply reversing;", 4, -magnitude, magnitude),
         ]:
-            body = (verify.ROOT / f"llvm/fixtures/{fixture}.vast").read_text()
-            require(body.count(apply) == 1, f"{label}: expected one selection")
-            source.write_text(body)
-            selected, _ = check(label, "official")
-            candidate = work / label / "sealed.ndjson"
-            peer, _ = check(f"{label}-fast", "fast", candidate=candidate)
-            retained = verify.ROOT / f"llvm/src/{label}.ll"
-            require(selected["integer_result"] == str(selected_result) and selected["functions"] == functions
-                    and selected["certificate"] == peer["certificate"]
-                    and (work / label / "preview.ll").read_bytes() == retained.read_bytes(),
-                    f"{label}: incorrect selected method, result or module")
-            source.write_text(body.replace(apply, ""))
-            default, _ = check(f"{label}-default", "official")
-            require(default["integer_result"] == str(default_result)
-                    and default["revision_sha256"] != selected["revision_sha256"], f"{label}: wrong default method")
-            if label == "bool-comparison":
-                saved = work / f"{label}-default" / "sealed.ndjson"
-                replay, _ = check(f"{label}-default-fast", "fast", candidate=saved)
-                require(replay["certificate"] == default["certificate"], "wrong default comparison certificate")
-            check(f"{label}-stale", "fast", candidate=candidate, rejection="declaration environment differs")
-            candidate.unlink()
-            (work / f"{label}-default" / "sealed.ndjson").unlink()
+            check_method_selection(work, source, check, *case)
         conversion_source = (verify.ROOT / "llvm/fixtures/AssembledConversion.vast").read_text()
         source.write_text(conversion_source)
         converted, _ = check("conversion", "official")
@@ -449,7 +459,7 @@ def check_borrowed_operator(work, args, check):
 if __name__ == "__main__":
     parser = ArgumentParser(description=__doc__)
     suites = ["boxed", "inputs", "assembly"]
-    parser.add_argument("--suite", choices=suites, help="run one suite (default: all)")
+    parser.add_argument("--suite", choices=[*suites, "host"], help="run one suite (default: all full suites)")
     parser.add_argument("--frontend", type=Path, default=verify.ROOT / "target/debug/vastitas")
     verify.add_memory_argument(parser)
     args = parser.parse_args()

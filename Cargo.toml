@@ -42,3 +42,11 @@ serde_json = "1"
 [[bin]]
 name = "vastitas"
 path = "src/main.rs"
+
+# Selected Apple ABI tests share one static LLVM link. The ordinary integration
+# targets remain individually runnable and cover the complete suite on Linux.
+[[test]]
+name = "llvm_host"
+path = "tests/qualification/llvm_host.rs"
+required-features = ["llvm-native"]
+test = false

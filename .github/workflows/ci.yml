@@ -101,13 +101,9 @@ jobs:
           python3 scripts/build_stdlib_package.py --check
 
   compiler-without-mathlib:
-    name: Native compiler (${{ matrix.os }}, no mathlib)
-    timeout-minutes: ${{ matrix.os == 'macos-latest' && 60 || 30 }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+    name: Native compiler (ubuntu-latest, no mathlib)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -155,7 +151,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: compiler-reduction-${{ matrix.os }}
+          name: compiler-reduction-ubuntu-latest
           path: ${{ runner.temp }}/compiler-reduction-*.json
           if-no-files-found: warn
       - name: Build the standalone Lean kernel
@@ -201,6 +197,51 @@ jobs:
       # diagnostic that no rule of the Reference gives (#746).
       - name: Derived grammar texts against the built compiler
         run: python3 scripts/check_grammar_derivations.py --compiler target/debug/vastitas
+
+  macos-compiler-without-mathlib:
+    name: Native compiler (macos-latest, no mathlib)
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/lean/
+            !/lean-bridge/
+            !/experiments/source_workspace/results/*/evidence.zip
+      - uses: ./.github/actions/setup-python
+      - uses: ./.github/actions/setup-rust
+      - uses: ./.github/actions/setup-elan
+      - name: Measure isolated 1000-operation reduction validation
+        run: |
+          python3 experiments/compiler_validation/reduction/run.py \
+            --operations 1000 --chunk-size 1000 \
+            --output "$RUNNER_TEMP/compiler-reduction-1000.json"
+          python3 experiments/compiler_validation/reduction/run.py \
+            --operations 1000 --chunk-size 64 \
+            --output "$RUNNER_TEMP/compiler-reduction-chunk64.json"
+      - name: Retain isolated reduction measurements
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: compiler-reduction-macos-latest
+          path: ${{ runner.temp }}/compiler-reduction-*.json
+          if-no-files-found: warn
+      - name: Build the standalone Lean kernel
+        run: lake -d lean-kernel build vastitas-kernel
+      - name: Check the 20,000-function watchdog in isolation
+        run: cargo test --locked --test compiler kernel_checks_twenty_thousand_functions_within_the_watchdog -- --ignored --exact --test-threads=1
+      - name: Check dependency boundary
+        run: |
+          test ! -d lean
+          python3 scripts/check_boundaries.py
+      - name: Check filesystem, build identity and child-process behavior
+        run: |
+          python3 scripts/build_stdlib_package.py
+          cargo test --locked --test driver_hardening --test native_build_identity --test native_build_concurrency
 
   numerical-adapter:
     name: Optional GEMM adapter (${{ matrix.os }}, OpenBLAS 0.3.34)
@@ -331,8 +372,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    # Both hosts run the corpus and three complete per-input suites after a cold
-    # build. The certificate runner limits each individual worker to 120 seconds.
+    # Linux runs the full proof matrix. macOS replays one assembled program in
+    # both modes and checks that changing the selection invalidates its proof.
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -349,24 +390,31 @@ jobs:
         id: build_tools
         run: |
           lake -d lean-kernel build vastitas-kernel
-          lake -d lean build VastitasOracle
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            lake -d lean build VastitasOracle.BoxedCertificate VastitasOracle.FlowCertificate
+          else
+            lake -d lean build VastitasOracle
+          fi
           cargo build --locked --bin vastitas
+      - name: Replay the selected and default Boolean methods on macOS in both modes
+        if: runner.os == 'macOS'
+        run: python3 experiments/compiler_validation/boxed_certificate/regression.py --suite host --memory 6144 2>&1 | tee "$RUNNER_TEMP/proof-assembly.log"
       - name: Verify the assembled method and its operator in the published revision
-        if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
+        if: ${{ runner.os == 'Linux' && !cancelled() && steps.build_tools.outcome == 'success' }}
         run: python3 experiments/compiler_validation/boxed_certificate/regression.py --suite assembly --memory 6144 2>&1 | tee "$RUNNER_TEMP/proof-assembly.log"
       - name: Replay the signed literal from the public request through the complete bytes
-        if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
+        if: ${{ runner.os == 'Linux' && !cancelled() && steps.build_tools.outcome == 'success' }}
         run: |
           python3 experiments/compiler_validation/official_exit/run.py --artifact --timeout 120 --memory 2500 \
             --output "$RUNNER_TEMP/proof-signed-literal.json"
       - name: Replay the Lean-verified LLVM corpus
-        if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
+        if: ${{ runner.os == 'Linux' && !cancelled() && steps.build_tools.outcome == 'success' }}
         run: python3 -u llvm/check.py 2>&1 | tee "$RUNNER_TEMP/proof-corpus.log"
       - name: Check the boxed program and proof substitutions in both modes
-        if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
+        if: ${{ runner.os == 'Linux' && !cancelled() && steps.build_tools.outcome == 'success' }}
         run: python3 experiments/compiler_validation/boxed_certificate/regression.py --suite boxed --memory 6144 2>&1 | tee "$RUNNER_TEMP/proof-boxed.log"
       - name: Check library and manifest revisions in both modes
-        if: ${{ !cancelled() && steps.build_tools.outcome == 'success' }}
+        if: ${{ runner.os == 'Linux' && !cancelled() && steps.build_tools.outcome == 'success' }}
         run: python3 experiments/compiler_validation/boxed_certificate/regression.py --suite inputs --memory 6144 2>&1 | tee "$RUNNER_TEMP/proof-inputs.log"
       - name: Retain compiler proof qualification results
         if: always()

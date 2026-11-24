@@ -383,14 +383,15 @@ evidence = [
   "VastitasOracle.ResourceSource.expected_function_revision_exact",
   "VastitasOracle.ResourceSource.expected_revision_selects_method",
   "VastitasOracle.FlowCertificate.published_dispatch_method",
+  "VastitasOracle.FlowCertificate.published_dispatch_call",
   "VastitasOracle.ResourceSource.structured_assembly_trace",
   "VastitasOracle.ResourceSource.physical_edit_declarations",
   "VastitasOracle.ResourceSource.contributed_method_body",
   "VastitasOracle.ResourceSource.defining_method_body",
 ]
-premises = ["the public protocol-10 request is accepted with the expected function revision present"]
+premises = ["the public protocol-10 request is accepted with the expected function revision present", "For LLVM dispatch, the certificate and public emission describe the same boxed module and the invoked local target maps to a dispatch definition."]
 assumes = ["rust-frontend"]
-note = "Lean recovers the structured commands from the entry text and byte offset supplied by the loader. Their expansion equals the accepted authority trace, including grouped applies, implicit returns and single-byte closing-brace spans. The scan consumes the declared edit permissions, explicit domains, bodyless contracts and defining method signatures. An inferred family header uses the span and parameters of its first declaration. Each contributed method and each defining family method has a checked replay of its full body in the physical file, bound to its package, module, family path, contribution and declaration span. At a pinned revision the selected method has the recorded callable key and emitted Core symbol. In a published boxed graph each retained dispatch callee at its remapped address has the selected method definition, Core owner and specialization key in both MidIR phases and lowers to that exact printed function. File acquisition, non-edit source grammar and the native handoff remain separate premises."
+note = "Lean recovers the structured commands from the entry text and byte offset supplied by the loader. Their expansion equals the accepted authority trace, including grouped applies, implicit returns and single-byte closing-brace spans. The scan consumes the declared edit permissions, explicit domains, bodyless contracts and defining method signatures. An inferred family header uses the span and parameters of its first declaration. Each contributed method and each defining family method has a checked replay of its full body in the physical file, bound to its package, module, family path, contribution and declaration span. At a pinned revision the selected method has the recorded callable key and emitted Core symbol. In a published boxed graph each retained dispatch callee at its remapped address has the selected method definition, Core owner and specialization key in both MidIR phases and lowers to that exact printed function. Each direct LLVM call to a dispatch definition recovers a call record for its Core caller, the resolved source path and the selected definition at the printed target. File acquisition, non-edit source grammar and the native handoff remain separate premises."
 
 [property."compiler-ir.families".claim.assembly]
 status = "planned"
@@ -1665,10 +1666,10 @@ note = "The original Core, the optimization and execution MidIR and the reconstr
 
 [property."compiler-ir.llvm-bytes".claim.boxed-control-flow]
 status = "proved-oracle"
-evidence = ["VastitasOracle.ExactFlow.correspondence", "VastitasOracle.ExactFlow.edge_ownership", "VastitasOracle.FlowCertificate.corresponds", "VastitasOracle.FlowCertificate.published_function"]
+evidence = ["VastitasOracle.ExactFlow.correspondence", "VastitasOracle.ExactFlow.edge_ownership", "VastitasOracle.FlowCertificate.corresponds", "VastitasOracle.FlowCertificate.published_function", "VastitasOracle.FlowCertificate.published_calls"]
 premises = ["The checked, closed integer entry has a linked control-flow artifact and the complete module parses to its model.", "The stage certificate and the dependent publication witness describe the same subject."]
 assumes = ["rust-frontend"]
-note = "The parsed graph, both MidIR phases and Core yield the same full integer under the checked evaluation budgets. The published bytes have the certified function revision, target and physical source layout. Every emitted function slot has the checked Core owner, specialization and call signature from both MidIR phases, including retained uncalled methods. Each taken edge transfers one reference per boxed argument occurrence and releases each owned local once in the model. The runtime ABI and object code are checked separately."
+note = "The parsed graph, both MidIR phases and Core yield the same full integer under the checked evaluation budgets. The published bytes have the certified function revision, target and physical source layout. Every emitted function slot has the checked Core owner, specialization and call signature from both MidIR phases, including retained uncalled methods. The two SSA phases and the LLVM instructions have the same ordered list of direct callees in each function. Relocating those symbols back to Core preserves each callee’s occurrence count. Each taken edge transfers one reference per boxed argument occurrence and releases each owned local once in the model. The runtime ABI and object code are checked separately."
 
 [property."compiler-ir.llvm-bytes".claim.boxed-regression]
 status = "tested"

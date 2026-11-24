@@ -3,6 +3,7 @@ import VastitasOracle.ExactFlow
 import VastitasOracle.Support
 import VastitasOracle.ResourceSource
 import VastitasOracle.IndexedDispatch
+import VastitasOracle.IndexedReverseCore
 import VastitasKernel.LLVM.Emission
 
 set_option autoImplicit false
@@ -111,6 +112,37 @@ theorem published_function {s : Subject} (v : Valid s) {requireMain : Bool}
     (execute_identity _ _ p.artifact.linked.executed).2.symm.trans p.revision,
     p.revision, (corresponds v p).1⟩
 
+open VastitasKernel.MidIR in
+/-- Read every direct invocation from the parsed LLVM caller. Both SSA phases
+preserve the instruction order. Remapping the local addresses recovers precisely
+the multiset of call occurrences in the final Core body. -/
+theorem published_calls {s : Subject} (v : Valid s) {requireMain : Bool}
+    (p : Publication s requireMain) {i : Nat} {body : LLVM.ExactFlow.Func}
+    (emitted : s.code.functions[i]? = some body) :
+    ∃ (id : Nat) (orig : Indexed.Core.Function) (opt : Function .optimization) (exe : Function .execution) (called : List Nat),
+      p.artifact.linked.originals[i]? = some id ∧
+      (VastitasKernel.MidIR.PackageLink.core p.req).functions.toArray[id]? = some orig ∧
+      p.artifact.linked.opt.functions[i]? = some opt ∧ p.artifact.linked.exe.functions[i]? = some exe ∧
+      VastitasKernel.MidIR.PackageLink.callIds opt = VastitasKernel.MidIR.PackageLink.callIds exe ∧
+      VastitasKernel.MidIR.PackageLink.callIds exe = ExactFlow.callIds body ∧
+      (ExactFlow.callIds body).mapM (p.artifact.linked.originals[·]?) = some called ∧
+      called.Perm orig.body.callIds ∧ p.artifact.linked.exe.revision = s.revision ∧
+      LLVM.ExactFlow.parse s.bytes = some s.code := by
+  obtain ⟨_, _, _, _, opt, exe, _, _, _, _, _, _, atOpt, _, atExe, _, lowered, _, rev, _⟩ :=
+    published_function v p i body emitted
+  obtain ⟨id, orig, called, atId, found, mapped, counts⟩ :=
+    VastitasKernel.MidIR.PackageLink.aligned_calls p.artifact.linked.lowering atOpt
+  have executed := p.artifact.linked.executed
+  simp only [Module.execute, bind, Option.bind_eq_some_iff] at executed
+  obtain ⟨_, _, _, translated, final⟩ := executed
+  rw [← Option.some.inj final] at atExe
+  have step := (map_at translated i).trans atExe
+  rw [atOpt] at step
+  have same := ExactFlow.execute_calls step
+  have llvm := ExactFlow.translate_calls lowered
+  exact ⟨id, orig, opt, exe, called, atId, found, atOpt, Option.some.inj final ▸ atExe,
+    same, llvm, (by rwa [← llvm, ← same]), counts, rev, (corresponds v p).2.1⟩
+
 open VastitasKernel.MidIR Indexed.FunctionSource.Compiler in
 /-- A retained dispatch callee has the method and specialization selected by
 assembly in the revision of these published bytes. -/
@@ -143,5 +175,78 @@ theorem published_dispatch_method {s : Subject} (v : Valid s) {requireMain : Boo
   exact ⟨fam, orig, opt, exe, family, domain, chosen, definition, found, atOpt, atExe, same,
     by rw [same, remap], by rw [same, remap], by simpa [same, remap] using keyEq,
     lowered, optRev, exeRev, bytes⟩
+
+private theorem map_size {α β : Type} {xs : Array α} {ys : Array β} {f : α → Option β}
+    (mapped : xs.mapM f = some ys) : ys.size = xs.size := by
+  have h : xs.toList.mapM f = some ys.toList := by rw [← Array.toList_mapM, mapped]; rfl
+  simpa using (Support.mapM_some_index h).1
+
+open VastitasKernel.MidIR in
+private theorem published_size {s : Subject} {requireMain : Bool} (p : Publication s requireMain) :
+    s.code.functions.size = p.artifact.linked.originals.size := by
+  have aligned := p.artifact.linked.lowering
+  simp only [VastitasKernel.MidIR.PackageLink.aligned, Bool.and_eq_true, beq_iff_eq] at aligned
+  have ex := p.artifact.linked.executed
+  simp only [Module.execute, bind, Option.bind_eq_some_iff] at ex
+  obtain ⟨_, _, _, hfs, endExec⟩ := ex
+  have tr := p.artifact.lowered
+  simp only [LLVM.ExactFlow.translate, bind, Option.bind_eq_some_iff] at tr
+  obtain ⟨_, _, _, hllvm, _, _, _, _, endFlow⟩ := tr
+  rw [← p.graph, ← Option.some.inj endFlow]
+  exact (map_size hllvm).trans (by rw [← Option.some.inj endExec]; exact (map_size hfs).trans aligned.1.symm)
+
+open VastitasKernel.MidIR Indexed.FunctionSource.Compiler in
+/-- An actual direct LLVM invocation whose remapped target belongs to a dispatch
+definition has a recorded call from this Core caller. Assembly selects its printed
+callee at the same revision. The witness and callee are recovered from the graph. -/
+theorem published_dispatch_call {s : Subject} (v : Valid s) {requireMain : Bool}
+    (p : Publication s requireMain) {i slot : Nat} {body : LLVM.ExactFlow.Func}
+    (printed : s.code.functions[i]? = some body) (invoked : slot ∈ ExactFlow.callIds body)
+    (generic : (p.artifact.linked.originals[slot]?).any (dispatchTarget
+      (dispatchDefinitions p.req.checked.pureProgram.compiler.input)
+      p.req.checked.pureProgram.executable.lowered) = true) :
+    ∃ callerId caller call family callee opt exe,
+      p.artifact.linked.originals[i]? = some callerId ∧
+      (VastitasKernel.MidIR.PackageLink.core p.req).functions.toArray[callerId]? = some caller ∧
+      call ∈ p.req.checked.pureProgram.executable.lowered.dispatchCalls ∧
+      p.req.checked.pureProgram.executable.lowered.origins[caller.id]? = some call.caller ∧
+      p.artifact.linked.originals[slot]? = some call.emittedId ∧
+      call.emittedId ∈ caller.body.callIds ∧
+      (Namespace.resolve p.req.checked.pureProgram.compiler.input.body.index
+        call.scope call.path.path call.path.span).toOption = some call.target ∧
+      p.req.checked.pureProgram.compiler.input.dispatch.families[call.target.owner]? = some family ∧
+      Dispatch.Selection family.nominals.hierarchy family.checked.methods call.key (some call.method) ∧
+      p.req.checked.pureProgram.compiler.input.dispatch.definitions[(call.method, call.key)]? = some call.definition ∧
+      s.code.functions[slot]? = some callee ∧ p.artifact.linked.opt.functions[slot]? = some opt ∧
+      p.artifact.linked.exe.functions[slot]? = some exe ∧ exe.target = opt.target ∧
+      exe.target.key = Key.mk call.definition [] ∧ exe.target.symbol = slot ∧
+      LLVM.ExactFlow.translateFn p.artifact.linked.exe.env exe = some callee ∧
+      p.artifact.linked.opt.revision = s.revision ∧ p.artifact.linked.exe.revision = s.revision ∧
+      p.text.toUTF8.data.toList = s.bytes := by
+  obtain ⟨callerId, caller, _, _, _, atCaller, found, _, _, _, _, mapped, perm, _, _⟩ :=
+    published_calls v p printed
+  obtain ⟨index, atIndex⟩ := List.getElem?_of_mem invoked
+  obtain ⟨id, atId, remap⟩ := Support.mapM_some_getElem? mapped atIndex
+  have called := perm.mem_iff.mp (List.mem_of_getElem? atId)
+  let src := p.req.checked.pureProgram
+  have valid := src.compiled.validated
+  rw [show src.compiled.entries = [] from p.artifact.linked.noReverse] at valid
+  have unchanged := (IndexedReverseCore.validate_no_entries valid).trans src.executable.coreInput
+  have present : caller ∈ src.executable.lowered.module.functions := by
+    rw [← unchanged]
+    exact List.mem_of_getElem? (by simpa using found)
+  obtain ⟨call, recorded, origin, same⟩ := IndexedDispatch.core_dispatch_call_recorded src.executable
+    caller present id called (by simpa [remap] using generic)
+  have relocated := remap.trans (congrArg some same.symm)
+  have bound : slot < s.code.functions.size := by
+    rw [published_size p]
+    exact (Array.getElem?_eq_some_iff.mp remap).1
+  have atCallee := Array.getElem?_eq_getElem (xs := s.code.functions) bound
+  obtain ⟨family, _, opt, exe, fam, _, selection, defn, _, atOpt, atExe, target,
+    _, symbol, key, translated, revOpt, revExe, bytes⟩ :=
+    published_dispatch_method v p call recorded slot _ atCallee relocated
+  exact ⟨callerId, caller, call, family, _, opt, exe, atCaller, found, recorded, origin,
+    relocated, same ▸ called, (IndexedDispatch.dispatch_call_selected src.executable call recorded).2.2.1,
+    fam, selection, defn, atCallee, atOpt, atExe, target, key, symbol, translated, revOpt, revExe, bytes⟩
 
 end VastitasOracle.FlowCertificate

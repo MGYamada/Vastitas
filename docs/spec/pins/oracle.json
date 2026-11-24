@@ -185,6 +185,8 @@
     {"name": "VastitasOracle.FiniteTables.checked_table", "module": "VastitasOracle.IndexedSource", "kind": "theorem", "statement": "sha256:1fdd301b86fadb31f62317318235c8c0e7f12216521fea14eea101a616af2b2a"},
     {"name": "VastitasOracle.FiniteTables.lookup_total", "module": "VastitasOracle.IndexedSource", "kind": "theorem", "statement": "sha256:856f3230c88611f98d3bd2669bcb73975008c19cd51f6638d4904d05ea01dcd8"},
     {"name": "VastitasOracle.FlowCertificate.corresponds", "module": "VastitasOracle.FlowCertificate", "kind": "theorem", "statement": "sha256:8d25c31224e274a81e7f47461f142c7126be657800482ff4e5a8e767d947fd74"},
+    {"name": "VastitasOracle.FlowCertificate.published_calls", "module": "VastitasOracle.FlowCertificate", "kind": "theorem", "statement": "sha256:cb0593cda33e6fb3bd92d561984beeced831bdbdd1fe35a0acff2c455b200e1a"},
+    {"name": "VastitasOracle.FlowCertificate.published_dispatch_call", "module": "VastitasOracle.FlowCertificate", "kind": "theorem", "statement": "sha256:3b2be7c7053a69e9e1113ce4f6bac87353a45414b062feded7bc2e5e1757ad28"},
     {"name": "VastitasOracle.FlowCertificate.published_dispatch_method", "module": "VastitasOracle.FlowCertificate", "kind": "theorem", "statement": "sha256:77d3f27cfb299d0f0aef0a981bc48a15ad342a0e636554948df5cf4b2693e565"},
     {"name": "VastitasOracle.FlowCertificate.published_function", "module": "VastitasOracle.FlowCertificate", "kind": "theorem", "statement": "sha256:22c897f8084a3a9feffbf2dd01d5c7c13bd36c11725063e8803498abd8b9b46e"},
     {"name": "VastitasOracle.FlowCertificate.published_root_modules", "module": "VastitasOracle.FlowCertificate", "kind": "theorem", "statement": "sha256:3f236fd6ca3c259b52f362b53d4e649e00d655958cd4a68119c182946fcebe36"},

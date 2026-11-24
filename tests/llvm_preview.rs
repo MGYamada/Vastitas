@@ -119,6 +119,62 @@ fn assembled_selector_order_drives_both_native_exit_edges() {
 }
 
 #[test]
+fn repeated_assembled_calls_retain_both_occurrences_in_the_revision_and_llvm() {
+    let s = Scratch::empty("repeated assembled comparison");
+    let original = include_str!("../llvm/fixtures/ComparisonMethod.vast");
+    let repeated = original.replace("{ 42 }", "{ if before(right, left) { 9 } else { 42 } }");
+    let result = preview(&s, &repeated);
+    success(&result);
+    let text = String::from_utf8(result.stdout).unwrap();
+    let bodies: Vec<_> = text
+        .split("define internal ")
+        .filter_map(|section| section.split_once("\n}").map(|(body, _)| body))
+        .filter(|body| body.contains("call i32 @vq_f"))
+        .collect();
+    assert_eq!(bodies.len(), 1);
+    let calls: Vec<_> = bodies[0]
+        .lines()
+        .filter_map(|line| line.split_once("call i32 @vq_f"))
+        .map(|(dst, call)| (dst.trim(), call.split_once('(').unwrap().0))
+        .collect();
+    assert_eq!(calls.len(), 2);
+    assert_eq!(calls[0].1, calls[1].1);
+    assert_ne!(calls[0].0, calls[1].0);
+
+    let receipt = s
+        .command("check", "app/Vastitas.toml")
+        .arg("--print-function-revision")
+        .output()
+        .unwrap();
+    success(&receipt);
+    let revision: serde_json::Value = serde_json::from_slice(&receipt.stdout).unwrap();
+    let records = revision["pure"]["dispatch_calls"].as_array().unwrap();
+    assert_eq!(records.len(), 2);
+    let family = revision["families"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|family| family["id"]["name"] == "before")
+        .unwrap();
+    let selected = &family["dispatch"][0]["selected"];
+    assert_eq!(selected["origin"]["contribution"]["name"], "ordered");
+    for record in records {
+        assert_eq!(record["method"], selected["ordinal"]);
+        assert_eq!(record["id"], records[0]["id"]);
+    }
+    s.write("twice.json", std::str::from_utf8(&receipt.stdout).unwrap());
+    s.write_package("app", original, "");
+    let once = s
+        .command("check", "app/Vastitas.toml")
+        .args(TARGET)
+        .args(["--expect-function-revision", "twice.json"])
+        .output()
+        .unwrap();
+    expect_code(&once, "E_FUNCTION_REVISION");
+    assert!(once.stdout.is_empty());
+}
+
+#[test]
 fn literal_comparisons_bind_both_assembled_bodies_to_the_revision() {
     let s = Scratch::empty("exact literal comparison");
     let original = preview(&s, LITERAL_COMPARISON);

@@ -127,7 +127,7 @@ private def captures (f : MidIR.Function .execution) : Option (Array (List Ref))
     result := result.set! i needed.toList
   return result
 
-private def translateOp (code : Opcode .execution) (refs : List Nat) : Option Op := do
+def translateOp (code : Opcode .execution) (refs : List Nat) : Option Op := do
   match code, refs with
   | .natural n, [] => return .exact (.nat n)
   | .integer n, [] => return .exact (.int n)
@@ -141,31 +141,34 @@ private def translateOp (code : Opcode .execution) (refs : List Nat) : Option Op
   | .call target, args => return .invoke target.symbol args
   | _, _ => none
 
-def translateFn (env : Indexed.Environment) (f : MidIR.Function .execution) : Option Func := do
-  guard (validFunction env f)
-  let extra ← captures f
-  guard (extra[0]? == some [])
+/-- Translate one SSA block with the dominating values required by its successors. -/
+def translateBlock (f : MidIR.Function .execution) (extra : Array (List Ref))
+    (b : MidIR.Block .execution) (i : Nat) : Option Block := do
   let kind (r : Ref) := do
     let b ← f.blocks[r.block]?
     let t ← if r.slot < b.params.size then b.params[r.slot]?
             else (b.ops[r.slot - b.params.size]?).map (·.code.result)
     Kind.ofTy t
-  let mut blocks := #[]
-  for (b,i) in f.blocks.toList.zipIdx do
-    let live ← extra[i]?
-    let positions := Std.HashMap.ofList (live.zipIdx b.params.size)
-    let localSlot (r : Ref) : Option Nat :=
-      if r.block == i then some (if r.slot < b.params.size then r.slot else r.slot + live.length)
-      else positions[r]?
-    let edge (e : MidIR.Edge) := do
-      return Edge.mk e.dest (← (e.args ++ (← extra[e.dest]?)).mapM localSlot)
-    let params := (← b.params.toList.mapM Kind.ofTy) ++ (← live.mapM kind)
-    let ops ← b.ops.toList.mapM fun op => do translateOp op.code (← op.args.mapM localSlot)
-    let term ← match b.term with
-      | .ret _ r => Exit.ret <$> localSlot r
-      | .jump e => Exit.jump <$> edge e
-      | .branch r y n => pure (Exit.branch (← localSlot r) (← edge y) (← edge n))
-    blocks := blocks.push ⟨params, ops, term⟩
+  let live ← extra[i]?
+  let positions := Std.HashMap.ofList (live.zipIdx b.params.size)
+  let localSlot (r : Ref) : Option Nat :=
+    if r.block == i then some (if r.slot < b.params.size then r.slot else r.slot + live.length)
+    else positions[r]?
+  let edge (e : MidIR.Edge) := do
+    return Edge.mk e.dest (← (e.args ++ (← extra[e.dest]?)).mapM localSlot)
+  let params := (← b.params.toList.mapM Kind.ofTy) ++ (← live.mapM kind)
+  let ops ← b.ops.toList.mapM fun op => do translateOp op.code (← op.args.mapM localSlot)
+  let term : Option Exit := match b.term with
+    | .ret _ r => Exit.ret <$> localSlot r
+    | .jump e => Exit.jump <$> edge e
+    | .branch r y n => do return .branch (← localSlot r) (← edge y) (← edge n)
+  return ⟨params, ops, ← term⟩
+
+def translateFn (env : Indexed.Environment) (f : MidIR.Function .execution) : Option Func := do
+  guard (validFunction env f)
+  let extra ← captures f
+  guard (extra[0]? == some [])
+  let blocks ← f.blocks.zipIdx.mapM fun (b,i) => translateBlock f extra b i
   return ⟨← Kind.ofTy f.result, blocks⟩
 
 def translate (m : MidIR.Module .execution) (header : TargetHeader) : Option Code := do

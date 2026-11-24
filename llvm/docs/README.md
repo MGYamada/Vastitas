@@ -466,6 +466,15 @@ comparison and branches on the returned 32-bit Boolean. The native macOS
 qualification observed the full integers 42 and 7 for the two selections.
 [Source](../fixtures/ComparisonMethod.vast) · [Public replay](../fixtures/ComparisonMethodReplay.lean)
 
+For a direct call with arguments, Lean 4.35.0's `emitFullApp` resolves the
+IR function ID, loads the arguments in order and passes the function type and
+values to `LLVM.buildCall2`. Vastitas prints a local symbol such as `@vq_f0`.
+The proof reads each caller's direct calls from its parsed LLVM instructions,
+then recovers the original Core symbols and their occurrence counts through
+both SSA phases. For a dispatch target it also identifies the source caller
+and the method selected by assembly at the published revision.
+[Lean direct-call emitter](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L755-L773) · [Vastitas call correspondence](../../lean/VastitasOracle/FlowCertificate.lean)
+
 On macOS arm64, Lean 4.35.0 and nanoda 0.4.19 checked the same export for
 the selected comparison. It covers two physical files, three retained
 functions, the integer result 42 and all 2,382 LLVM bytes. Lean's external

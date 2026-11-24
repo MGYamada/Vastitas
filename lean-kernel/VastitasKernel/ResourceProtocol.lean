@@ -555,13 +555,9 @@ private def profileConflict (packages : List Package) : Except String Unit := do
   if let some pkg := packages.find? (·.geometryCompat.isSome) then
     throw s!"the field 'legacy_geometry' supplies the compatibility profile, so the package '{pkg.id.name}' cannot have a 'geometry_compat' export"
 
-/-- The request of the schema epoch `currentProtocol` (#533): every request is
-a package request, with the optional field `legacy_geometry`. Main reads the
-version before this decoder, and the decoder reads no other version. The
-reserved identities are checked on the request's packages, before the kernel
-adds the profile (`Program.profile`). -/
-private def decodedProgram (j : Json) :
-    Except String {p : Program // reservedIdentities p.root p.packages = .ok ()} := do
+/-- Decode the fields of the current wire epoch before checking package identities,
+the optional compatibility profile and the physical sources in `program`. -/
+def decodeFields (j : Json) : Except String Program := do
   fields j ["version", "file", "root", "root_source", "packages", "legacy_geometry", "expected_function_revision"]
   let version ← j.getObjValAs? Nat "version"
   if version != currentProtocol then throw s!"expected protocol {currentProtocol}"
@@ -569,13 +565,11 @@ private def decodedProgram (j : Json) :
   let root ← str j "root"
   let geometry ← legacyGeometry j
   let packages ← (← array j "packages").mapM package
-  match h : reservedIdentities root packages with
-  | .error message => throw message
-  | .ok () =>
-    if geometry then profileConflict packages
-    let raw : Program := {file, root, packages, legacyGeometry := geometry}
-    let names ← raw.valueFamilies.mapError (·.message)
-    return ⟨{raw with operatorValues := names}, h⟩
+  return {file, root, packages, legacyGeometry := geometry}
+
+def operatorNames (raw : Program) : Except String (List String) := do
+  if raw.legacyGeometry then profileConflict raw.packages
+  raw.valueFamilies.mapError (·.message)
 
 abbrev physicalFileIndex := ManifestBindings.physicalFileIndex
 abbrev manifestFile? := ManifestBindings.manifestFile?
@@ -595,21 +589,30 @@ def exactSources (j : Json) (p : Program) : Except String Unit := do
   ExactModelSource.check layout p
 
 def program (j : Json) : Except String Program := do
-  let p ← decodedProgram j
-  exactSources j p.val
-  return p.val
+  let raw ← decodeFields j
+  reservedIdentities raw.root raw.packages
+  let names ← operatorNames raw
+  let p := {raw with operatorValues := names}
+  exactSources j p
+  return p
 
 theorem checks_of_program {j : Json} {p : Program} (h : program j = .ok p) :
     reservedIdentities p.root p.packages = .ok () ∧ exactSources j p = .ok () := by
-  cases hd : decodedProgram j with
-  | error msg => simp [program, hd, Bind.bind, Except.bind] at h
-  | ok parsed =>
-    cases hs : exactSources j parsed.val with
-    | error msg => simp [program, hd, hs, Bind.bind, Except.bind] at h
-    | ok u =>
-      cases u
-      have eq : parsed.val = p := by simpa [program, hd, hs, Bind.bind, Except.bind, Pure.pure, Except.pure] using h
-      exact eq ▸ ⟨parsed.property, hs⟩
+  cases hd : decodeFields j with
+  | error msg => simp [program, hd, bind, Except.bind] at h
+  | ok raw =>
+    cases hr : reservedIdentities raw.root raw.packages with
+    | error msg => simp [program, hd, hr, bind, Except.bind] at h
+    | ok _ =>
+      cases hn : operatorNames raw with
+      | error msg => simp [program, hd, hr, hn, bind, Except.bind] at h
+      | ok names =>
+        cases hs : exactSources j {raw with operatorValues := names} with
+        | error msg => simp [program, hd, hr, hn, hs, bind, Except.bind] at h
+        | ok _ =>
+          have eq : {raw with operatorValues := names} = p := by
+            simpa [program, hd, hr, hn, hs, bind, Except.bind, pure, Except.pure] using h
+          exact eq ▸ ⟨hr, hs⟩
 
 theorem exactSources_of_program {j : Json} {p : Program} (h : program j = .ok p) :
     exactSources j p = .ok () := (checks_of_program h).2

@@ -23,4 +23,5 @@ def main (args : List String) : IO UInt32 := do
   match args with
   | [] => return if selected true hit && !selected true false then 42 else 7
   | ["fallback"] => return if fallback true hit && !fallback true false then 42 else 7
+  | ["swapped"] => return if selected true hit && !selected false true then 42 else 7
   | _ => return 1

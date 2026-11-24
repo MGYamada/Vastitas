@@ -184,12 +184,13 @@ def run(args):
                         raise ValueError("opposite S3 comparison did not return 42")
                     suite["reference_exit_status"] = result.returncode
                 if stem == "StructuredLookupComparison":
-                    for method, arguments, expected in [("selected", [], 42), ("fallback", ["fallback"], 7)]:
-                        result = measured(f"lean_lookup_{method}", [lean_bin, "--run", source, *arguments],
+                    for case, arguments, expected in [("selected", [], 42), ("fallback", ["fallback"], 7),
+                                                      ("swapped", ["swapped"], 7)]:
+                        result = measured(f"lean_lookup_{case}", [lean_bin, "--run", source, *arguments],
                                           comparison, expect_success=None)
                         if result.returncode != expected:
-                            raise ValueError(f"structured lookup {method} returned {result.returncode}, expected {expected}")
-                        suite[f"{method}_exit_status"] = result.returncode
+                            raise ValueError(f"structured lookup {case} returned {result.returncode}, expected {expected}")
+                        suite[f"{case}_exit_status"] = result.returncode
                 if "LLVM" not in features:
                     suite["execution_gap"] = "pinned Lean binary reports no LLVM feature"
                     continue

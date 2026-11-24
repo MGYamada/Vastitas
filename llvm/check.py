@@ -235,6 +235,9 @@ def check_structured_targets(command, targets, work):
             rejected = subprocess.run(replay, cwd=ROOT, capture_output=True)
             if rejected.returncode == 0 or rejected.stdout or b"E_FUNCTION_REVISION" not in rejected.stderr:
                 raise ValueError(f"{target}: a change to {old} did not invalidate the function revision")
+    run_proof_worker(["lake", "-d", "lean", "env", "lean", "-j1", "-DwarningAsError=true", "--run",
+                      HERE / "fixtures/StructuredCallOrder.lean", HERE / "src/structured-lookup.ll",
+                      HERE / "src/structured-lookup-linux-x86_64.ll"], cwd=ROOT, check=True)
 
 
 def check_conditional_method(frontend):

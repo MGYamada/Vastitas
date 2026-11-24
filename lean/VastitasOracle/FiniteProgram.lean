@@ -1,5 +1,6 @@
 import VastitasKernel.LLVM.FiniteProgram
 import VastitasOracle.FiniteEntryEvaluation
+import VastitasOracle.FiniteCalls
 import VastitasOracle.PackageLink
 import VastitasOracle.ResourceSource
 import VastitasOracle.IndexedDispatch
@@ -105,7 +106,10 @@ theorem function_inventory {json main header} {req : ResourceSource.Wire.Checked
         validOrigin req.checked.pureProgram orig key = true ∧ CallTarget.ofCore orig key = some target ∧
         a.linked.opt.functions[i]? = some opt ∧ opt.target = {target with symbol := i} ∧
         a.linked.exe.functions[i]? = some exe ∧ exe.target = opt.target ∧
-        FiniteModule.translateFn a.linked.exe.env entry exe = some image := by
+        FiniteModule.translateFn a.linked.exe.env entry exe = some image ∧
+        FiniteModule.widthOf exe.result = some image.result ∧
+        image.blocks.map FiniteCalls.blockTrace =
+          FiniteCalls.expectedBlocks exe.coreId image.result exe.blocks.toList 0 := by
   have accepted := a.lowered
   simp only [FiniteModule.lower, FiniteModule.translate, bind, Option.bind_eq_some_iff] at accepted
   obtain ⟨code, ⟨entry, atEntry, _, _, functions, emitted, final⟩, certified⟩ := accepted
@@ -130,7 +134,7 @@ theorem function_inventory {json main header} {req : ResourceSource.Wire.Checked
     obtain ⟨id, orig, key, target, opt, atId, found, symbol, origin, valid, signature, atOpt, remap, same⟩ :=
       PackageLink.executed_origin a.linked atExe
     exact ⟨id, orig, key, target, opt, exe, atId, found, symbol, origin, valid, signature,
-      atOpt, remap, atExe, same, lowered⟩
+      atOpt, remap, atExe, same, lowered, FiniteCalls.translate_calls lowered⟩
 
 open VastitasKernel.MidIR Indexed.FunctionSource.Compiler in
 /-- A selected method retains its checked family, specialization and signature
@@ -151,6 +155,8 @@ theorem dispatch_method_bytes {json main header} {req : ResourceSource.Wire.Chec
       exe.target = opt.target ∧ exe.target.family = ⟨orig.definition⟩ ∧ exe.target.symbol = i ∧
       exe.target.key = Key.mk call.definition [] ∧
       a.linked.exe.entry = some entry ∧ FiniteModule.translateFn a.linked.exe.env entry exe = some image ∧
+      image.blocks.map FiniteCalls.blockTrace =
+        FiniteCalls.expectedBlocks exe.coreId image.result exe.blocks.toList 0 ∧
       images[i]? = some image ∧ a.model.code.functions =
         (images.zipIdx.flatMap fun (g,j) => g.helpers.toList ++ [g.body j]) ++ [FiniteModule.hostMain entry] ∧
       a.linked.opt.revision = ResourceSource.FunctionRevision.artifact (ResourceSource.Wire.revisionInput json) req.checked ∧
@@ -159,7 +165,8 @@ theorem dispatch_method_bytes {json main header} {req : ResourceSource.Wire.Chec
   have bound : i < images.length := size ▸ (Array.getElem?_eq_some_iff.mp relocated).1
   let image := images[i]
   have atImage : images[i]? = some image := List.getElem?_eq_getElem bound
-  obtain ⟨id, orig, key, target, opt, exe, atId, found, _, origin, _, signature, atOpt, remap, atExe, same, lowered⟩ :=
+  obtain ⟨id, orig, key, target, opt, exe, atId, found, _, origin, _, signature, atOpt, remap, atExe, same,
+    lowered, _, calls⟩ :=
     slots i image atImage
   cases Option.some.inj (atId.symm.trans relocated)
   let src := req.checked.pureProgram.executable
@@ -171,7 +178,7 @@ theorem dispatch_method_bytes {json main header} {req : ResourceSource.Wire.Chec
   cases Option.some.inj result
   exact ⟨entry, images, image, family, orig, opt, exe, atFamily, domain, selected, definition, found,
     atOpt, atExe, same, by rw [same, remap], by rw [same, remap], by simpa [same, remap] using keyEq,
-    atEntry, lowered, atImage, layout, a.linked.revision, (execute_identity _ _ a.linked.executed).2,
+    atEntry, lowered, calls, atImage, layout, a.linked.revision, (execute_identity _ _ a.linked.executed).2,
     (FiniteModule.parse_iff _ _).mp parsed⟩
 
 end VastitasOracle.FiniteProgram

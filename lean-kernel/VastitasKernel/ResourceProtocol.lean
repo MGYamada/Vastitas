@@ -757,22 +757,38 @@ structure CheckedInput (json : Json) (requireMain : Bool) where
   `legacy_geometry` has no part, and the checked passes. -/
   namespaceReceipt : Namespace.RequestReceipt input.pureProgram.source.headers.indexed json (namespaceUnits checked)
 
+/-- Continue admission from the exact decoded request so that choosing the
+entry rule never requires a second source scan. -/
+def checkDecoded {json : Json} {input : Program} (decoded : program json = .ok input)
+    (requireMain : Bool) : Except Diagnostic (CheckedInput json requireMain) :=
+  match Namespace.checkRequest input.pureProgram.source.headers.indexed json
+      (fun _ => ResourceSource.check input requireMain) namespaceUnits with
+  | .error diagnostic => .error diagnostic
+  | .ok result => do
+    let assembly ← AssemblySource.check json result.value.pureProgram.authority.headers.assembled.prepared.core.assembly
+    match edits : EditSourceFiles.check json input with
+    | .error diagnostic => .error diagnostic
+    | .ok () =>
+      if definitions : definitionsMatch result.value = true ∧ packageShapesMatch result.value = true then
+        if h : RevisionMatches json result.value then
+          .ok ⟨input, decoded, result.value, result.accepted, assembly, edits, definitions.1, definitions.2, h, result.receipt⟩
+        else .error { code := "E_FUNCTION_REVISION", message := "supplied function revision differs from the checked input or its selected methods" }
+      else .error { code := "E_MODULE_SOURCE", message := "source indexed definition differs from the returned Core" }
+
 def check (json : Json) (requireMain : Bool) : Except Diagnostic (CheckedInput json requireMain) :=
   match decoded : program json with
   | .error message => .error {code := "E_PROTOCOL", message}
-  | .ok input => match Namespace.checkRequest input.pureProgram.source.headers.indexed json
-        (fun _ => ResourceSource.check input requireMain) namespaceUnits with
-    | .error diagnostic => .error diagnostic
-    | .ok result => do
-      let assembly ← AssemblySource.check json result.value.pureProgram.authority.headers.assembled.prepared.core.assembly
-      match edits : EditSourceFiles.check json input with
-      | .error diagnostic => .error diagnostic
-      | .ok () =>
-        if definitions : definitionsMatch result.value = true ∧ packageShapesMatch result.value = true then
-          if h : RevisionMatches json result.value then
-            .ok ⟨input, decoded, result.value, result.accepted, assembly, edits, definitions.1, definitions.2, h, result.receipt⟩
-          else .error { code := "E_FUNCTION_REVISION", message := "supplied function revision differs from the checked input or its selected methods" }
-        else .error { code := "E_MODULE_SOURCE", message := "source indexed definition differs from the returned Core" }
+  | .ok _ => checkDecoded decoded requireMain
+
+theorem check_of_decoded {json : Json} {input : Program} (decoded : program json = .ok input) (main : Bool) :
+    check json main = checkDecoded decoded main := by
+  unfold check
+  split
+  · rename_i _ h
+    simp [decoded] at h
+  · rename_i _ h
+    cases Except.ok.inj (h.symm.trans decoded)
+    rfl
 
 /-- Public generation consumes the budgeted wire request's exact checked program. -/
 def emit (json : Json) : Except Diagnostic Codegen.Generated := do

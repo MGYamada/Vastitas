@@ -1755,10 +1755,18 @@ example_not_executed = "The opt-in LLVM preview reports a compiled checker and i
 status = "planned"
 issue = 417
 
+[property."compiler-ir.check-build".claim.executable-readback]
+status = "proved-oracle"
+evidence = ["VastitasOracle.Emission.executable_actions", "VastitasOracle.Emission.executable_readback"]
+premises = ["the decoded wire declares a pure or resource main in the root package's root module for action equality", "the public LLVM build action returned the given artifact for the readback theorem"]
+note = "At a fixed target header, check and build return the same dependent artifact or diagnostic for a declared entry. For every successful build, check returns its exact artifact and the model parser accepts a readback precisely when every UTF-8 byte equals the published text. The native backend and host execution are outside these theorems."
+
 [property."compiler-ir.check-build".claim.preview]
 status = "tested"
 evidence = [
   "tests/llvm_preview.rs::exact_exit_status_and_library_bytes_come_from_checked_public_core",
+  "tests/llvm_preview.rs::executable_actions_return_one_artifact_for_the_same_wire_and_target",
+  "tests/llvm_preview.rs::only_a_root_main_selects_the_executable_checker",
   "tests/llvm_preview.rs::llvm_preview_rejects_unsupported_bodies_and_stale_revisions_before_printing",
   "tests/llvm_preview.rs::target_choice_and_output_form_are_explicit",
   "tests/llvm_preview.rs::every_declared_function_must_belong_to_the_preview_module",

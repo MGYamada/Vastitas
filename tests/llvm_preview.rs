@@ -286,6 +286,71 @@ fn check_native_status(source: &str, status: i32) {
 }
 
 #[test]
+fn executable_actions_return_one_artifact_for_the_same_wire_and_target() {
+    let project = Scratch::empty("shared executable artifact");
+    for (source, kind) in [
+        (
+            include_str!("../llvm/fixtures/ExitStatus.vast"),
+            "entry-status",
+        ),
+        (ASSEMBLED, "assembled-bool"),
+        (
+            "resource fn main() -> Int { value { -1 } }",
+            "storage-program",
+        ),
+    ] {
+        project.write_package("app", source, "");
+        let wire = project.captured("app/Vastitas.toml", common::CURRENT_PROTOCOL);
+        for (triple, layout) in [
+            (TARGET[2], TARGET[4]),
+            ("x86_64-unknown-linux-gnu", "e-m:e-i64:64-n8:16:32:64-S128"),
+        ] {
+            let checked = common::kernel_with_args(&wire, &["llvm-check", triple, layout]);
+            let built = common::kernel_with_args(&wire, &["llvm-build", triple, layout]);
+            assert_eq!(checked["ok"], true, "{checked}");
+            assert_eq!(checked["llvm"]["kind"], kind);
+            assert_eq!(checked["llvm"]["triple"], triple);
+            assert_eq!(checked["llvm"]["layout"], layout);
+            assert_eq!(checked, built);
+        }
+        let mut stale = wire;
+        stale["expected_function_revision"] = serde_json::json!({});
+        let check = common::kernel_with_args(&stale, &["llvm-check", TARGET[2], TARGET[4]]);
+        let build = common::kernel_with_args(&stale, &["llvm-build", TARGET[2], TARGET[4]]);
+        common::assert_wire_rejected(&check, "E_FUNCTION_REVISION");
+        assert!(check.get("llvm").is_none());
+        assert_eq!(check, build);
+    }
+}
+
+#[test]
+fn only_a_root_main_selects_the_executable_checker() {
+    let project = Scratch::empty("library entry scope");
+    project.write_package("lib", "pub fn main() -> Int { 19 }", "");
+    for (source, dependencies) in [
+        (TABLE.to_string(), ""),
+        (
+            format!("{TABLE}\nmod inner {{ pub fn main() -> Int {{ 7 }} }}"),
+            "",
+        ),
+        (TABLE.to_string(), "lib={path='../lib'}"),
+    ] {
+        project.write_package("app", &source, dependencies);
+        let wire = project.captured("app/Vastitas.toml", common::CURRENT_PROTOCOL);
+        let check = common::kernel_with_args(&wire, &["llvm-check", TARGET[2], TARGET[4]]);
+        if source == TABLE && dependencies.is_empty() {
+            assert_eq!(check["llvm"]["kind"], "unary-lookup", "{check}");
+        } else {
+            // The finite lookup library profile accounts for every definition.
+            common::assert_wire_rejected(&check, "E_UNSUPPORTED");
+        }
+        let build = common::kernel_with_args(&wire, &["llvm-build", TARGET[2], TARGET[4]]);
+        common::assert_wire_rejected(&build, "E_MAIN");
+        assert!(build.get("llvm").is_none());
+    }
+}
+
+#[test]
 fn exact_exit_status_and_library_bytes_come_from_checked_public_core() {
     let s = Scratch::empty("LLVM check");
     for (literal, status) in [

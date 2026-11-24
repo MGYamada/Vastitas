@@ -38,7 +38,7 @@ theorem actualResource : ResourceSource.check candidate true = .ok checkedResour
 def request (a : AssemblySource.Corresponds wire checkedResource.pureProgram.authority.headers.assembled.prepared.core.assembly)
     (receipt : Namespace.RequestReceipt idx wire (ResourceSource.Wire.namespaceUnits checkedResource)) :
     ResourceSource.Wire.CheckedInput wire true :=
-  ⟨candidate,decodedProgram,checkedResource,actualResource,a,physicalEdits,literalDefinitions checkedResource,
+  ⟨candidate,decodedProgram,checkedResource,actualResource,a,physicalEdits,literalDefinitions checkedResource (by rfl),
     literalPackages checkedResource,by change True; trivial,receipt⟩
 
 theorem request_data (r : ResourceSource.Wire.CheckedInput wire true) : ∃ a units, r = request a units := by

@@ -168,30 +168,79 @@ private def supported {α : Type} (o : Option α) : Except Diagnostic α :=
   o.elim (.error {code := "E_UNSUPPORTED", message :=
     "checked module is outside the LLVM preview (closed exact integer main, assembled Bool branch, closed finite program, static storage program, boxed integer program or library, unary or binary table lookup, or static forwarder)"}) .ok
 
-def check (json : Json) (header : TargetHeader) (requireExecutable : Bool) : Except Diagnostic (Output json header) := do
-  if requireExecutable then return ← supported (app (← Wire.check json true) header)
-  let req ← Wire.check json false
-  if req.input.entry.isSome || (UnaryFunction.checkedCore req).main.isSome then return ← supported (app req header)
+/-- Look only in the root module of the root package. A dependency or a
+nested module may publish a function named main without making the root an executable. -/
+def declaresEntry (p : ResourceSource.Program) : Bool :=
+  p.packages.any fun pkg => pkg.id.source == p.root && pkg.modules.any fun m =>
+    m.pureModule.module.path.isEmpty && (m.pureModule.functions.any (·.name == "main") ||
+      m.functions.any (·.name == "main"))
+
+private def checkInput {json : Json} {p : ResourceSource.Program} (decoded : Wire.program json = .ok p)
+    (header : TargetHeader) (requireExecutable : Bool) : Except Diagnostic (Output json header) := do
+  if declaresEntry p then
+    let req ← Wire.checkDecoded decoded true
+    return ← supported (app req header)
+  let req ← Wire.checkDecoded decoded false
+  if requireExecutable then throw {code := "E_MAIN", message := "entry point must have signature fn main() -> Int"}
   supported (library req header)
+
+def check (json : Json) (header : TargetHeader) (requireExecutable : Bool) : Except Diagnostic (Output json header) :=
+  match decoded : Wire.program json with
+  | .error message => .error {code := "E_PROTOCOL", message}
+  | .ok _ => checkInput decoded header requireExecutable
+
+private theorem check_of_decoded {json : Json} {p : ResourceSource.Program} (decoded : Wire.program json = .ok p)
+    (header : TargetHeader) (requireExecutable : Bool) :
+    check json header requireExecutable = checkInput decoded header requireExecutable := by
+  unfold check
+  split
+  · rename_i _ h
+    simp [decoded] at h
+  · rename_i _ h
+    cases Except.ok.inj (h.symm.trans decoded)
+    rfl
+
+/-- Both commands apply the executable entry rule before considering any LLVM
+profile. This covers diagnostics as well as a successful source-bound output. -/
+theorem check_build_entry {json : Json} {p : ResourceSource.Program} (decoded : Wire.program json = .ok p)
+    (entry : declaresEntry p = true) (header : TargetHeader) :
+    check json header false = check json header true := by
+  rw [check_of_decoded decoded, check_of_decoded decoded]
+  simp [checkInput, entry]
+
+/-- A successful executable build can be replayed by the public check action. -/
+theorem check_of_build {json : Json} {header : TargetHeader} {o : Output json header}
+    (built : check json header true = .ok o) : check json header false = .ok o := by
+  unfold check at built
+  split at built
+  · contradiction
+  · rename_i input decoded
+    cases entry : declaresEntry input with
+    | true => exact (check_build_entry decoded entry header).trans (by rwa [check_of_decoded decoded])
+    | false =>
+      simp [checkInput, entry, bind, Except.bind] at built
+      split at built <;> contradiction
 
 /-- A checked singleton literal uses the executable branch and returns exactly
 the UTF-8 string accepted by its parser. This proof applies to the current wire
 result without reducing a concrete program's manifest, Core or revision. -/
-theorem check_literal {json : Json} {header : TargetHeader} {req : Wire.CheckedInput json true}
-    (accepted : Wire.check json true = .ok req)
+theorem check_literal {json : Json} {header : TargetHeader} {req : Wire.CheckedInput json true} {requireExecutable : Bool}
+    (accepted : Wire.check json true = .ok req) (declared : declaresEntry req.input = true)
     (a : ExitFunction.Artifact req header) (compiled : ExitFunction.compile req header = some a)
     (pureEntry : req.input.entry.isSome = false)
     (noFamilies : req.checked.pureProgram.dispatcher.families.isEmpty = true)
     (literal : (ExitFunction.literalBody a.source.body).isSome = true)
     (text : String) (parsed : ExitMain.parse text.toUTF8.data.toList = some a.toModule) :
-    check json header true = .ok (.executable a text parsed) := by
+    check json header requireExecutable = .ok (.executable a text parsed) := by
   have rendered : String.fromUTF8? ⟨(ExitMain.print a.toModule).toArray⟩ = some text := by
     rw [← (ExitMain.parse_iff _ _).mp parsed]
     change String.fromUTF8? text.toByteArray = some text
     simp [String.fromUTF8?, text.isValidUTF8]
     rfl
   have parseBytes : ExitMain.parse text.toByteArray.data.toList = some a.toModule := parsed
-  simp [check, accepted, app, pureEntry, scalarApp, noFamilies, a.onlyCore, literal,
+  rw [Wire.check_of_decoded req.decoded] at accepted
+  rw [check_of_decoded req.decoded]
+  simp [checkInput, declared, accepted, app, pureEntry, scalarApp, noFamilies, a.onlyCore, literal,
     compiled, checkedText, rendered, parseBytes, supported, bind, Except.bind, Option.bind]
 
 end VastitasKernel.LLVM.Emission

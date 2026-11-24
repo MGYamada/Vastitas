@@ -32,7 +32,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [The theorem reaches every emitted LLVM byte](#compiler-ir.llvm-bytes) | Planned, Tested, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (oracle), Tested |
 | [Fast and Official verify the same artifact obligations](#compiler-ir.verification-modes) | Planned, Proved (oracle) |
 | [Proof binding authenticates statements and dependency closure](#compiler-ir.proof-binding) | Planned |
-| [Check stops after verified LLVM IR](#compiler-ir.check-build) | Planned, Tested |
+| [Check stops after verified LLVM IR](#compiler-ir.check-build) | Planned, Proved (oracle), Tested |
 | [Native generation consumes the verified input in process](#compiler-ir.backend) | Planned |
 | [Qualified distributions include the pinned components](#compiler-ir.distribution) | Planned |
 | [Lean EmitLLVM is a comparison target](#compiler-ir.lean-comparison) | Planned |
@@ -1356,9 +1356,18 @@ Claims:
 
 - `commands`: [Planned](../specifications.md#planned)
   - Issue: [#417](https://github.com/MGYamada/Vastitas/issues/417)
+- `executable-readback`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.Emission`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/Emission.lean): `VastitasOracle.Emission.executable_actions`, `VastitasOracle.Emission.executable_readback`
+  - Premises:
+    - the decoded wire declares a pure or resource main in the root package's root module for action equality
+    - the public LLVM build action returned the given artifact for the readback theorem
+  - Note: At a fixed target header, check and build return the same dependent artifact or diagnostic for a declared entry. For every successful build, check returns its exact artifact and the model parser accepts a readback precisely when every UTF-8 byte equals the published text. The native backend and host execution are outside these theorems.
 - `preview`: [Tested](../specifications.md#tested)
   - Evidence:
     - `exact_exit_status_and_library_bytes_come_from_checked_public_core` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
+    - `executable_actions_return_one_artifact_for_the_same_wire_and_target` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
+    - `only_a_root_main_selects_the_executable_checker` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
     - `llvm_preview_rejects_unsupported_bodies_and_stale_revisions_before_printing` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
     - `target_choice_and_output_form_are_explicit` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
     - `every_declared_function_must_belong_to_the_preview_module` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)

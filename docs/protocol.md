@@ -29,6 +29,14 @@ tool logs belong on stderr. Neither the frontend's annotations nor names are
 trusted. The backend allocates nominal identities while checking lexical
 bindings; the wire format cannot supply a trusted object identity.
 
+The LLVM preview actions `llvm-check` and `llvm-build` take the same target
+triple and data layout. A pure or resource `main` in the root package's root
+module selects the executable entry rule for both actions. They return the
+same diagnostic or the same artifact, including its complete LLVM text.
+Without a root entry, the kernel still checks the library's source and Core.
+A supported library can return LLVM text from `llvm-check`, while
+`llvm-build` reports `E_MAIN` for the missing entry.
+
 The wire has one **schema epoch**, protocol 10: the one version that the
 driver writes and the kernel accepts. The kernel holds it in
 `currentProtocol` of `lean-kernel/VastitasKernel/Protocol.lean`. The driver's

@@ -551,7 +551,7 @@ document = ""
 
 [row.dimension.llvm]
 state = "partial"
-claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.check-build@preview", "compiler-ir.llvm-bytes@boxed-program", "compiler-ir.llvm-bytes@boxed-control-flow"]
+claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.check-build@preview", "compiler-ir.check-build@executable-readback", "compiler-ir.llvm-bytes@boxed-program", "compiler-ir.llvm-bytes@boxed-control-flow"]
 note = "Public check --llvm-preview emits the complete modeled modules and rejects unhandled Core and stale revisions. Eleven lawful edits to three separately certified dependencies of the ordered-calls program preserve all 2,311 emitted bytes. The per-input certificate also covers the full printed graph of an assembled integer comparison and its conditional entry. Complete finite-profile coverage remains."
 document = ""
 

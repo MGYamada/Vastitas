@@ -324,6 +324,8 @@ structure SourceChecks where
   fileIndex : Nat := 0
   bodies : Std.HashMap Nat MethodSite := {}
   finiteSites : Std.HashMap Nat FiniteSite := {}
+  /-- Physical file index of the implicit root module of each file-backed package. -/
+  packageRoots : Std.TreeMap String Nat := {}
   /-- First token outside the item grammar in the physical module inventory. -/
   unexpectedItem : Option Span := none
   /-- Repeated static-indexed functions form their own finite family. Repeated

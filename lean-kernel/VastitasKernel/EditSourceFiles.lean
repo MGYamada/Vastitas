@@ -208,6 +208,7 @@ def check (json : Lean.Json) (program : ResourceSource.Program) : Except Diagnos
   ResourceValueSource.check layout checked.values (ResourceValueSource.items program)
   checkBodies layout checked (sourceMethods program)
   FiniteSourceFiles.check layout checked.finiteSites (FiniteSourceFiles.declarations program)
+  FiniteSourceFiles.checkRoots layout checked.packageRoots program
 
 theorem valid_item_boundaries {json program expected layout checked}
     (accepted : check json program = .ok ()) (collected : collect program = .ok expected)
@@ -229,7 +230,8 @@ theorem all_evidence {json : Lean.Json} {program : ResourceSource.Program}
       ResourceOwnershipSource.check layout checked.ownership (ResourceOwnershipSource.items program) = .ok () ∧
       ResourceValueSource.check layout checked.values (ResourceValueSource.items program) = .ok () ∧
       checkBodies layout checked (sourceMethods program) = .ok () ∧
-      FiniteSourceFiles.check layout checked.finiteSites (FiniteSourceFiles.declarations program) = .ok () := by
+      FiniteSourceFiles.check layout checked.finiteSites (FiniteSourceFiles.declarations program) = .ok () ∧
+      FiniteSourceFiles.checkRoots layout checked.packageRoots program = .ok () := by
   cases h : collect program <;> simp [check, Except.mapError, bind, Except.bind, h] at accepted
   rename_i expected
   cases l : PhysicalSources.layout json <;> simp [l] at accepted
@@ -245,7 +247,8 @@ theorem all_evidence {json : Lean.Json} {program : ResourceSource.Program}
   cases ownership : ResourceOwnershipSource.check layout checked.ownership (ResourceOwnershipSource.items program) <;> simp [ownership] at accepted
   cases values : ResourceValueSource.check layout checked.values (ResourceValueSource.items program) <;> simp [values] at accepted
   cases b : checkBodies layout checked (sourceMethods program) <;> simp [b] at accepted
-  exact ⟨expected, layout, checked, rfl, rfl, s, e, bindings, cells, products, ownership, values, b, accepted⟩
+  cases finite : FiniteSourceFiles.check layout checked.finiteSites (FiniteSourceFiles.declarations program) <;> simp [finite] at accepted
+  exact ⟨expected, layout, checked, rfl, rfl, s, e, bindings, cells, products, ownership, values, b, finite, accepted⟩
 
 theorem check_evidence {json : Lean.Json} {program : ResourceSource.Program}
     (accepted : check json program = .ok ()) :
@@ -253,7 +256,7 @@ theorem check_evidence {json : Lean.Json} {program : ResourceSource.Program}
       ExactModelSource.scanFiles layout program relevant {edits := some expected} = .ok checked ∧
       checked.edits.any (·.isEmpty) = true ∧ checkBodies layout checked (sourceMethods program) = .ok () ∧
       FiniteSourceFiles.check layout checked.finiteSites (FiniteSourceFiles.declarations program) = .ok () := by
-  obtain ⟨expected, layout, checked, inputs, files, scan, edits, _, _, _, _, _, bodies, finite⟩ := all_evidence accepted
+  obtain ⟨expected, layout, checked, inputs, files, scan, edits, _, _, _, _, _, bodies, finite, _⟩ := all_evidence accepted
   exact ⟨expected, layout, checked, inputs, files, scan, edits, bodies, finite⟩
 
 end VastitasKernel.EditSourceFiles

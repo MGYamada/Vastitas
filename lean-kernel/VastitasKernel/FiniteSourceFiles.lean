@@ -479,4 +479,57 @@ theorem check_sound {layout : PhysicalSources.Layout} {sites : Sites} {items : L
   · exact ⟨by assumption, checkAll_sound h⟩
   · contradiction
 
+/-- A file-backed package has one implicit public root module. Its span covers
+the first token of its physical root file, or the EOF token for an empty file. -/
+def RootCorresponds (layout : PhysicalSources.Layout) (roots : Std.TreeMap String Nat)
+    (pkg : ResourceSource.Package) : Prop :=
+  ∃ root i file first,
+    pkg.modules.filter (fun m => m.pureModule.module.path.isEmpty) = [root] ∧
+    roots.get? pkg.id.source = some i ∧ layout.files[i]? = some file ∧
+    (File.mk file.text file.offset).next {} = .ok first ∧
+    root.pureModule.module.isPublic = true ∧ root.pureModule.module.span = first.span
+
+private def checkRoot (layout : PhysicalSources.Layout) (roots : Std.TreeMap String Nat)
+    (pkg : ResourceSource.Package) : Except Diagnostic (PLift (RootCorresponds layout roots pkg)) := do
+  let issue := fun (span : Span) (why : String) =>
+    ({code := "E_MODULE_SOURCE", span, message := s!"package {pkg.id.name}: {why}"} : Diagnostic)
+  let some ⟨i, hi⟩ := (roots.get? pkg.id.source).attach | throw (issue {} "missing physical root module")
+  let some ⟨file, hf⟩ := layout.files[i]?.attach | throw (issue {} "missing root module file")
+  match ht : (File.mk file.text file.offset).next {} with
+  | .error why => throw (issue ⟨file.offset,file.offset,1,1⟩ why)
+  | .ok first =>
+    match hr : pkg.modules.filter (fun m => m.pureModule.module.path.isEmpty) with
+    | [root] =>
+      if h : root.pureModule.module.isPublic = true ∧ root.pureModule.module.span = first.span then
+        return ⟨root, i, file, first, hr, hi, hf, ht, h⟩
+      throw (issue first.span "root module must be public and carry the span of its first token")
+    | _ => throw (issue first.span "expected one root module")
+
+private def checkRootsIn (layout : PhysicalSources.Layout) (roots : Std.TreeMap String Nat) :
+    List ResourceSource.Package → Except Diagnostic Unit
+  | [] => pure ()
+  | pkg :: rest => do
+    let _ ← checkRoot layout roots pkg
+    checkRootsIn layout roots rest
+
+def checkRoots (layout : PhysicalSources.Layout) (roots : Std.TreeMap String Nat)
+    (program : ResourceSource.Program) : Except Diagnostic Unit :=
+  if program.root == flatPackageId.source then pure () else checkRootsIn layout roots program.packages
+
+theorem checkRoots_sound {layout roots program} (checked : checkRoots layout roots program = .ok ())
+    (disk : program.root ≠ flatPackageId.source) {pkg : ResourceSource.Package}
+    (member : pkg ∈ program.packages) : RootCorresponds layout roots pkg := by
+  simp only [checkRoots, beq_eq_false_iff_ne.mpr disk, Bool.false_eq_true, ↓reduceIte] at checked
+  generalize program.packages = packages at checked member
+  induction packages with
+  | nil => contradiction
+  | cons first rest ih =>
+    cases h : checkRoot layout roots first with
+    | error err => simp [checkRootsIn, h, bind, Except.bind] at checked
+    | ok proof =>
+      simp [checkRootsIn, h, bind, Except.bind] at checked
+      rcases List.mem_cons.mp member with rfl | later
+      · exact proof.down
+      · exact ih checked later
+
 end VastitasKernel.FiniteSourceFiles

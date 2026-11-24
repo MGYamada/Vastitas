@@ -655,6 +655,18 @@ theorem physical_morphism {json : Lean.Json} (input : Wire.CheckedInput json req
     refine ⟨expected, layout, checked, site, file, first, edits, physical, scan, atSite, atFile, owner, tok, ?_⟩
     simpa [FiniteSourceFiles.replay, tok, Except.mapError, Bind.bind, Except.bind] using replay
 
+/-- Each manifest-backed package, including an unused dependency, has one
+public root at the first token of the physical file assigned by the module scan. -/
+theorem physical_root_modules {json : Lean.Json} (input : Wire.CheckedInput json requireMain)
+    (disk : input.input.root ≠ flatPackageId.source) :
+    ∃ expected layout checked, EditSourceFiles.collect input.input = .ok expected ∧
+      PhysicalSources.layout json = .ok layout ∧
+      ExactModelSource.scanFiles layout input.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      ∀ pkg ∈ input.input.packages, FiniteSourceFiles.RootCorresponds layout checked.packageRoots pkg := by
+  obtain ⟨expected, layout, checked, inputs, files, scan, _, _, _, _, _, _, _, _, roots⟩ :=
+    EditSourceFiles.all_evidence input.editSources
+  exact ⟨expected, layout, checked, inputs, files, scan, fun _ hp => FiniteSourceFiles.checkRoots_sound roots disk hp⟩
+
 /-- An accepted non-root module carries its visibility and its declaring
 module's path at the original inline or external declaration. -/
 theorem physical_module {json : Lean.Json} (input : Wire.CheckedInput json requireMain)

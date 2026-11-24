@@ -111,7 +111,7 @@ def package (name : String) (modules : List Json) (version : Nat := currentProto
     if (m.getObjVal? "path").toOption != some (.arr #[]) then
       physical := physical.push m
     else
-      let mut root := m.setObjVal! "span" (sourceSpan offset 0 1 1)
+      let mut root := m
       if let .ok ds := m.getObjValAs? (Array Json) "indexed_declarations" then
         let mut declarations := #[]
         for d in ds do
@@ -121,7 +121,9 @@ def package (name : String) (modules : List Json) (version : Nat := currentProto
             declarations := declarations.push positioned
           else declarations := declarations.push d
         root := root.setObjVal! "indexed_declarations" (.arr declarations)
-      physical := physical.push root
+      -- Generated lines start with "indexed" or "pub indexed". Empty sources use EOF.
+      let first := text.takeWhile (· != ' ')
+      physical := physical.push (root.setObjVal! "span" (sourceSpan offset first.utf8ByteSize 1 1))
   let entry := Json.mkObj [("offset",base),("text",toJson text),("files",.arr #[
     Json.mkObj [("path",owner),("offset",toJson (0 : Nat)),("text",manifest)],
     Json.mkObj [("path",file),("offset",base)]])]

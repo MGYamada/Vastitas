@@ -114,7 +114,9 @@ def scanFiles (layout : PhysicalSources.Layout) (program : ResourceSource.Progra
       let entry := pkg == program.root && path.isEmpty
       if checks.edits.isSome && entry != (i == layout.entry) then throw "assembly entry differs from the physical root module"
       let (external, left) ← checkExactHeaders file.text file.offset pkg path {checks with allowAssembly := entry, fileIndex := i}
-      checks := left
+      checks := if path.isEmpty && checks.edits.isSome then
+        {left with packageRoots := left.packageRoots.insert pkg i}
+        else left
       let next := external.toList ++ rest
       pending := if next.isEmpty then ancestors else (pkg,next) :: ancestors
   unless pending.isEmpty do throw "missing declared external module in physical inputs"

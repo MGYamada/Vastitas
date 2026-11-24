@@ -1,6 +1,7 @@
 import VastitasOracle.FlowCertificate.Subject
 import VastitasOracle.ExactFlow
 import VastitasOracle.Support
+import VastitasOracle.ResourceSource
 import VastitasOracle.IndexedDispatch
 import VastitasKernel.LLVM.Emission
 
@@ -52,6 +53,18 @@ theorem corresponds {s : Subject} (valid : Valid s) {requireMain : Bool} (p : Pu
   · exact value ▸ obs.2.2.2.2.2.1
   · exact value ▸ obs.2.2.2.2.2.2.1
   · simp [value, ExitMain.statusOf_exact]
+
+/-- The physical file of each package root belongs to the source layout of
+this published graph and its complete LLVM bytes. -/
+theorem published_root_modules {s : Subject} (v : Valid s) {requireMain : Bool}
+    (p : Publication s requireMain) (disk : p.req.input.root ≠ flatPackageId.source) :
+    ∃ expected checked, EditSourceFiles.collect p.req.input = .ok expected ∧
+      ExactModelSource.scanFiles s.sources p.req.input EditSourceFiles.relevant {edits := some expected} = .ok checked ∧
+      (∀ pkg ∈ p.req.input.packages, FiniteSourceFiles.RootCorresponds s.sources checked.packageRoots pkg) ∧
+      p.artifact.linked.exe.revision = s.revision ∧ p.text.toUTF8.data.toList = s.bytes := by
+  obtain ⟨expected, layout, checked, inputs, physical, scan, roots⟩ := ResourceSource.physical_root_modules p.req disk
+  cases Except.ok.inj (physical.symm.trans v.physical)
+  exact ⟨expected, checked, inputs, scan, roots, p.revision, (corresponds v p).1⟩
 
 private theorem map_at {α β : Type} {xs : Array α} {ys : Array β}
     {f : α → Option β} (mapped : xs.mapM f = some ys) (i : Nat) :

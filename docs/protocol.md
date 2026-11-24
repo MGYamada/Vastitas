@@ -349,10 +349,18 @@ file with a UTF-8 path uses the envelope’s `file` field. On Unix a
 non-UTF-8 path uses the original path bytes in a JSON array.
 
 The checker reconstructs every offset from the preceding UTF-8 byte
-lengths and the one-byte separator. For disk-backed packages it checks
-that the first input is the root manifest, every package manifest occurs,
-and the entry contains the root module’s source location. For every package
-the checker reads `package.name`, `package.version` and `package.edition`
+lengths and the one-byte separator. For disk-backed packages the first input
+is the root manifest. As Lean visits manifests and their declared modules,
+it records which file supplies the root of each package, including unused
+dependencies. Each package must have exactly one public root module. Its
+span must match the first token of that file in global byte offsets and
+file-local line and column. A file containing only whitespace or comments
+uses the zero-width token at end of file. A mismatch produces
+`E_MODULE_SOURCE` at the expected token. Flat inputs and their libraries
+share one synthetic public root.
+
+For every file-backed package the checker reads `package.name`,
+`package.version` and `package.edition`
 from the manifest at its recorded path. The first two fields must match the
 package ID used in function families and edit authority.
 Table headers, dotted keys and inline tables can all select these fields.

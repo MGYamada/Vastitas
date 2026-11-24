@@ -198,13 +198,13 @@ document = ""
 [row.dimension.official]
 state = "partial"
 claims = ["compiler-ir.stage-validation@soundness", "compiler-ir.stage-validation@pure-cfg", "compiler-ir.llvm-bytes@static-call", "compiler-ir.llvm-bytes@assembled-bool", "compiler-ir.families@static-retention"]
-note = "Opt-to-Exec preserves linked invocation at every depth in the pure fragment. The returned Core agrees with both phases and the parsed LLVM module for direct forwarding and the assembled Bool call. Both Boolean inputs are covered for each retained method. A retained static use has its expected Fn signature and retains every emitted sibling of its target. General module witnesses, resource calls and cleanup remain."
+note = "Opt-to-Exec preserves linked invocation at every depth in the pure fragment. The returned Core agrees with both phases and the parsed LLVM module for direct forwarding and the assembled Bool call. Both Boolean inputs are covered for each retained method. A retained static use has its expected Fn signature and retains every emitted sibling of its target. Lean 4.35.0 replayed the comparison method's certificate for the selected result 42 and all 2,382 bytes. General module witnesses, resource calls and cleanup remain."
 document = ""
 
 [row.dimension.fast]
-state = "planned"
-claims = ["compiler-ir.verification-modes@modes"]
-note = "Actual source, proof or run evidence is pending; a specification is not delivery."
+state = "partial"
+claims = ["compiler-ir.verification-modes@modes", "compiler-ir.verification-modes@boxed-stage"]
+note = "For the assembled comparison on macOS arm64, nanoda checked all 5,936 declarations in the same export as Official, including the certificate for the two physical files, revision, three retained functions, integer result and complete LLVM bytes. Public mode selection for the full static-function profile remains open. [Comparison corpus](https://github.com/MGYamada/Vastitas/blob/main/llvm/docs/README.md#comparisons-on-integer-parameters)"
 document = ""
 
 [row.dimension.native]

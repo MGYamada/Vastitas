@@ -466,6 +466,14 @@ comparison and branches on the returned 32-bit Boolean. The native macOS
 qualification observed the full integers 42 and 7 for the two selections.
 [Source](../fixtures/ComparisonMethod.vast) · [Public replay](../fixtures/ComparisonMethodReplay.lean)
 
+On macOS arm64, Lean 4.35.0 and nanoda 0.4.19 checked the same export for
+the selected comparison. It covers two physical files, three retained
+functions, the integer result 42 and all 2,382 LLVM bytes. Lean's external
+kernel replay took 4.96 seconds and peaked at 551 MiB RSS. Nanoda checked
+5,936 declarations in 11.24 seconds and peaked at 3,378 MiB RSS. These
+measurements cover the verifier processes. Certificate generation and native
+execution have separate costs. [Certificate replay](../../experiments/compiler_validation/boxed_certificate/README.md)
+
 Lean 4.35.0's external-call emitter builds the function type and call from
 the ordered, retained parameters. In the generated C control, greater-than
 reverses the operands of `lean_nat_dec_lt` or `lean_int_dec_lt`.

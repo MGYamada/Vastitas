@@ -378,6 +378,7 @@ status = "proved-oracle"
 evidence = [
   "VastitasOracle.ResourceSource.expected_function_revision_exact",
   "VastitasOracle.ResourceSource.expected_revision_selects_method",
+  "VastitasOracle.FlowCertificate.published_dispatch_method",
   "VastitasOracle.ResourceSource.structured_assembly_trace",
   "VastitasOracle.ResourceSource.physical_edit_declarations",
   "VastitasOracle.ResourceSource.contributed_method_body",
@@ -385,7 +386,7 @@ evidence = [
 ]
 premises = ["the public protocol-10 request is accepted with the expected function revision present"]
 assumes = ["rust-frontend"]
-note = "Lean recovers the structured commands from the entry text and byte offset supplied by the loader. Their expansion equals the accepted authority trace, including grouped applies, implicit returns and single-byte closing-brace spans. The scan consumes the declared edit permissions, explicit domains, bodyless contracts and defining method signatures. An inferred family header uses the span and parameters of its first declaration. Each contributed method and each defining family method has a checked replay of its full body in the physical file, bound to its package, module, family path, contribution and declaration span. At a pinned revision the selected method has the recorded callable key and emitted Core symbol. File acquisition, non-edit source grammar and the native handoff remain separate premises."
+note = "Lean recovers the structured commands from the entry text and byte offset supplied by the loader. Their expansion equals the accepted authority trace, including grouped applies, implicit returns and single-byte closing-brace spans. The scan consumes the declared edit permissions, explicit domains, bodyless contracts and defining method signatures. An inferred family header uses the span and parameters of its first declaration. Each contributed method and each defining family method has a checked replay of its full body in the physical file, bound to its package, module, family path, contribution and declaration span. At a pinned revision the selected method has the recorded callable key and emitted Core symbol. In a published boxed graph each retained dispatch callee at its remapped address has the selected method definition, Core owner and specialization key in both MidIR phases and lowers to that exact printed function. File acquisition, non-edit source grammar and the native handoff remain separate premises."
 
 [property."compiler-ir.families".claim.assembly]
 status = "planned"

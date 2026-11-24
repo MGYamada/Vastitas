@@ -1,6 +1,7 @@
 import VastitasOracle.FlowCertificate.Subject
 import VastitasOracle.ExactFlow
 import VastitasOracle.Support
+import VastitasOracle.IndexedDispatch
 import VastitasKernel.LLVM.Emission
 
 set_option autoImplicit false
@@ -96,5 +97,38 @@ theorem published_function {s : Subject} (v : Valid s) {requireMain : Bool}
     atOpt, relocated, Option.some.inj endExec ▸ atExe, targetEq, lowered,
     (execute_identity _ _ p.artifact.linked.executed).2.symm.trans p.revision,
     p.revision, (corresponds v p).1⟩
+
+open VastitasKernel.MidIR Indexed.FunctionSource.Compiler in
+/-- A retained dispatch callee has the method and specialization selected by
+assembly in the revision of these published bytes. -/
+theorem published_dispatch_method {s : Subject} (v : Valid s) {requireMain : Bool}
+    (p : Publication s requireMain) (call : DispatchCall)
+    (recorded : call ∈ p.req.checked.pureProgram.executable.lowered.dispatchCalls)
+    (i : Nat) (body : LLVM.ExactFlow.Func) (emitted : s.code.functions[i]? = some body)
+    (relocated : p.artifact.linked.originals[i]? = some call.emittedId) :
+    ∃ family orig opt exe,
+      p.req.checked.pureProgram.compiler.input.dispatch.families[call.target.owner]? = some family ∧
+      call.key ∈ family.domain ∧
+      Dispatch.Selection family.nominals.hierarchy family.checked.methods call.key (some call.method) ∧
+      p.req.checked.pureProgram.compiler.input.dispatch.definitions[(call.method, call.key)]? = some call.definition ∧
+      (VastitasKernel.MidIR.PackageLink.core p.req).functions.toArray[call.emittedId]? = some orig ∧
+      p.artifact.linked.opt.functions[i]? = some opt ∧ p.artifact.linked.exe.functions[i]? = some exe ∧
+      exe.target = opt.target ∧ exe.target.family = ⟨orig.definition⟩ ∧ exe.target.symbol = i ∧
+      exe.target.key = Key.mk call.definition [] ∧ LLVM.ExactFlow.translateFn p.artifact.linked.exe.env exe = some body ∧
+      p.artifact.linked.opt.revision = s.revision ∧ p.artifact.linked.exe.revision = s.revision ∧
+      p.text.toUTF8.data.toList = s.bytes := by
+  let src := p.req.checked.pureProgram.executable
+  obtain ⟨fam, family, domain, chosen, definition⟩ :=
+    (IndexedDispatch.dispatch_call_selected src call recorded).2.2.2
+  obtain ⟨id, orig, key, target, opt, exe, atId, found, _, origin, _, signature, atOpt,
+    remap, atExe, same, lowered, optRev, exeRev, bytes⟩ := published_function v p i body emitted
+  cases Option.some.inj (atId.symm.trans relocated)
+  have keyEq := Option.some.inj (origin.symm.trans (IndexedDispatch.dispatch_call_emitted src call recorded))
+  simp only [CallTarget.ofCore, bind, Option.bind_eq_some_iff] at signature
+  obtain ⟨_, _, _, _, result⟩ := signature
+  cases Option.some.inj result
+  exact ⟨fam, orig, opt, exe, family, domain, chosen, definition, found, atOpt, atExe, same,
+    by rw [same, remap], by rw [same, remap], by simpa [same, remap] using keyEq,
+    lowered, optRev, exeRev, bytes⟩
 
 end VastitasOracle.FlowCertificate

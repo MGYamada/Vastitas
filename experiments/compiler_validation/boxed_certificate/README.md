@@ -5,7 +5,9 @@ The driver checks a closed proof about one public boxed integer program with sta
 For a conditional, the certificate checks the typed graph, the chosen edge, the full
 integer at the join and the complete printed module. Its subject imports the printer,
 execution model and physical input decoder. The publication theorem also connects
-the subject to the public emitter, Core and both MidIR phases. The assembly suite
+the subject to the public emitter, Core and both MidIR phases. For a retained
+dispatch callee, the family selects the method recorded for its key, and both
+phases carry its specialization to the same printed function slot. The assembly suite
 checks the selected comparison and rejects its saved certificate after removing the
 contribution. [Certificate subject](../../../lean/VastitasOracle/FlowCertificate/Subject.lean) · [Publication theorem](../../../lean/VastitasOracle/FlowCertificate.lean)
 

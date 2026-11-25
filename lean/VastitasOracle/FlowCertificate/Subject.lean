@@ -1,3 +1,4 @@
+import VastitasOracle.CertificatePackages
 import VastitasKernel.LLVM.ExactFlowExecution
 import VastitasKernel.LLVM.ExactFlowPrint
 import VastitasKernel.PhysicalSources
@@ -14,6 +15,7 @@ structure Subject where
   wire : Lean.Json
   revision : Lean.Json
   sources : PhysicalSources.Layout
+  packages : CertificatePackages.Graph
   header : TargetHeader
   code : ExactFlow.Code
   bytes : List UInt8
@@ -23,6 +25,7 @@ structure Subject where
 structure Valid (s : Subject) : Prop where
   input : s.revision.getObjVal? "input" = .ok s.wire
   physical : PhysicalSources.layout s.wire = .ok s.sources
+  owners : CertificatePackages.read s.wire = .ok s.packages
   target : s.code.header = s.header
   typed : s.code.valid = true
   evaluated : s.code.entryValue = some s.value

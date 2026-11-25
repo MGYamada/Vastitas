@@ -236,13 +236,22 @@ fn root_source_is_the_physical_package_entry_at_its_global_byte_offset() {
         let mut duplicate = raw.clone();
         duplicate["root_source"]["files"][3]["text"] = json!(entry);
         assert_wire_rejected(&kernel(&duplicate, mode), "E_PROTOCOL");
+        // Length-first manifest lookup must distinguish equal-length names.
         let mut foreign = raw.clone();
-        foreign["root_source"]["files"][1]["path"] = json!("unrelated/Vastitas.toml");
-        assert_wire_rejected(&kernel(&foreign, mode), "E_PROTOCOL");
+        foreign["root_source"]["files"][1]["path"] =
+            json!(raw["root"].as_str().unwrap().replace("/app/", "/xyz/"));
+        let response = kernel(&foreign, mode);
+        assert_wire_rejected(&response, "E_PROTOCOL");
+        assert!(
+            response["diagnostics"][0]["message"]
+                .as_str()
+                .unwrap()
+                .contains("physical inputs omit a package manifest")
+        );
         let mut renamed = raw.clone();
         renamed["file"] = json!("unrelated.vast");
         assert_wire_rejected(&kernel(&renamed, mode), "E_PROTOCOL");
-        for index in [2, 3] {
+        for index in [1, 2, 3] {
             let mut repeated = raw.clone();
             repeated["root_source"]["files"][index]["path"] = raw["root"].clone();
             assert_wire_rejected(&kernel(&repeated, mode), "E_PROTOCOL");

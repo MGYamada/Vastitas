@@ -39,7 +39,13 @@ def geometryProfile (j : Json) : Except String (GeometryProfile Source.Path) := 
   return ⟨← geometrySetting (← field j "scheme"), ← geometrySetting (← field j "smooth"),
     ← get "point", ← get "morphism", ← get "pointed", ← get "compose", ← get "apply"⟩
 
-def package (j : Json) : Except String DispatchSource.Package := do
+/-- Strict package fields shared by the pure and resource module decoders. -/
+structure PackageMetadata where
+  id : Namespace.PackageId
+  dependencies : List Namespace.Dependency
+  geometryCompat : Option (GeometryProfile Source.Path)
+
+def packageMetadata (j : Json) : Except String PackageMetadata := do
   fields j ["source", "name", "version", "edition", "dependencies", "modules", "geometry_compat"]
   let edition ← (str j "edition").mapError fun error => s!"package edition: {error}"
   if edition != currentEdition then
@@ -50,9 +56,10 @@ def package (j : Json) : Except String DispatchSource.Package := do
   let geometryCompat ← match j.getObjVal? "geometry_compat" with
     | .error _ => pure none
     | .ok value => some <$> geometryProfile value
-  return {
-    id := ⟨← str j "source", ← str j "name", ← str j "version"⟩,
-    dependencies, modules := ← (← array j "modules").mapM module,
-    geometryCompat }
+  return ⟨⟨← str j "source", ← str j "name", ← str j "version"⟩, dependencies, geometryCompat⟩
+
+def package (j : Json) : Except String DispatchSource.Package := do
+  let metadata ← packageMetadata j
+  return ⟨metadata.id, metadata.dependencies, ← (← array j "modules").mapM module, metadata.geometryCompat⟩
 
 end VastitasKernel.Indexed.Wire

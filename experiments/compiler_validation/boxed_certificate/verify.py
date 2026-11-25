@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 import tomllib
+from typing import NamedTuple
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "official_exit"))
@@ -24,7 +25,7 @@ ROOT = official.ROOT
 GOAL = "VastitasProof.obligation"
 THEOREM = "VastitasProof.checked"
 ROOTS = [*fast.AXIOMS, "Eq.refl", "id", "VastitasOracle.BoxedCertificate.Valid.mk",
-         "VastitasOracle.BoxedCertificate.printedLines", GOAL]
+         "VastitasOracle.BoxedCertificate.printedLines", "VastitasProof.packageOwners", "VastitasProof.physicalInputs", GOAL]
 KINDS = {"Int": ".int", "Nat": ".nat", "Bool": ".bool", "Pair<Int>": "(.pair .int)", "Pair<Nat>": "(.pair .nat)"}
 OPS = {f"{k}_{op}": f"(.{k} .{op})" for k in ("int", "nat") for op in ("add", "sub", "mul", "div")}
 OPS.update(nat_int_div=".natIntDiv", int_nat_div=".intNatDiv", int_neg=".neg", nat_to_int=".natToInt")
@@ -50,13 +51,11 @@ def lean_command(prefix, memory):
 
 
 PROOF = """by
-  refine ⟨rfl, ?_, rfl, rfl, rfl, ?_⟩
-  · with_unfolding_all rfl
-  · exact VastitasOracle.BoxedCertificate.printedLines code headerBytes lines rfl rfl"""
+  refine ⟨rfl, physicalInputs, packageOwners, rfl, rfl, rfl, ?_⟩
+  exact VastitasOracle.BoxedCertificate.printedLines code headerBytes lines rfl rfl"""
 
 FLOW_PROOF = """by
-  refine ⟨rfl, ?_, rfl, rfl, evaluated, printed⟩
-  · with_unfolding_all rfl"""
+  exact ⟨rfl, physicalInputs, packageOwners, rfl, rfl, evaluated, printed⟩"""
 
 
 def natural(value):
@@ -192,6 +191,19 @@ def check_module_files(package, root, directory, files, offsets, claimed):
     return first
 
 
+class PackageGraph(NamedTuple):
+    file: str
+    root: str
+    legacy_geometry: bool
+    packages: list
+
+
+class PhysicalInputs(NamedTuple):
+    files: list
+    entry: int
+    graph: PackageGraph
+
+
 def check_manifest_inputs(wire, manifest, files, entry):
     """Follow the paths declared by the physical TOML files from the user's root."""
     by_path = {}
@@ -202,13 +214,20 @@ def check_manifest_inputs(wire, manifest, files, entry):
     packages = {p["source"]: p for p in wire["packages"]}
     require(len(packages) == len(wire["packages"]) and wire["root"] == str(manifest),
             "package owners differ from the physical root")
-    pending = [manifest]
-    seen = set()
+    pending = [(manifest, False)]
+    owners = {}
+    ordered = []
+    active = set()
     while pending:
-        path = pending.pop()
-        if path in seen:
+        path, finished = pending.pop()
+        if finished:
+            ordered.append(owners[path])
+            active.remove(path)
             continue
-        seen.add(path)
+        require(path not in active, "cyclic manifest dependency")
+        if path in owners:
+            continue
+        active.add(path)
         rows = by_path.get(os.fsencode(path), [])
         require(len(rows) == 1 and str(path) in packages, "missing or duplicate physical package manifest")
         claimed.add(rows[0])
@@ -225,13 +244,15 @@ def check_manifest_inputs(wire, manifest, files, entry):
             require(first == entry, "manifest and physical entry differ")
         targets = {alias: (path.parent / dep["path"] / "Vastitas.toml").resolve(strict=True)
                    for alias, dep in doc.get("dependencies", {}).items()}
-        edges = package["dependencies"]
-        require(len(edges) == len(targets) and {e["alias"]: e["target"] for e in edges} ==
-                {alias: str(target) for alias, target in targets.items()},
+        edges = [(alias, str(targets[alias])) for alias in sorted(targets)]
+        require([(e["alias"], e["target"]) for e in package["dependencies"]] == edges,
                 "manifest and wire dependencies differ")
-        pending.extend(targets.values())
-    require(len(seen) == len(packages), "wire contains a package outside the manifest closure")
+        owners[path] = (str(path), metadata["name"], metadata["version"], edges)
+        pending.append((path, True))
+        pending.extend((targets[alias], False) for alias, _ in reversed(edges))
+    require(list(packages) == [owner[0] for owner in ordered], "wire differs from manifest dependency order")
     require(len(claimed) == len(files), "physical input has no declaring manifest or module")
+    return PackageGraph(str(manifest), str(manifest), wire.get("legacy_geometry", False), ordered)
 
 
 def read_sources(wire, source, flat_names):
@@ -267,10 +288,13 @@ def read_sources(wire, source, flat_names):
         offset += len(data) + 1
     require(entry is not None, "missing physical entry")
     if flat_names is None:
-        check_manifest_inputs(wire, source, files, entry)
+        graph = check_manifest_inputs(wire, source, files, entry)
     else:
         require(entry == 0, "flat entry must be the first input")
-    return files, entry
+        owner = "vastitas:compat:flat"
+        graph = PackageGraph(os.fsencode(flat_names[0]).decode("utf-8", errors="replace"), owner, True,
+                             [(owner, "legacy_flat", "1.0.0", [])])
+    return PhysicalInputs(files, entry, graph)
 
 
 def string_literal(value):
@@ -280,6 +304,47 @@ def string_literal(value):
         return official.lean_string(value)
     middle = len(value) // 2
     return f"({string_literal(value[:middle])} ++ {string_literal(value[middle:])})"
+
+
+def physical_proof(wire, inputs, files, quote):
+    """Prove the actual layout decoder's header, each transition and the final cursor."""
+    statement = "theorem physicalInputs : PhysicalSources.layout wire = .ok sources := by"
+    rows = wire["root_source"].get("files")
+    if rows is None:
+        return statement + "\n  with_unfolding_all rfl"
+    owners = [p[0] for p in inputs.graph.packages] if inputs.graph.root != "vastitas:compat:flat" else []
+    manifests = f"([{', '.join(map(quote, owners))}] : List String).foldl (fun s n => s.insert n) {{}}"
+    table = (f"⟨{quote(inputs.graph.file)}, {quote(inputs.graph.root)}, {natural(inputs.files[inputs.entry][1])}, "
+             f"{quote(inputs.files[inputs.entry][2])}, {len(rows)}, manifestNames⟩")
+    lines = [f"def manifestNames : PhysicalSources.ManifestSet := {manifests}",
+             f"def table : PhysicalSources.Table := {table}",
+             "def cursor0 : PhysicalSources.Cursor := {missing := table.manifests}"]
+    names = set(owners)
+    entry = "none"
+    total = 0
+    for i, (row, (label, offset, text), expected) in enumerate(zip(rows, inputs.files, files, strict=True)):
+        lines.append(f"def row{i} : Json := {official.json_term(row, quote)}")
+        missing = f"cursor{i}.missing"
+        name = os.fsdecode(label)
+        if name in names:
+            missing = f"({missing}.erase {quote(name)})"
+        if i == inputs.entry:
+            entry = f"some {i}"
+        size = len(text.encode("utf-8"))
+        total += size
+        lines.extend([
+            f"def cursor{i+1} : PhysicalSources.Cursor := "
+            f"⟨cursor{i}.files.push {expected}, {offset+size+1}, {total}, {entry}, {missing}⟩",
+            f"theorem rowStep{i} : table.step cursor{i} row{i} = .ok cursor{i+1} := by with_unfolding_all rfl",
+        ])
+    row_names = ", ".join(f"row{i}" for i in range(len(rows)))
+    lines.extend([f"def rows := #[{row_names}]",
+                  "theorem prepared : PhysicalSources.prepare wire = .ok (.inr (table, rows)) := by with_unfolding_all rfl",
+                  statement, "  apply VastitasOracle.CertificatePackages.table_layout prepared (last := cursor"
+                  + str(len(rows)) + ")"])
+    chain = "".join(f"VastitasOracle.CertificatePackages.prepend_row rowStep{i} (" for i in range(len(rows)))
+    lines.extend(["  · exact " + chain + "by rfl" + ")" * len(rows), "  · rfl"])
+    return "\n".join(lines)
 
 
 def authority(revision, model, triple, layout, data, sources):
@@ -305,7 +370,14 @@ def authority(revision, model, triple, layout, data, sources):
     lines = ", ".join(map(quote_line, body[1:-1]))
     fields = [(quote(k), 'wire' if k == 'input' else official.json_term(revision[k], quote)) for k in sorted(revision)]
     rev = ", ".join(f"({k}, {v})" for k, v in fields)
-    files, entry = sources
+    files, entry, graph = sources
+    package_rows = []
+    for path, name, version, dependencies in graph.packages:
+        owner = f"⟨{quote(path)}, {quote(name)}, {quote(version)}⟩"
+        edges = ", ".join(f"({quote(alias)}, {quote(target)})" for alias, target in dependencies)
+        package_rows.append(f"({owner}, [{edges}])")
+    require(type(graph.legacy_geometry) is bool, "invalid compatibility profile")
+    package_graph = f"⟨{quote(graph.file)}, {quote(graph.root)}, {str(graph.legacy_geometry).lower()}, [{', '.join(package_rows)}]⟩"
     physical = []
     for path, offset, text in files:
         try:
@@ -326,6 +398,7 @@ def authority(revision, model, triple, layout, data, sources):
         functions.append(f"⟨[{args}], {KINDS[f['result']]}, [{steps}], {natural(f['slot'])}⟩")
     wire = official.json_term(revision["input"], quote)
     triple_term, layout_term = quote(triple), quote(layout)
+    file_evidence = physical_proof(revision["input"], sources, physical, quote)
     bindings = "\n".join(f"def {name} : String := {string_literal(value)}" for value, name in strings.items())
     module = "FlowCertificate.Subject" if flow else namespace
     return f"""import VastitasOracle.{module}
@@ -338,13 +411,17 @@ open Lean VastitasKernel VastitasKernel.LLVM VastitasOracle.{namespace}
 def wire : Json := {wire}
 def revision : Json := Json.mkObj [{rev}]
 def sources : PhysicalSources.Layout := ⟨#[{', '.join(physical)}], {natural(entry)}⟩
+def packages : VastitasOracle.CertificatePackages.Graph := {package_graph}
 def header : TargetHeader := ⟨⟨{triple_term}.toUTF8.data.toList, by decide⟩,
   ⟨{layout_term}.toUTF8.data.toList, by decide⟩⟩
 def code : VastitasKernel.LLVM.{code_type}.Code := ⟨header, #[{', '.join(functions)}], {natural(model['entry'])}⟩
 def headerBytes : List UInt8 := {header_bytes}
 def lines : List String := [{lines}]
-def subject : Subject := ⟨wire, revision, sources, header, code,
+def subject : Subject := ⟨wire, revision, sources, packages, header, code,
   headerBytes ++ ("\\n" ++ String.intercalate "\\n" lines ++ "\\n").toUTF8.data.toList, {integer(model['value'])}⟩
+{file_evidence}
+theorem packageOwners : VastitasOracle.CertificatePackages.read wire = .ok packages := by
+  with_unfolding_all rfl
 def obligation : Prop := Valid subject
 end VastitasProof
 """
@@ -444,7 +521,7 @@ def verify(args, work, report):
     revision = json.loads(revision_path.read_bytes(), object_pairs_hook=fast.unique_fields)
     require(revision["input"]["version"] == 10, "expected wire 10")
     sources = read_sources(revision["input"], source, None if args.manifest_path else [source.name, *libraries])
-    report["physical_inputs"] = len(sources[0])
+    report["physical_inputs"] = len(sources.files)
     preview = work / "preview.ll"
     phase("preview", [*cmd, "--llvm-preview", "--expect-function-revision", revision_path,
                       "--target-triple", args.target_triple, "--data-layout", args.data_layout], preview,

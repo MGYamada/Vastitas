@@ -22,6 +22,12 @@ structure Publication (s : Subject) (requireMain : Bool) where
   revision : artifact.linked.exe.revision = s.revision
   graph : artifact.model = s.code
 
+/-- The closed certificate and the public checker recover the same package
+identities, root and ordered dependency targets before method selection. -/
+theorem published_packages {s : Subject} (v : Valid s) {requireMain : Bool} (p : Publication s requireMain) :
+    CertificatePackages.ofProgram p.req.input = s.packages :=
+  Except.ok.inj ((CertificatePackages.of_decoded p.req.decoded).symm.trans v.owners)
+
 /-- Capture all fields in one execution of the real public emitter. The typed
 publication equation stays available to the composition theorem. -/
 def capture (wire : Lean.Json) (header : TargetHeader) (requireMain : Bool) :
@@ -29,7 +35,7 @@ def capture (wire : Lean.Json) (header : TargetHeader) (requireMain : Bool) :
   match h : Emission.check wire header requireMain with
   | .ok (.exactFlow (main := m) (req := req) a text parsed) =>
     (PhysicalSources.layout wire).toOption.map fun sources =>
-      let s : Subject := ⟨wire, a.linked.exe.revision, sources, header, a.model, text.toUTF8.data.toList, a.value⟩
+      let s : Subject := ⟨wire, a.linked.exe.revision, sources, CertificatePackages.ofProgram req.input, header, a.model, text.toUTF8.data.toList, a.value⟩
       ⟨s, ⟨m, req, a, text, parsed, h, rfl, rfl⟩⟩
   | _ => none
 

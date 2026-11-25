@@ -455,6 +455,97 @@ fn diagonal_weights_obey_the_exact_integer_bound_of_the_storage_component() {
     }
 }
 
+const LLVM_PREVIEW: &[&str] = &[
+    "--llvm-preview",
+    "--target-triple",
+    "x86_64-unknown-linux-gnu",
+    "--data-layout",
+    "e-p:64:64",
+];
+
+#[test]
+fn diagonal_llvm_tables_follow_the_source_revision() {
+    let real = single_adjoint(false, "5");
+    let complex = single_adjoint(true, "5");
+    let s = fixture(&real, &complex);
+    let revision = command(&s, "check")
+        .arg("--print-function-revision")
+        .output()
+        .unwrap();
+    success(&revision);
+    let saved = s.0.join("revision.json");
+    std::fs::write(&saved, revision.stdout).unwrap();
+    let preview = |replay: bool| {
+        let mut cmd = command(&s, "check");
+        cmd.args(LLVM_PREVIEW);
+        if replay {
+            cmd.arg("--expect-function-revision").arg(&saved);
+        }
+        cmd.output().unwrap()
+    };
+    let original = preview(true);
+    success(&original);
+    let ir = std::str::from_utf8(&original.stdout).unwrap();
+    assert_eq!(ir.matches(" = private constant [").count(), 1);
+    for tag in [2, 3] {
+        let prefix = format!("call i32 @vq_storage_diagonal_adjoint(ptr %arena, i64 {tag},");
+        let line = ir.lines().find(|line| line.contains(&prefix)).unwrap();
+        assert!(line.ends_with("ptr @vq_diag0, i64 8, i64 1, ptr @vq_diag0, i64 8, i64 1)"));
+    }
+    s.write("src/real/mod.vast", &single_adjoint(false, "3"));
+    let stale = preview(true);
+    common::expect_code(&stale, "E_FUNCTION_REVISION");
+    assert!(stale.stdout.is_empty());
+    let edited = preview(false);
+    success(&edited);
+    let ir = std::str::from_utf8(&edited.stdout).unwrap();
+    assert_eq!(ir.matches(" = private constant [").count(), 2);
+    assert_ne!(edited.stdout, original.stdout);
+}
+
+#[test]
+#[cfg_attr(
+    feature = "llvm-native",
+    ignore = "requires pinned sequential LP64 OpenBLAS"
+)]
+fn diagonal_llvm_schedules_cover_both_precisions_and_empty_weights() {
+    for (real, complex, pairing, first_tag) in [
+        (
+            single_adjoint(false, "5"),
+            single_adjoint(true, "5"),
+            false,
+            2,
+        ),
+        (REAL.to_owned(), COMPLEX.to_owned(), true, 0),
+        (f32_pairing(false), f32_pairing(true), true, 2),
+        (empty(false, "0"), empty(true, "9007199254740993"), true, 0),
+    ] {
+        let s = fixture(&real, &complex);
+        let preview = command(&s, "check").args(LLVM_PREVIEW).output().unwrap();
+        success(&preview);
+        let ir = std::str::from_utf8(&preview.stdout).unwrap();
+        let op = if pairing {
+            "diagonal_pair"
+        } else {
+            "diagonal_adjoint"
+        };
+        for tag in [first_tag, first_tag + 1] {
+            assert!(ir.contains(&format!("call i32 @vq_storage_{op}(ptr %arena, i64 {tag},")));
+        }
+        #[cfg(feature = "llvm-native")]
+        {
+            let mut build = command(&s, "build");
+            build.args(["--llvm-preview", "-o", "llvm-program"]);
+            if pairing {
+                build.args(common::numerical_build_options(None));
+            }
+            success(&build.output().unwrap());
+            let output = Command::new(s.0.join("llvm-program")).output().unwrap();
+            assert_eq!(common::ran(&output), common::exits(0));
+        }
+    }
+}
+
 #[test]
 fn materialized_diagonal_adjoint_builds_without_openblas() {
     for (real, complex) in [

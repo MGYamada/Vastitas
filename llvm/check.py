@@ -46,6 +46,7 @@ CASES = [
     Sample("literal-comparison", HERE / "fixtures/LiteralComparison.vast", "literal_comparison"),
     Sample("empty-lookup", HERE / "fixtures/EmptyLookup.vast", "empty_lookup"),
     Sample("closure-unit", HERE / "fixtures/ClosureUnit.vast", "closure_unit"),
+    Sample("diagonal-adjoint", HERE / "fixtures/DiagonalAdjoint.vast", "diagonal_adjoint"),
     Sample("tensor-column", HERE / "fixtures/tensor-column/Vastitas.toml", None),
     Sample("gemm-coefficients", ROOT / "examples/packages/numerical/gemm-coefficients/Vastitas.toml", None),
     Sample("float-identity", ROOT / "examples/packages/float-identity/Vastitas.toml", None),

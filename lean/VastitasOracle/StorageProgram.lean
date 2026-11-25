@@ -44,14 +44,14 @@ theorem erased_unit {json main callee} {req : ResourceSource.Wire.CheckedInput j
 theorem pack3_operands (live : Std.HashMap Nat Storage.Scalar) (a b i k j : Nat) (v w : Storage.Layout) :
     resolveInstruction live (.pack3 a v b w i k j) = some ⟨.pack3, [
       a, v.offset, v.rows, v.columns, v.leading, v.transposed.toNat,
-      b, w.offset, w.rows, w.columns, w.leading, w.transposed.toNat, i,k,j]⟩ := rfl
+      b, w.offset, w.rows, w.columns, w.leading, w.transposed.toNat, i,k,j], []⟩ := rfl
 
 /-- A regroup of two valid rank-three groupings preserves the input and output codes in order. -/
 theorem regroup3_operands (live : Std.HashMap Nat Storage.Scalar) (a b i k j : Nat) (v w : Storage.Layout)
     (src dst : Storage.Tensor.Grouping) (hs : src.Valid 3) (hd : dst.Valid 3) :
     resolveInstruction live (.regroup3 a v b w [i,k,j] src dst) = some ⟨.regroup3, [
       a, v.offset, v.rows, v.columns, v.leading, v.transposed.toNat,
-      b, w.offset, w.rows, w.columns, w.leading, w.transposed.toNat, i,k,j,src.code,dst.code]⟩ := by
+      b, w.offset, w.rows, w.columns, w.leading, w.transposed.toNat, i,k,j,src.code,dst.code], []⟩ := by
   simp [resolveInstruction, hs, hd] <;> rfl
 
 /-- The tag crossing the GEMM ABI denotes the common representation of the
@@ -69,6 +69,36 @@ theorem gemm_representation {live : Std.HashMap Nat Storage.Scalar} {a va ca b v
       cases resolved
       exact ⟨element, same.1, same.2.1, rfl, rfl, rfl⟩
     · contradiction
+
+/-- Physical scaling forwards the checked table and the conjugation flag. -/
+theorem diagonal_scale_operands {live : Std.HashMap Nat Storage.Scalar} {a va b vb weight conjugate call}
+    (h : resolveInstruction live (.diagonalScale a va b vb weight conjugate .nativeFast) = some call) :
+    ∃ element, live[a]? = some element ∧ live[b]? = some element ∧
+      call.target = .diagonalScale ∧ call.diagonals = [weight] ∧
+      call.arguments.head? = some (Storage.NativeText.scalar element) ∧ call.arguments[13]? = some conjugate.toNat := by
+  obtain ⟨s,ha,hb,op,weights,args⟩ := diagonalCall_operands (target := .diagonalScale) h
+  exact ⟨s,ha,by simpa using hb,op,weights,by rw [args]; rfl,by rw [args]; rfl⟩
+
+/-- The ordered source and target weight tables and their uniform flags survive
+physical lowering, along with the common element representation. -/
+theorem diagonal_adjoint_operands {live : Std.HashMap Nat Storage.Scalar} {a va b vb source target conjugate call}
+    (h : resolveInstruction live (.diagonalAdjoint a va b vb source target conjugate .nativeFast) = some call) :
+    ∃ element, live[a]? = some element ∧ live[b]? = some element ∧
+      call.target = .diagonalAdjoint ∧ call.diagonals = [source,target] ∧
+      call.arguments.head? = some (Storage.NativeText.scalar element) := by
+  obtain ⟨s,ha,hb,op,weights,args⟩ := diagonalCall_operands (target := .diagonalAdjoint) h
+  exact ⟨s,ha,by simpa using hb,op,weights,by rw [args]; rfl⟩
+
+/-- A fused pairing preserves the checked scratch allocation and uses the
+same physical element representation for all four views. -/
+theorem diagonal_pair_operands {live : Std.HashMap Nat Storage.Scalar} {a va b vb out vo tmp vt w cl cr call}
+    (h : resolveInstruction live (.diagonalPair a va b vb out vo tmp vt w cl cr .nativeFast) = some call) :
+    ∃ element, live[a]? = some element ∧ live[b]? = some element ∧ live[out]? = some element ∧
+      live[tmp]? = some element ∧ call.target = .diagonalPair ∧ call.diagonals = [w] ∧
+      call.arguments.head? = some (Storage.NativeText.scalar element) ∧ call.arguments[19]? = some tmp := by
+  obtain ⟨s,ha,others,op,weights,args⟩ := diagonalCall_operands (target := .diagonalPair) h
+  simp at others
+  exact ⟨s,ha,others.1,others.2.1,others.2.2,op,weights,by rw [args]; rfl,by rw [args]; rfl⟩
 
 /-- For every response from the foreign ABI, the executed calls form a prefix
 and the acquired arena has one release on either possible exit. -/

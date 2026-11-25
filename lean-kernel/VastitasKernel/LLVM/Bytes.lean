@@ -2,10 +2,9 @@ import Std
 
 set_option autoImplicit false
 
-/-! Canonical LLVM quoted-byte syntax. This component is not called by the
-public compiler route. It gives no target, identifier or instruction validity
-to the bytes it quotes. All bytes use LLVM's two-uppercase-hex-digit escape,
-so decoding is independent of the host's Unicode and string representations. -/
+/-! Canonical LLVM quoted-byte syntax for target headers and constant data.
+Each byte uses LLVM's two-uppercase-hex-digit escape. The surrounding parser
+checks the context in which the quoted bytes occur. -/
 
 namespace VastitasKernel.LLVM.Bytes
 

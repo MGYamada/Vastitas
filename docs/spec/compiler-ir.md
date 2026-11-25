@@ -16,7 +16,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [One phase-indexed typed MidIR](#compiler-ir.midir) | Planned, Tested, Tested, Proved (oracle) |
 | [Closed opcodes have independent meanings](#compiler-ir.registry) | Planned, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle) |
 | [Semantics are independent of validators](#compiler-ir.semantics) | Planned |
-| [Storage safety comes from checked refinement](#compiler-ir.storage) | Planned, Proved (oracle), Proved (oracle), Tested, Proved (oracle), Proved (oracle), Tested |
+| [Storage safety comes from checked refinement](#compiler-ir.storage) | Planned, Proved (oracle), Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested |
 | [One foreign Lean runtime preserves exact arithmetic](#compiler-ir.runtime) | Planned |
 | [Floating carriers stay in the resource layer](#compiler-ir.float-carrier) | Planned, Tested, Proved (oracle) |
 | [Realization binds mathematical and numerical identities](#compiler-ir.realization) | Planned, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (bridge), Proved (oracle), Planned, Tested, Proved (oracle), Tested, Tested, Proved (oracle) |
@@ -628,6 +628,12 @@ Claims:
   - Premises:
     - Physical lowering resolved a NativeFast GEMM instruction in the live allocation map.
   - Note: The first ABI operand selects the common physical representation of both inputs and the destination. The correspondence theorem separately binds every layout, coefficient and flag to the printed call.
+- `diagonal-abi`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.diagonal_scale_operands`, `VastitasOracle.StorageProgram.diagonal_adjoint_operands`, `VastitasOracle.StorageProgram.diagonal_pair_operands`
+  - Premises:
+    - The checked physical schedule resolved the NativeFast diagonal instruction in the live allocation map.
+  - Note: Scaling preserves the table and conjugation flag. The adjoint carries the source table followed by the target table. Fused pairing preserves the scratch allocation and the common representation of all four views. Full-module byte identity follows from static-effects under its separate parser premise.
 - `erased-unit`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.erased_unit`

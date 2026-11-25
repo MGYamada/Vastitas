@@ -11,14 +11,20 @@ open Storage
 
 inductive Callee where
   | allocate | drop | fill | store | expect | copy | gemm | pack3 | regroup3
+  | diagonalScale | diagonalAdjoint | diagonalPair
   deriving DecidableEq, BEq, Repr
 
 def Callee.name : Callee → String
   | .allocate => "allocate" | .drop => "drop" | .fill => "fill"
   | .store => "store" | .expect => "expect" | .copy => "copy" | .gemm => "gemm"
   | .pack3 => "pack3" | .regroup3 => "regroup3"
+  | .diagonalScale => "diagonal_scale" | .diagonalAdjoint => "diagonal_adjoint" | .diagonalPair => "diagonal_pair"
 
-def Callee.all : List Callee := [.allocate, .drop, .fill, .store, .expect, .copy, .gemm, .pack3, .regroup3]
+def Callee.all : List Callee := [.allocate, .drop, .fill, .store, .expect, .copy, .gemm, .pack3, .regroup3,
+  .diagonalScale, .diagonalAdjoint, .diagonalPair]
+
+def Callee.diagonalCount : Callee → Nat
+  | .diagonalAdjoint => 2 | .diagonalScale | .diagonalPair => 1 | _ => 0
 
 /-- All integer arguments use i64 at the C boundary. Layouts are flattened to
 five words so the platform ABI for C struct values does not enter the IR. -/
@@ -43,6 +49,8 @@ def Callee.signature : Callee → List Operand
   | .regroup3 => packingSignature ++ [.grouping, .grouping]
   | .gemm => [.scalar] ++ inputMatrixSignature ++ inputMatrixSignature ++ matrixSignature ++
       [.flag] ++ coefficientSignature ++ coefficientSignature
+  | .diagonalScale | .diagonalAdjoint => [.scalar] ++ matrixSignature ++ matrixSignature ++ [.flag]
+  | .diagonalPair => [.scalar] ++ matrixSignature ++ matrixSignature ++ matrixSignature ++ matrixSignature ++ [.flag,.flag]
 
 def Callee.arity (f : Callee) := f.signature.length
 
@@ -59,6 +67,7 @@ def Operand.accepts : Operand → Nat → Bool
 structure Call where
   target : Callee
   arguments : List Nat
+  diagonals : List Diagonal := []
   deriving DecidableEq, BEq, Repr
 
 private def literalBits (scalar real imaginary : Nat) : Bool :=
@@ -91,8 +100,35 @@ private def validPacking : List Nat → Bool
     matchesGrouping [i,k,j] src rows cols && matchesGrouping [i,k,j] dst rows' cols'
   | _ => false
 
+private def readView : List Nat → Option (Layout × List Nat)
+  | _id :: offset :: rows :: columns :: leading :: transposed :: rest =>
+    some (⟨offset, rows, columns, leading, transposed == 1⟩, rest)
+  | _ => none
+
+/-- Interpret the physical view shapes exactly as the native calls do. The
+logical resource checker supplies the ownership and nominal metric evidence. -/
+private def validDiagonals (c : Call) : Bool := Id.run do
+  if c.target.diagonalCount == 0 then return c.diagonals.isEmpty
+  let tag :: args := c.arguments | return false
+  let limit := if tag < 2 then 2^53 else 2^24
+  let some (a, rest) := readView args | return false
+  let some (b, rest) := readView rest | return false
+  match c.target, c.diagonals with
+  | .diagonalScale, [w] => return (!b.transposed && a.logicalColumns == 1 && b.columns == 1 &&
+      a.logicalRows == b.rows && w.valid a.logicalRows limit)
+  | .diagonalAdjoint, [source,target] => return (!b.transposed &&
+      a.logicalRows == b.columns && a.logicalColumns == b.rows &&
+      source.valid a.logicalColumns limit && target.valid a.logicalRows limit)
+  | .diagonalPair, [w] =>
+    let some (out, rest) := readView rest | return false
+    let some (scratch, _) := readView rest | return false
+    return (!out.transposed && !scratch.transposed && out.rows == 1 && out.columns == 1 &&
+      a.logicalColumns == 1 && b.logicalColumns == 1 && scratch.columns == 1 &&
+      a.logicalRows == scratch.rows && b.logicalRows == scratch.rows && w.valid scratch.rows limit)
+  | _, _ => return false
+
 def Call.valid (c : Call) : Bool :=
-  c.arguments.length == c.target.arity &&
+  c.arguments.length == c.target.arity && validDiagonals c &&
     (c.target.signature.zip c.arguments).all (fun (ty, n) => ty.accepts n) &&
     (match c.target with
      | .fill | .store | .expect =>
@@ -121,24 +157,55 @@ private def coefficientFits (live : Std.HashMap Nat Scalar) (s : Scalar) : Resol
   | .literal value => value.scalar == s
   | .view allocation _ => live[allocation]? == some s
 
+private def diagonalCall (target : Callee) (live : Std.HashMap Nat Scalar)
+    (first : Nat × Layout) (rest : List (Nat × Layout)) (flags : List Bool)
+    (tables : List Diagonal) : Option Call := do
+  let scalar ← live[first.1]?
+  guard (rest.all fun (id,_) => decide (live[id]? = some scalar))
+  let operands := (first :: rest).flatMap fun (id,v) => id :: layout v
+  return ⟨target, NativeText.scalar scalar :: operands ++ flags.map Bool.toNat, tables⟩
+
+theorem diagonalCall_operands {target live first rest flags tables call}
+    (resolved : diagonalCall target live first rest flags tables = some call) :
+    ∃ scalar, live[first.1]? = some scalar ∧
+      rest.all (fun (id,_) => decide (live[id]? = some scalar)) = true ∧
+      call.target = target ∧ call.diagonals = tables ∧
+      call.arguments = NativeText.scalar scalar ::
+        (first :: rest).flatMap (fun (id,v) => id :: layout v) ++ flags.map Bool.toNat := by
+  cases found : live[first.1]? with
+  | none => simp [diagonalCall, found] at resolved
+  | some scalar =>
+    by_cases same : rest.all (fun (id,_) => decide (live[id]? = some scalar)) = true
+    · simp [diagonalCall, found, same, guard] at resolved
+      subst call
+      exact ⟨scalar, rfl, same, rfl, rfl, by simp [List.append_assoc]⟩
+    · simp [diagonalCall, found, same, guard] at resolved
+      contradiction
+
 def resolveInstruction (live : Std.HashMap Nat Scalar) : Native.Instruction → Option Call
-  | .allocate a s n => some ⟨.allocate, [a, NativeText.scalar s, n]⟩
-  | .drop a => some ⟨.drop, [a]⟩
-  | .fill a v x => some ⟨.fill, [a] ++ layout v ++ literal x⟩
-  | .store a v r c x => some ⟨.store, [a] ++ layout v ++ [r,c] ++ literal x⟩
-  | .expect a v r c x => some ⟨.expect, [a] ++ layout v ++ [r,c] ++ literal x⟩
-  | .copy a v b w => some ⟨.copy, [a] ++ layout v ++ [b] ++ layout w⟩
-  | .pack3 a v b w i k j => some ⟨.pack3, [a] ++ layout v ++ [b] ++ layout w ++ [i,k,j]⟩
+  | .allocate a s n => some ⟨.allocate, [a, NativeText.scalar s, n], []⟩
+  | .drop a => some ⟨.drop, [a], []⟩
+  | .fill a v x => some ⟨.fill, [a] ++ layout v ++ literal x, []⟩
+  | .store a v r c x => some ⟨.store, [a] ++ layout v ++ [r,c] ++ literal x, []⟩
+  | .expect a v r c x => some ⟨.expect, [a] ++ layout v ++ [r,c] ++ literal x, []⟩
+  | .copy a v b w => some ⟨.copy, [a] ++ layout v ++ [b] ++ layout w, []⟩
+  | .pack3 a v b w i k j => some ⟨.pack3, [a] ++ layout v ++ [b] ++ layout w ++ [i,k,j], []⟩
   | .regroup3 a v b w dims src dst => do
     guard (dims.length == 3 && decide (src.Valid 3) && decide (dst.Valid 3))
-    return ⟨.regroup3, [a] ++ layout v ++ [b] ++ layout w ++ dims ++ [src.code, dst.code]⟩
+    return ⟨.regroup3, [a] ++ layout v ++ [b] ++ layout w ++ dims ++ [src.code, dst.code], []⟩
   | .gemm a va ca b vb cb out vo mode .nativeFast alpha beta => do
     let scalar ← live[out]?
     if live[a]? = some scalar ∧ live[b]? = some scalar ∧
         coefficientFits live scalar alpha ∧ coefficientFits live scalar beta then
       return ⟨.gemm, [NativeText.scalar scalar, a] ++ layout va ++ [ca.toNat, b] ++ layout vb ++
-        [cb.toNat, out] ++ layout vo ++ [NativeText.gemmMode mode] ++ coefficient alpha ++ coefficient beta⟩
+        [cb.toNat, out] ++ layout vo ++ [NativeText.gemmMode mode] ++ coefficient alpha ++ coefficient beta, []⟩
     else none
+  | .diagonalScale a va b vb w conj .nativeFast =>
+    diagonalCall .diagonalScale live (a,va) [(b,vb)] [conj] [w]
+  | .diagonalAdjoint a va b vb source target conj .nativeFast =>
+    diagonalCall .diagonalAdjoint live (a,va) [(b,vb)] [conj] [source,target]
+  | .diagonalPair a va b vb out vo scratch vs w cl cr .nativeFast =>
+    diagonalCall .diagonalPair live (a,va) [(b,vb),(out,vo),(scratch,vs)] [cl,cr] [w]
   | _ => none
 
 /-- Recover the physical element type of a matrix call from the allocations in

@@ -634,10 +634,10 @@ def affineIdentity (scalar : VastitasKernel.Storage.Scalar) : StorageModule.Code
   let view := [0,2,1,2,0]
   let first := [tag,negativeZero,if complex then 1 else 0]
   let second := if complex then [tag,0,nan] else [tag,nan,0]
-  ⟨header,[⟨.allocate,[0,tag,2]⟩, ⟨.allocate,[1,tag,2]⟩,
-    ⟨.store,[0] ++ view ++ [0,0] ++ first⟩, ⟨.store,[0] ++ view ++ [1,0] ++ second⟩,
-    ⟨.copy,[0] ++ view ++ [1] ++ view⟩, ⟨.expect,[1] ++ view ++ [0,0] ++ first⟩,
-    ⟨.expect,[1] ++ view ++ [1,0] ++ second⟩, ⟨.drop,[1]⟩, ⟨.drop,[0]⟩],0⟩
+  ⟨header,[⟨.allocate,[0,tag,2], []⟩, ⟨.allocate,[1,tag,2], []⟩,
+    ⟨.store,[0] ++ view ++ [0,0] ++ first, []⟩, ⟨.store,[0] ++ view ++ [1,0] ++ second, []⟩,
+    ⟨.copy,[0] ++ view ++ [1] ++ view, []⟩, ⟨.expect,[1] ++ view ++ [0,0] ++ first, []⟩,
+    ⟨.expect,[1] ++ view ++ [1,0] ++ second, []⟩, ⟨.drop,[1], []⟩, ⟨.drop,[0], []⟩],0⟩
 
 /-- Keep the same header, blank separator and final newline as the storage printer.
 Checking the individual lines avoids reducing the UTF-8 encoding of the whole module. -/
@@ -702,19 +702,19 @@ theorem complex32_identity_verified : complex32IdentityBytes = (affineIdentity .
 allocation 3 and computes 4 * 2 * 3 + 2 * 3 = 30. -/
 def gemmCoefficients : StorageModule.Code :=
   let atCell := fun (id : Nat) => [id, 0, 1, 1, 1, 0]
-  let fill := fun id bits => VastitasKernel.MidIR.StorageEffects.Call.mk .fill (atCell id ++ [0, bits, 0])
-  let expect := fun bits => VastitasKernel.MidIR.StorageEffects.Call.mk .expect (atCell 2 ++ [0, 0, 0, bits, 0])
+  let fill := fun id bits => VastitasKernel.MidIR.StorageEffects.Call.mk .fill (atCell id ++ [0, bits, 0]) []
+  let expect := fun bits => VastitasKernel.MidIR.StorageEffects.Call.mk .expect (atCell 2 ++ [0, 0, 0, bits, 0]) []
   let matrices := [0] ++ atCell 0 ++ [0] ++ atCell 1 ++ [0] ++ atCell 2
   let unit := 2^52
   let two := 1024 * unit
   let three := two + 2^51
   let half := 1022 * unit
   let thirty := 1027 * unit + 7 * 2^49
-  ⟨header, ([0,1,2,3].map fun id => ⟨.allocate, [id,0,1]⟩) ++
+  ⟨header, ([0,1,2,3].map fun id => ⟨.allocate, [id,0,1], []⟩) ++
     [fill 0 two, fill 1 three, fill 3 (1025 * unit),
-     ⟨.gemm, matrices ++ [0, 1,0,half,0,0,0, 0,0,0,0,0,0]⟩, expect three,
-     ⟨.gemm, matrices ++ [1, 2,0,0,0,3,0, 1,0,two,0,0,0]⟩, expect thirty] ++
-    ([3,2,1,0].map fun id => ⟨.drop, [id]⟩), 0⟩
+     ⟨.gemm, matrices ++ [0, 1,0,half,0,0,0, 0,0,0,0,0,0], []⟩, expect three,
+     ⟨.gemm, matrices ++ [1, 2,0,0,0,3,0, 1,0,two,0,0,0], []⟩, expect thirty] ++
+    ([3,2,1,0].map fun id => ⟨.drop, [id], []⟩), 0⟩
 
 /-- A 2×3 matrix with every element 1+2i times a three-element column
 with every element 3-4i. The bilinear sum in each row is 33+6i. -/
@@ -727,11 +727,11 @@ def tensorColumn : StorageModule.Code :=
   let minusFour := 2^31 + 129 * unit
   let thirtyThree := 132 * unit + 2^18
   let six := 129 * unit + 2^22
-  let expect := fun row => VastitasKernel.MidIR.StorageEffects.Call.mk .expect (output ++ [row,0,3,thirtyThree,six])
-  ⟨header,[⟨.allocate,[0,3,6]⟩, ⟨.allocate,[1,3,3]⟩, ⟨.allocate,[2,3,2]⟩,
-    ⟨.fill,matrix ++ [3,127 * unit,128 * unit]⟩, ⟨.fill,column ++ [3,three,minusFour]⟩,
-    ⟨.gemm,[3] ++ matrix ++ [0] ++ column ++ [0] ++ output ++ List.replicate 13 0⟩,
-    expect 0, expect 1, ⟨.drop,[2]⟩, ⟨.drop,[1]⟩, ⟨.drop,[0]⟩],0⟩
+  let expect := fun row => VastitasKernel.MidIR.StorageEffects.Call.mk .expect (output ++ [row,0,3,thirtyThree,six]) []
+  ⟨header,[⟨.allocate,[0,3,6], []⟩, ⟨.allocate,[1,3,3], []⟩, ⟨.allocate,[2,3,2], []⟩,
+    ⟨.fill,matrix ++ [3,127 * unit,128 * unit], []⟩, ⟨.fill,column ++ [3,three,minusFour], []⟩,
+    ⟨.gemm,[3] ++ matrix ++ [0] ++ column ++ [0] ++ output ++ List.replicate 13 0, []⟩,
+    expect 0, expect 1, ⟨.drop,[2], []⟩, ⟨.drop,[1], []⟩, ⟨.drop,[0], []⟩],0⟩
 
 def tensorColumnBytes := storage_file "src/tensor-column.ll"
 
@@ -746,6 +746,26 @@ def gemmCoefficientBytes := storage_file "src/gemm-coefficients.ll"
 
 set_option maxRecDepth 65536 in
 theorem gemm_coefficients_verified : gemmCoefficientBytes = gemmCoefficients.print := by
+  apply storageBytes_eq
+  · as_aux_lemma => rfl
+  · repeat' (apply consLines; case line => as_aux_lemma => rfl)
+    rfl
+
+/-- A one-cell binary32 adjoint multiplies 4 by the uniform target weight 3
+and divides by the explicit source weight −2. Weights use binary64 bits. -/
+def diagonalAdjoint : StorageModule.Code :=
+  let cell := fun (id : Nat) => [id,0,1,1,1,0]
+  let source : VastitasKernel.Storage.Diagonal := ⟨false,[0xc000000000000000]⟩
+  let target : VastitasKernel.Storage.Diagonal := ⟨true,[0x4008000000000000]⟩
+  ⟨header,[⟨.allocate,[0,2,1],[]⟩, ⟨.allocate,[1,2,1],[]⟩,
+    ⟨.fill,cell 0 ++ [2,0x40800000,0],[]⟩,
+    ⟨.diagonalAdjoint,[2] ++ cell 0 ++ cell 1 ++ [1],[source,target]⟩,
+    ⟨.expect,cell 1 ++ [0,0,2,0xc0c00000,0],[]⟩, ⟨.drop,[0],[]⟩, ⟨.drop,[1],[]⟩],0⟩
+
+def diagonalAdjointBytes := storage_file "src/diagonal-adjoint.ll"
+
+set_option maxRecDepth 65536 in
+theorem diagonal_adjoint_verified : diagonalAdjointBytes = diagonalAdjoint.print := by
   apply storageBytes_eq
   · as_aux_lemma => rfl
   · repeat' (apply consLines; case line => as_aux_lemma => rfl)
@@ -779,6 +799,7 @@ def checkedFiles : List (String × ByteArray) :=
    ("unary-table.ll", forLookup unary_table_verified),
    ("closure-unit.ll", forLookup closure_unit_verified),
    ("gemm-coefficients.ll", forStorage gemm_coefficients_verified),
+   ("diagonal-adjoint.ll", forStorage diagonal_adjoint_verified),
    ("tensor-column.ll", forStorage tensor_column_verified),
    ("float-identity.ll", forStorage real_identity_verified),
    ("float-complex-identity.ll", forStorage complex_identity_verified),
@@ -906,6 +927,7 @@ def main (args : List String) : IO Unit := do
       (Vastitas.LLVMCorpus.affineIdentity .complexF64, Vastitas.LLVMCorpus.complexIdentityBytes),
       (Vastitas.LLVMCorpus.affineIdentity .f32, Vastitas.LLVMCorpus.real32IdentityBytes),
       (Vastitas.LLVMCorpus.affineIdentity .complexF32, Vastitas.LLVMCorpus.complex32IdentityBytes),
+      (Vastitas.LLVMCorpus.diagonalAdjoint, Vastitas.LLVMCorpus.diagonalAdjointBytes),
       (Vastitas.LLVMCorpus.tensorColumn, Vastitas.LLVMCorpus.tensorColumnBytes),
       (Vastitas.LLVMCorpus.gemmCoefficients, Vastitas.LLVMCorpus.gemmCoefficientBytes)] do
     let some parsed := VastitasKernel.LLVM.StorageModule.parse bytes

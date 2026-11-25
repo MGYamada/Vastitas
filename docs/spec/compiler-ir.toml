@@ -757,6 +757,12 @@ evidence = ["VastitasOracle.StorageProgram.gemm_representation"]
 premises = ["Physical lowering resolved a NativeFast GEMM instruction in the live allocation map."]
 note = "The first ABI operand selects the common physical representation of both inputs and the destination. The correspondence theorem separately binds every layout, coefficient and flag to the printed call."
 
+[property."compiler-ir.storage".claim.diagonal-abi]
+status = "proved-oracle"
+evidence = ["VastitasOracle.StorageProgram.diagonal_scale_operands", "VastitasOracle.StorageProgram.diagonal_adjoint_operands", "VastitasOracle.StorageProgram.diagonal_pair_operands"]
+premises = ["The checked physical schedule resolved the NativeFast diagonal instruction in the live allocation map."]
+note = "Scaling preserves the table and conjugation flag. The adjoint carries the source table followed by the target table. Fused pairing preserves the scratch allocation and the common representation of all four views. Full-module byte identity follows from static-effects under its separate parser premise."
+
 [property."compiler-ir.storage".claim.erased-unit]
 status = "proved-oracle"
 evidence = ["VastitasOracle.StorageProgram.erased_unit"]

@@ -96,3 +96,38 @@ int32_t vq_storage_regroup3(VStorageArena *arena, uint64_t source, uint64_t in_o
                                     (uint32_t)target, view(out_offset, out_rows, out_columns, out_leading, 0),
                                     d0, d1, d2, input_grouping, output_grouping));
 }
+
+int32_t vq_storage_diagonal_scale(VStorageArena *arena, uint64_t element,
+        uint64_t input, uint64_t in_offset, uint64_t in_rows, uint64_t in_cols, uint64_t in_ld, uint64_t in_transposed,
+        uint64_t output, uint64_t out_offset, uint64_t out_rows, uint64_t out_cols, uint64_t out_ld, uint64_t out_transposed,
+        uint64_t conjugate, const uint8_t *weights, uint64_t bytes, uint64_t uniform) {
+    if (input > UINT32_MAX || output > UINT32_MAX) return checked(VS_HANDLE);
+    if (in_transposed > 1 || out_transposed || conjugate > 1) return checked(VS_OPERATION);
+    const VStorageLayout in = view(in_offset, in_rows, in_cols, in_ld, in_transposed);
+    VDiagonal diagonal;
+    VStorageStatus status = diagonal_element(arena, element, (uint32_t)input, in);
+    if (status != VS_OK) return checked(status);
+    status = diagonal_descriptor(weights, bytes, uniform, &diagonal);
+    if (status != VS_OK) return checked(status);
+    return checked(vdiagonal_scale(arena, (uint32_t)input, in, (uint32_t)output,
+        view(out_offset, out_rows, out_cols, out_ld, 0), diagonal, (uint8_t)conjugate));
+}
+
+int32_t vq_storage_diagonal_adjoint(VStorageArena *arena, uint64_t element,
+        uint64_t input, uint64_t in_offset, uint64_t in_rows, uint64_t in_cols, uint64_t in_ld, uint64_t in_transposed,
+        uint64_t output, uint64_t out_offset, uint64_t out_rows, uint64_t out_cols, uint64_t out_ld, uint64_t out_transposed,
+        uint64_t conjugate, const uint8_t *source_data, uint64_t source_bytes, uint64_t source_uniform,
+        const uint8_t *target_data, uint64_t target_bytes, uint64_t target_uniform) {
+    if (input > UINT32_MAX || output > UINT32_MAX) return checked(VS_HANDLE);
+    if (in_transposed > 1 || out_transposed || conjugate > 1) return checked(VS_OPERATION);
+    const VStorageLayout in = view(in_offset, in_rows, in_cols, in_ld, in_transposed);
+    VDiagonal source, target;
+    VStorageStatus status = diagonal_element(arena, element, (uint32_t)input, in);
+    if (status != VS_OK) return checked(status);
+    status = diagonal_descriptor(source_data, source_bytes, source_uniform, &source);
+    if (status != VS_OK) return checked(status);
+    status = diagonal_descriptor(target_data, target_bytes, target_uniform, &target);
+    if (status != VS_OK) return checked(status);
+    return checked(vdiagonal_adjoint(arena, (uint32_t)input, in, (uint32_t)output,
+        view(out_offset, out_rows, out_cols, out_ld, 0), source, target, (uint8_t)conjugate));
+}

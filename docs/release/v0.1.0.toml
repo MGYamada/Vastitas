@@ -114,7 +114,7 @@ number = 751
 title = "Closed opcode registry"
 state = "open"
 depends = [750]
-remaining = "The closed pure fragment includes Boolean conjunction, disjunction and negation, finite tags, arbitrary-arity nominal lookup, branches and checked direct calls. Nat/Int literals, same-kind arithmetic, mixed division, negation and conversion retain their ordered signatures. Construction and both projections preserve the element sort and order for homogeneous Nat and Int pairs. The registry distinguishes instruction mappings from the five structural forms, which need no opcode. Static storage opcodes bind allocation and view operands, component tags and exact payloads. All six dynamic Nat and Int comparison signatures have MidIR denotations. Straight-line library comparisons borrow both integers and return a 32-bit Boolean through the shim. Branches on those results in hosted boxed programs, dynamic resource plans and numerical arithmetic still need release evidence."
+remaining = "The closed pure fragment includes Boolean conjunction, disjunction and negation, finite tags, arbitrary-arity nominal lookup, branches and checked direct calls. Nat/Int literals, same-kind arithmetic, mixed division, negation and conversion retain their ordered signatures. Construction and both projections preserve the element sort and order for homogeneous Nat and Int pairs. The registry distinguishes instruction mappings from the five structural forms, which need no opcode. Static storage opcodes bind allocation and view operands, component tags and exact payloads. Diagonal scale, adjoint and pairing preserve ordered weight tables, and pairing identifies the scratch allocation. All six dynamic Nat and Int comparison signatures have MidIR denotations. Straight-line library comparisons borrow both integers and return a 32-bit Boolean through the shim. Branches on those results in hosted boxed programs, dynamic resource plans and numerical arithmetic still need release evidence."
 
 [[issue]]
 number = 752
@@ -142,7 +142,7 @@ number = 753
 title = "LLVM emission and native backend"
 state = "open"
 depends = [752]
-remaining = "The public LLVM preview emits complete bytes for unary lookup, its forwarding caller, signed literal and folded arithmetic entries, and a Bool caller with both predecessor edges of a phi. LLVM 23.1.4 on macOS arm64 also executed the closure Monad unit and binary lookup on S3, including reversed source operands. The compiler linked and installed three entry executables, which returned 255, 10 and 42. Closed finite packages emit direct calls, guarded row-major lookups with up to six axes, nullary lookups and phi nodes. The structured lookup retains both Boolean methods in 2,623 bytes for macOS arm64 and 2,647 bytes for x86-64 Linux. Both files have the same function model. On macOS, LLVM 23.1.4 emitted an ELF64 relocatable object from the Linux bytes. Straight-line boxed Nat/Int libraries call the versioned shim and release intermediate values. The static storage entry links a fixed C runtime and executes standard-chart identities at both widths for real and complex coordinates. Broader CFGs, numerical arithmetic, release qualification and production verification modes remain."
+remaining = "The public LLVM preview emits complete bytes for unary lookup, its forwarding caller, signed literal and folded arithmetic entries, and a Bool caller with both predecessor edges of a phi. LLVM 23.1.4 on macOS arm64 also executed the closure Monad unit and binary lookup on S3, including reversed source operands. The compiler linked and installed three entry executables, which returned 255, 10 and 42. Closed finite packages emit direct calls, guarded row-major lookups with up to six axes, nullary lookups and phi nodes. The structured lookup retains both Boolean methods in 2,623 bytes for macOS arm64 and 2,647 bytes for x86-64 Linux. Both files have the same function model. On macOS, LLVM 23.1.4 emitted an ELF64 relocatable object from the Linux bytes. Straight-line boxed Nat/Int libraries call the versioned shim and release intermediate values. The static storage entry links a fixed C runtime and executes standard-chart identities at both widths for real and complex coordinates. The binary32 adjoint emits two private constants and carries their lengths and uniform flags through the checked call. Broader CFGs, numerical arithmetic, release qualification and production verification modes remain."
 
 [[issue]]
 number = 779
@@ -365,19 +365,19 @@ document = ""
 
 [row.dimension.midir]
 state = "partial"
-claims = ["compiler-ir.midir@representation", "compiler-ir.storage@static-effects", "compiler-ir.storage@gemm-abi"]
-note = "The checked static plan fixes both effect orders and the physical operands for identity copies and GEMM in all four representations. Dynamic branches and runtime dimensions remain open."
+claims = ["compiler-ir.midir@representation", "compiler-ir.storage@static-effects", "compiler-ir.storage@gemm-abi", "compiler-ir.storage@diagonal-abi"]
+note = "The checked static plan fixes both effect orders and the physical operands for identity copies and GEMM in all four representations. Diagonal calls carry the common representation, the ordered weight tables and their uniform flags. Dynamic branches and runtime dimensions remain open."
 document = ""
 
 [row.dimension.llvm]
 state = "partial"
-claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.storage@static-effects", "compiler-ir.storage@gemm-abi"]
-note = "The canonical module binds every byte of the target, status branches, calls, cleanup and literal exit to the checked entry. The corpus retains all four width and carrier variants of the identity copy and a scaled product with literal and view coefficients."
+claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.storage@static-effects", "compiler-ir.storage@gemm-abi", "compiler-ir.storage@diagonal-abi"]
+note = "The canonical module binds every byte of the target, status branches, calls, cleanup and literal exit to the checked entry. The corpus retains all four width and carrier variants of the identity copy and a scaled product with literal and view coefficients. The binary32 adjoint corpus file retains distinct private constants for the source and target weights."
 document = ""
 
 [row.dimension.official]
 state = "partial"
-claims = ["compiler-ir.numeric-order@reference", "compiler-ir.numeric-order@reference-boundaries", "compiler-ir.numeric-order@one-step", "compiler-ir.realization@affine-expansion", "compiler-ir.realization@identity-origin", "compiler-ir.float-carrier@reference-laws", "compiler-ir.realization@exact-fields", "compiler-ir.realization@exact-chart-selection", "compiler-ir.realization@rational-coordinates", "compiler-ir.realization@coordinate-interpretation", "compiler-ir.storage@static-effects", "compiler-ir.storage@static-cleanup", "compiler-ir.storage@gemm-abi"]
+claims = ["compiler-ir.numeric-order@reference", "compiler-ir.numeric-order@reference-boundaries", "compiler-ir.numeric-order@one-step", "compiler-ir.realization@affine-expansion", "compiler-ir.realization@identity-origin", "compiler-ir.float-carrier@reference-laws", "compiler-ir.realization@exact-fields", "compiler-ir.realization@exact-chart-selection", "compiler-ir.realization@rational-coordinates", "compiler-ir.realization@coordinate-interpretation", "compiler-ir.storage@static-effects", "compiler-ir.storage@static-cleanup", "compiler-ir.storage@gemm-abi", "compiler-ir.storage@diagonal-abi"]
 note = "An accepted public run gives its lexical site, source identity declaration, nominal graph and checked storage copy. Complex copies also recover the selected mathematical model. The binary reference proves the real one-step result and flag relation, including the infinity-times-zero case. It also proves the signed-zero divisor and dot coefficient cases. Raw and checked unit, associativity, lift, short-circuit and trace projection are proved for the fixed reference. The exact real and complex models satisfy their field propositions, and the Bridge preserves their operations. The static LLVM model preserves the successful call order and the first-failure prefix with a single arena cleanup. Per-artifact verification and general compiler refinement remain."
 document = ""
 

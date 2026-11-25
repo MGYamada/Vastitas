@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare Lean's integer/rational model with the native F32/F64 quotient adapters."""
+"""Compare Lean's integer/rational model with the native F32/F64 quotient and diagonal adapters."""
 import ctypes as ct
 from pathlib import Path
 import random
@@ -141,6 +141,14 @@ def main():
                 verify(lib, case, list(map(int, line.split())))
             except ValueError as error:
                 raise SystemExit(f"input {case}: {error}") from error
+        native = ROOT / "lean-kernel/native"
+        diagonal = directory / "diagonal"
+        subprocess.run(["cc", "-std=c11", "-O3", "-Wall", "-Wextra", "-Werror", "-fno-fast-math",
+                        "-ffp-contract=off", f"-I{native}", native / "storage.c", native / "diagonal.c",
+                        ROOT / "scripts/check_diagonal_kernels.c", "-o", diagonal], check=True)
+        cases = subprocess.check_output(["lake", "env", "lean", "--run", ROOT / "scripts/check_diagonal_kernels.lean"],
+                                        cwd=ROOT / "lean")
+        subprocess.run([diagonal], input=cases, check=True)
     print(f"{len(rows)} tuples matched Lean and the independent binary32/64 reference on quotient graphs, scalar bits and local flags")
     print("C real division, complex division and inverse matched, including separate and aliased outputs")
 

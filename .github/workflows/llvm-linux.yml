@@ -152,6 +152,7 @@ jobs:
           cargo test --locked --features llvm-native --test numerical_source four_representations_execute_through_forwarded_public_maps -- --ignored --exact
           cargo test --locked --features llvm-native --test numerical_source physical_gemm_alpha_changes_the_computed_cells -- --ignored --exact
           cargo test --locked --features llvm-native --test tree_source tensor_column_contraction_executes_without_implicit_conjugation -- --ignored --exact
+          cargo test --locked --features llvm-native --test diagonal_metrics diagonal_llvm_schedules_cover_both_precisions_and_empty_weights -- --ignored --exact
           cargo test --locked --features llvm-native --test tree_source packed_tree_preserves_axis_order_through_llvm -- --ignored --exact
           cargo test --locked --features llvm-native --test indexed_definition_source native_cells_follow_the_written_linear_implementation -- --ignored --exact
       - name: Check the Apple linker, integer runtime, Kleisli calls and four GEMM representations

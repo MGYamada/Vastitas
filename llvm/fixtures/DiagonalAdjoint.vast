@@ -1,0 +1,19 @@
+indexed marker Coefficients;
+indexed implementation Scalar(Coefficients, scalar_base(smooth, real)) capabilities();
+indexed global Base(Scalar);
+indexed implementation Linear(Coefficients, linear_descriptor(Base, real)) capabilities();
+
+resource fn main() -> Int {
+    space v = linear(Linear,1); basis b = basis(v);
+    involution sigma = canonical(v);
+    metric source = diagonal(b,sigma,[-2]);
+    metric target = scaled_identity(b,sigma,3);
+    allocate a: F32<RR>[1]; allocate output: F32<RR>[1];
+    borrow init = write(a,layout(0,1,1,1,false)); fill(init,f32(4)); release(init);
+    borrow r = read(a,layout(0,1,1,1,false)); borrow w = write(output,layout(0,1,1,1,false));
+    map input = view(r,b,b); map result = view(w,b,b);
+    adjoint_into(input,result,source,target,NativeFast);
+    release(w); release(r); borrow check_result = read(output,layout(0,1,1,1,false));
+    expect(check_result,0,0,f32(-6)); release(check_result); drop(a); drop(output);
+    value { 0 }
+}

@@ -16,12 +16,12 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [One phase-indexed typed MidIR](#compiler-ir.midir) | Planned, Tested, Tested, Proved (oracle) |
 | [Closed opcodes have independent meanings](#compiler-ir.registry) | Planned, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle) |
 | [Semantics are independent of validators](#compiler-ir.semantics) | Planned |
-| [Storage safety comes from checked refinement](#compiler-ir.storage) | Planned, Proved (oracle), Proved (oracle), Tested, Proved (oracle), Proved (oracle), Tested |
+| [Storage safety comes from checked refinement](#compiler-ir.storage) | Planned, Proved (oracle), Proved (oracle), Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested |
 | [One foreign Lean runtime preserves exact arithmetic](#compiler-ir.runtime) | Planned |
 | [Floating carriers stay in the resource layer](#compiler-ir.float-carrier) | Planned, Tested, Proved (oracle) |
 | [Realization binds mathematical and numerical identities](#compiler-ir.realization) | Planned, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (bridge), Proved (oracle), Planned, Tested, Proved (oracle), Tested, Tested, Proved (oracle) |
 | [NativeFast preserves calls and reports unavailable flags](#compiler-ir.native-fast) | Planned, Tested |
-| [Floating observation does not permit a compiler quotient](#compiler-ir.numeric-order) | Planned, Proved (oracle), Proved (oracle), Planned |
+| [Floating observation does not permit a compiler quotient](#compiler-ir.numeric-order) | Planned, Proved (oracle), Proved (oracle), Proved (oracle), Planned |
 | [Tensor meaning precedes storage and GEMM](#compiler-ir.tensor) | Planned, Planned, Tested, Proved (oracle), Tested |
 | [Finite category models use checked tables](#compiler-ir.finite-models) | Planned, Tested, Proved (oracle), Proved (oracle), Tested, Tested, Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Planned, Proved (oracle), Planned, Tested |
 | [Finite binders do not admit general polymorphism](#compiler-ir.finite-binders) | Planned, Tested, Tested, Tested, Proved (oracle) |
@@ -409,7 +409,7 @@ Claims:
 A ledger at a named source revision must enumerate every accepted Core, storage action, native storage instruction and runtime-extent constructor. For each constructor it records an admitted typed MidIR mapping or an explicit finite-profile rejection. Each admitted entry identifies its source fixture, family and method, model, ownership facts, opcode and downstream proof obligation. Any constructor or runtime change regenerates the ledger. The runtime inventory follows the transitive closure of the admitted snapshot, including frame and spectral runtimes where used; an older list of runtime modules is not a completeness argument. Missing entries must fail the coverage check instead of silently inheriting admission.
 
 - Example: Adding a Core constructor without an admitted mapping or rejection prevents the coverage ledger from passing.
-- Not executed: The source-schema guard, fourteen instruction mappings and five structural mappings run in CI. Whole-module release coverage remains pending.
+- Not executed: The source-schema guard, twenty-four instruction mappings and five structural mappings run in CI. Whole-module release coverage remains pending.
 
 Claims:
 
@@ -424,7 +424,8 @@ Claims:
     - `RepositoryTests.test_structural_rows_require_the_matching_proof_and_no_instruction` in [`scripts/test_check_midir_coverage.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_check_midir_coverage.py)
     - `RepositoryTests.test_static_call_mapping_requires_the_exact_constructor_opcode_and_theorem` in [`scripts/test_check_midir_coverage.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_check_midir_coverage.py)
     - `RepositoryTests.test_conversion_rejects_an_integer_negation_or_a_static_call_proof` in [`scripts/test_check_midir_coverage.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_check_midir_coverage.py)
-  - Note: This claim covers the reviewed constructor signatures, referenced record schemas and runtime manifest closure in config/midir-coverage.json. The guard rejects source drift, incomplete inventories and JSON-only promotion to admission. Four ground literals, finite tags, finite lookups, explicit Nat-to-Int conversion, homogeneous pairs and projections, unary Boolean and integer operations, binary operators, and first-order static calls have local lowering proofs. Variable references, scopes, typed ascriptions, let bindings and conditionals have structural mappings without an opcode. A constructor with several opcodes names every alternative in registry order. The two physical storage packing instructions preserve source and destination layouts, dimensions and, for regrouping, both axis orders and splits in the execution call. CI compares each origin, opcode or alternatives, and theorem with the compiled Lean registry. The other 593 rows await review. Whole-module acceptance remains a separate obligation for every row. The release coverage check enforces that distinction.
+    - `RepositoryTests.test_storage_symbols_require_their_own_operand_theorems` in [`scripts/test_check_midir_coverage.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_check_midir_coverage.py)
+  - Note: This claim covers the reviewed constructor signatures, referenced record schemas and runtime manifest closure in config/midir-coverage.json. The guard rejects source drift, incomplete inventories and JSON-only promotion to admission. Four ground literals, finite tags, finite lookups, explicit Nat-to-Int conversion, homogeneous pairs and projections, unary Boolean and integer operations, binary operators, and first-order static calls have local lowering proofs. Variable references, scopes, typed ascriptions, let bindings and conditionals have structural mappings without an opcode. A constructor with several opcodes names every alternative in registry order. The two physical storage packing instructions preserve source and destination layouts, dimensions and, for regrouping, both axis orders and splits in the execution call. The storage registry also covers allocation, release, cell operations, copy, GEMM and diagonal calls. CI compares each origin, opcode or alternatives, and theorem with the compiled Lean registry. The other 583 rows await review. Whole-module acceptance remains a separate obligation for every row. The release coverage check enforces that distinction.
 - `binary-lowering`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.BinaryCoverage`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BinaryCoverage.lean): `VastitasOracle.MidIR.binary_constructor_coverage`
@@ -595,39 +596,53 @@ Claims:
 The ownership authority is the kernel storage checker on the storage plan of accepted Core. MidIR does not introduce a competing ownership checker. Each lowering preserves the plan's initialized bytes, provenance, layouts, aliases, suspended reborrows, inside-out returns, branch joins and normal or failure cleanup through refinement. A transformation that changes allocation, reuse, aliases or release order must provide their mapping in its untrusted witness. Local SSA well-formedness alone proves none of these resource facts. No owner or loan may escape its checked scope.
 
 - Example: Moving a release before the final read is rejected even when each function has a well-typed SSA body.
-- Not executed: The checker refines linear static plans, including NativeFast GEMM, with a literal entry result. Dynamic control flow and runtime extents require additional lowering.
+- Not executed: The checker refines static plans with nested literal guards, fixed layouts and a literal entry result. Scalar-slot guards and runtime extents require additional lowering.
 
 Claims:
 
 - `refinement`: [Planned](../specifications.md#planned)
   - Issue: [#752](https://github.com/MGYamada/Vastitas/issues/752)
+- `physical-opcodes`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.storage_callees_complete`, `VastitasOracle.StorageProgram.storage_symbols_unique`, `VastitasOracle.StorageProgram.allocate_operands`, `VastitasOracle.StorageProgram.drop_operands`, `VastitasOracle.StorageProgram.fill_operands`, `VastitasOracle.StorageProgram.store_operands`, `VastitasOracle.StorageProgram.expect_operands`, `VastitasOracle.StorageProgram.copy_operands`, `VastitasOracle.StorageProgram.pack3_operands`, `VastitasOracle.StorageProgram.regroup3_operands`
+  - Premises:
+    - The operand equations concern the static physical instruction supplied to the resolver. The registry ranges over the storage ABI callee type.
+  - Note: The twelve static storage callees have distinct ABI names and every callee occurs in the exported list. The six basic memory instructions preserve their physical operands, including both component bit patterns for literals. Separate theorems cover rank-three packing, GEMM and diagonal numerical operations.
 - `static-effects`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
-    - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.correspondence`
+    - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.correspondence`, `VastitasOracle.StorageProgram.project_sourceFlow`, `VastitasOracle.StorageProgram.lower_branch_schedule`, `VastitasOracle.StorageProgram.block_transfers`
   - Premises:
     - The public checker accepted this wire and resource entry. Its static storage plan and literal Core result yielded an artifact. The complete bytes parse to that artifact's model.
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
-  - Note: Both phases preserve the original ordered plan and its physical lowering. The theorem binds the revision, every call operand, target header, canonical bytes and the exit value derived from the selected Core literal.
+  - Note: The optimization block retains the original statements and nested arms. Physical lowering checks their ownership join, assigns disjoint fresh allocation identities and emits both arms. Every successor receives the current operation’s output token. The selected graph path agrees with an independent traversal of the checked physical instructions. The revision, ordered operands, target header, complete bytes and terminal Core result belong to the same artifact.
 - `static-cleanup`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
-    - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.acquired_run`, `VastitasOracle.StorageProgram.stop_on_failure`
+    - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.acquired_run`, `VastitasOracle.StorageProgram.stop_on_failure`, `VastitasOracle.StorageProgram.selected_run`, `VastitasOracle.StorageProgram.selected_cleanup`
   - Premises:
     - The modeled entry acquired its arena. Each external storage call supplies its status and successor state.
-  - Note: The call trace is a prefix of the checked schedule. The first failed call prevents later effects, releases the arena and returns 1. The normal exit also releases the arena.
+  - Note: For every foreign response, execution follows a prefix of the calls selected from the physical schedule. The first failed call prevents later effects, releases the arena and returns 1. The normal exit also releases the arena.
 - `static-native`: [Tested](../specifications.md#tested)
   - Evidence:
     - [`VastitasKernel.LLVM.StorageRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/LLVM/StorageRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
     - `storage_entry_returns_the_checked_literal_after_its_effects` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
+    - `storage_branch_preserves_both_arms_and_executes_the_selected_path` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
+    - `storage_branch_checks_the_cold_arm_and_never_uses_a_slot_projection_as_a_decision` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
     - `canonical_realization_runs_into_existing_storage_and_replays_its_revision` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `real32_identity_preserves_payloads_and_replays_its_precision` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `complex_charts_copy_both_components_and_bind_the_full_model_chain` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
-  - Note: Checked allocation, fill, store, expect, copy and drop have a fixed external storage ABI. Native LLVM and Lean/C builds exercise the four standard-chart identity representations, failure reporting and literal process status.
+  - Note: Checked allocation, fill, store, expect, copy and drop have a fixed external storage ABI. Native LLVM and Lean/C builds exercise the four standard-chart identity representations, nested literal resource branches, failure reporting and literal process status.
 - `gemm-abi`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.gemm_representation`
   - Premises:
     - Physical lowering resolved a NativeFast GEMM instruction in the live allocation map.
   - Note: The first ABI operand selects the common physical representation of both inputs and the destination. The correspondence theorem separately binds every layout, coefficient and flag to the printed call.
+- `diagonal-abi`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.diagonal_scale_operands`, `VastitasOracle.StorageProgram.diagonal_adjoint_operands`, `VastitasOracle.StorageProgram.diagonal_pair_operands`
+  - Premises:
+    - The checked physical schedule resolved the NativeFast diagonal instruction in the live allocation map.
+  - Note: Scaling preserves the table and conjugation flag. The adjoint carries the source table followed by the target table. Fused pairing preserves the scratch allocation and the common representation of all four views. Full-module byte identity follows from static-effects under its separate parser premise.
 - `erased-unit`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.erased_unit`
@@ -843,6 +858,12 @@ Claims:
   - Premises:
     - For real division the numerator is finite and the divisor is a signed zero in binary32 or binary64. The empty dot keeps its cell when beta tests as nonzero and one. For input independence the corresponding alpha or beta zero predicate must hold.
   - Note: A finite numerator divided by either signed zero returns zero with the exclusive-or sign and empty reference flags. An empty dot with unit beta returns the prior cell with empty flags. Zero alpha makes both inputs irrelevant, and zero beta makes the old destination irrelevant, including their contributions to flags. On 828 input tuples across both widths, scripts/check_float_kernels.py compares Lean with the independent integer and rational reference on scalar and complex result bits and local flags. It also compares C real division, ordered complex division and inverse, including aliased outputs. The C comparison checks arithmetic NaNs by class and every other result by bits. scripts/check_dot_kernel.py compares the production scalar-output GEMM adapter with Lean on 948 dots across the four representations. Its unit-beta copy cases also check the full signaling NaN payload.
+- `diagonal-weights`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.StorageMetric`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageMetric.lean): `VastitasOracle.StorageMetric.adjoint_weights`, `VastitasOracle.StorageMetric.scale_weights`, `VastitasOracle.StorageMetric.coefficient_at_precision`
+  - Premises:
+    - The storage checker accepts the adjoint or column scaling, and the coefficient occurs in its validated table.
+  - Note: Each encoded coefficient decodes to a nonzero integer admitted as a reference weight at its allocation's component width. The magnitude bound is 2^24 for binary32 and 2^53 for binary64. The native adapter comparison in scripts/check_float_kernels.py checks both scale and adjoint for 728 cells across the four representations. Arithmetic NaNs compare by class. All other components compare by bits.
 - `lowering`: [Planned](../specifications.md#planned)
   - Issue: [#751](https://github.com/MGYamada/Vastitas/issues/751)
 

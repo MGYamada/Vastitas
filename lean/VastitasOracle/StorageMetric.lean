@@ -1,4 +1,5 @@
 import VastitasKernel.ResourceProtocol
+import VastitasOracle.BinaryFloat
 
 /-! Structural and representation guarantees of the actual diagonal metric
 checkers. Ideal field/involution laws are separate, as is native refinement. -/
@@ -11,6 +12,64 @@ theorem realized_coefficients {metric : Metric} (realized : RealizedMetric metri
     have exact := realized.exact
     simp only [Gram.realizes, Bool.and_eq_true] at exact
     exact exact.1
+
+def componentFormat : Scalar → BinaryFloat.Format
+  | .f32 | .complexF32 => .binary32
+  | .f64 | .complexF64 => .binary64
+
+/-- Every admitted coefficient decodes to the same signed integer as a
+reference weight at the precision of the actual storage allocation. -/
+theorem coefficient_at_precision {scalar : Scalar} {d : Diagonal} {n : Nat}
+    (valid : d.valid n scalar.diagonalLimit = true) (bits : UInt64) (atBits : bits ∈ d.entries) :
+    ∃ w : BinaryFloat.Weight (componentFormat scalar), diagonalInteger bits = some w.integer ∧
+      BinaryFloat.Weight.ofInt? (componentFormat scalar) w.integer = some w := by
+  simp only [Diagonal.valid, Bool.and_eq_true, List.all_eq_true] at valid
+  have row := valid.2 bits atBits
+  cases h : diagonalInteger bits with
+  | none => simp [h] at row
+  | some z =>
+    have bounded : z.natAbs ≤ scalar.diagonalLimit := by simpa [h] using row
+    have nonzero : z ≠ 0 := by
+      simp only [diagonalInteger, bind, Option.bind] at h
+      generalize bits.toNat / 2^52 % 2048 = e at h
+      generalize 2^52 + bits.toNat % 2^52 = mantissa at h
+      generalize mantissa / 2^(1075-e) = lo at h
+      generalize mantissa * 2^(e-1075) = hi at h
+      split at h <;> try contradiction
+      split at h
+      · split at h <;> try contradiction
+        split at h <;> try contradiction
+        split at h <;> grind
+      · split at h <;> try contradiction
+        split at h <;> grind
+    have bound : z.natAbs ≤ 2 * 2^(componentFormat scalar).fractionBits := by
+      cases scalar <;> exact bounded
+    refine ⟨⟨z, nonzero, bound⟩, rfl, ?_⟩
+    unfold BinaryFloat.Weight.ofInt?
+    split
+    · rfl
+    · next missing => exact False.elim (missing ⟨nonzero, bound⟩)
+
+theorem adjoint_weights {state req ops} (checked : checkDiagonalAdjoint state req = .ok ops) :
+    req.source.valid ops.input.layout.logicalColumns ops.inputAllocation.scalar.diagonalLimit = true ∧
+    req.target.valid ops.input.layout.logicalRows ops.inputAllocation.scalar.diagonalLimit = true := by
+  simp only [checkDiagonalAdjoint, bind, Except.bind] at checked
+  split at checked <;> try contradiction
+  split at checked <;> try contradiction
+  next valid =>
+    cases checked
+    simp at valid
+    exact ⟨valid.1.2, valid.2⟩
+
+theorem scale_weights {state req ops} (checked : checkDiagonalScale state req = .ok ops) :
+    req.diagonal.valid ops.input.layout.logicalRows ops.inputAllocation.scalar.diagonalLimit = true := by
+  simp only [checkDiagonalScale, bind, Except.bind] at checked
+  split at checked <;> try contradiction
+  split at checked <;> try contradiction
+  next valid =>
+    cases checked
+    simp at valid
+    exact valid.2
 
 theorem actual_adjoint (receipt : Functions.AdjointIntoReceipt) :
     checkAdjointInto receipt.environment receipt.resources receipt.values receipt.input receipt.output

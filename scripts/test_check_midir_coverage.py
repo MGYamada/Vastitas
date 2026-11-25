@@ -325,6 +325,23 @@ class RepositoryTests(unittest.TestCase):
             with self.subTest(rows=rows), self.assertRaisesRegex(guard.CoverageError, "compiled lowering differs"):
                 guard.check_lowerings({"coverage": selected}, rows)
 
+    def test_storage_symbols_require_their_own_operand_theorems(self):
+        ledger = json.loads((guard.ROOT / guard.LEDGER).read_text())
+        storage = [r for r in ledger["coverage"] if r["disposition"] == "lowered"
+                   and r["origin"].startswith("VastitasKernel.Storage.Native.Instruction.")]
+        self.assertEqual(len(storage), 12)
+        for entry in storage:
+            symbol = entry["planned_opcode"].removeprefix("midir.")
+            proof = entry["evidence"][0]
+            row = {"origin": entry["origin"], "opcode": symbol, "theorem": proof}
+            local = {"coverage": [entry]}
+            guard.check_lowerings(local, [row])
+            other = next(r for r in storage if r != entry)
+            for forged in [dict(row, opcode=other["planned_opcode"].removeprefix("midir.")),
+                           dict(row, theorem=other["evidence"][0])]:
+                with self.subTest(origin=row["origin"]), self.assertRaises(guard.CoverageError):
+                    guard.check_lowerings(local, [forged])
+
     def test_static_call_mapping_requires_the_exact_constructor_opcode_and_theorem(self):
         ledger = json.loads((guard.ROOT / guard.LEDGER).read_text())
         call = next(r for r in ledger["coverage"] if r["origin"] == guard.STATIC_CALL_ORIGIN)

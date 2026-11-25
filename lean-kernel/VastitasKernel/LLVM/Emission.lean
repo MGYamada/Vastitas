@@ -54,7 +54,7 @@ def Output.text {json header} : Output json header → String
   | .exactFlow _ s _ | .storage _ s _ | .exactProgram _ s _ | .exactLibrary _ s _ | .lookup _ s _ | .binary _ s _ | .forwarding _ s _ | .executable _ s _ | .folded _ s _ | .dispatch _ s _ | .finite _ s _ => s
 
 def Output.kind {json header} : Output json header → String
-  | .storage a .. => if a.model.calls.any (·.target == .gemm) then "storage-gemm-program" else "storage-program"
+  | .storage a .. => if a.model.calls.any (fun c => c.target == .gemm || c.target == .diagonalPair) then "storage-gemm-program" else "storage-program"
   | .exactFlow .. => "boxed-control-flow"
   | .exactProgram .. => "boxed-exact-program"
   | .exactLibrary .. => "boxed-exact-library"
@@ -130,8 +130,10 @@ private def app {json main} (req : Wire.CheckedInput json main) (header : Target
     Option (Output json header) :=
   if req.input.entry.isSome then do
     let a ← StorageProgram.compile req header
-    let ⟨s, parsed⟩ ← checkedText a.model StorageModule.Code.print StorageModule.parse
-    return .storage a s parsed
+    let s ← a.model.render
+    if parsed : StorageModule.parse s.toUTF8.data.toList = some a.model then
+      return .storage a s parsed
+    else none
   else scalarApp req header <|> (do
     let a ← FiniteProgram.compile req header
     let ⟨s, parsed⟩ ← checkedText a.model FiniteModule.print FiniteModule.parse

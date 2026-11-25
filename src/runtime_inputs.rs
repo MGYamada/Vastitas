@@ -101,6 +101,7 @@ pub const STORAGE: Package = Package {
         "ffi_result.h",
         "diagonal.c",
         "diagonal.h",
+        "diagonal_kernels.inc",
     ],
     forbidden: &["lakefile.toml"],
     modules: &["VastitasStorageNative"],

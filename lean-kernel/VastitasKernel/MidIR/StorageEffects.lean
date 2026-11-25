@@ -11,14 +11,20 @@ open Storage
 
 inductive Callee where
   | allocate | drop | fill | store | expect | copy | gemm | pack3 | regroup3
+  | diagonalScale | diagonalAdjoint | diagonalPair
   deriving DecidableEq, BEq, Repr
 
 def Callee.name : Callee → String
   | .allocate => "allocate" | .drop => "drop" | .fill => "fill"
   | .store => "store" | .expect => "expect" | .copy => "copy" | .gemm => "gemm"
   | .pack3 => "pack3" | .regroup3 => "regroup3"
+  | .diagonalScale => "diagonal_scale" | .diagonalAdjoint => "diagonal_adjoint" | .diagonalPair => "diagonal_pair"
 
-def Callee.all : List Callee := [.allocate, .drop, .fill, .store, .expect, .copy, .gemm, .pack3, .regroup3]
+def Callee.all : List Callee := [.allocate, .drop, .fill, .store, .expect, .copy, .gemm, .pack3, .regroup3,
+  .diagonalScale, .diagonalAdjoint, .diagonalPair]
+
+def Callee.diagonalCount : Callee → Nat
+  | .diagonalAdjoint => 2 | .diagonalScale | .diagonalPair => 1 | _ => 0
 
 /-- All integer arguments use i64 at the C boundary. Layouts are flattened to
 five words so the platform ABI for C struct values does not enter the IR. -/
@@ -43,6 +49,8 @@ def Callee.signature : Callee → List Operand
   | .regroup3 => packingSignature ++ [.grouping, .grouping]
   | .gemm => [.scalar] ++ inputMatrixSignature ++ inputMatrixSignature ++ matrixSignature ++
       [.flag] ++ coefficientSignature ++ coefficientSignature
+  | .diagonalScale | .diagonalAdjoint => [.scalar] ++ matrixSignature ++ matrixSignature ++ [.flag]
+  | .diagonalPair => [.scalar] ++ matrixSignature ++ matrixSignature ++ matrixSignature ++ matrixSignature ++ [.flag,.flag]
 
 def Callee.arity (f : Callee) := f.signature.length
 
@@ -59,6 +67,7 @@ def Operand.accepts : Operand → Nat → Bool
 structure Call where
   target : Callee
   arguments : List Nat
+  diagonals : List Diagonal := []
   deriving DecidableEq, BEq, Repr
 
 private def literalBits (scalar real imaginary : Nat) : Bool :=
@@ -91,8 +100,35 @@ private def validPacking : List Nat → Bool
     matchesGrouping [i,k,j] src rows cols && matchesGrouping [i,k,j] dst rows' cols'
   | _ => false
 
+private def readView : List Nat → Option (Layout × List Nat)
+  | _id :: offset :: rows :: columns :: leading :: transposed :: rest =>
+    some (⟨offset, rows, columns, leading, transposed == 1⟩, rest)
+  | _ => none
+
+/-- Interpret the physical view shapes exactly as the native calls do. The
+logical resource checker supplies the ownership and nominal metric evidence. -/
+private def validDiagonals (c : Call) : Bool := Id.run do
+  if c.target.diagonalCount == 0 then return c.diagonals.isEmpty
+  let tag :: args := c.arguments | return false
+  let limit := if tag < 2 then 2^53 else 2^24
+  let some (a, rest) := readView args | return false
+  let some (b, rest) := readView rest | return false
+  match c.target, c.diagonals with
+  | .diagonalScale, [w] => return (!b.transposed && a.logicalColumns == 1 && b.columns == 1 &&
+      a.logicalRows == b.rows && w.valid a.logicalRows limit)
+  | .diagonalAdjoint, [source,target] => return (!b.transposed &&
+      a.logicalRows == b.columns && a.logicalColumns == b.rows &&
+      source.valid a.logicalColumns limit && target.valid a.logicalRows limit)
+  | .diagonalPair, [w] =>
+    let some (out, rest) := readView rest | return false
+    let some (scratch, _) := readView rest | return false
+    return (!out.transposed && !scratch.transposed && out.rows == 1 && out.columns == 1 &&
+      a.logicalColumns == 1 && b.logicalColumns == 1 && scratch.columns == 1 &&
+      a.logicalRows == scratch.rows && b.logicalRows == scratch.rows && w.valid scratch.rows limit)
+  | _, _ => return false
+
 def Call.valid (c : Call) : Bool :=
-  c.arguments.length == c.target.arity &&
+  c.arguments.length == c.target.arity && validDiagonals c &&
     (c.target.signature.zip c.arguments).all (fun (ty, n) => ty.accepts n) &&
     (match c.target with
      | .fill | .store | .expect =>
@@ -121,24 +157,55 @@ private def coefficientFits (live : Std.HashMap Nat Scalar) (s : Scalar) : Resol
   | .literal value => value.scalar == s
   | .view allocation _ => live[allocation]? == some s
 
+private def diagonalCall (target : Callee) (live : Std.HashMap Nat Scalar)
+    (first : Nat × Layout) (rest : List (Nat × Layout)) (flags : List Bool)
+    (tables : List Diagonal) : Option Call := do
+  let scalar ← live[first.1]?
+  guard (rest.all fun (id,_) => decide (live[id]? = some scalar))
+  let operands := (first :: rest).flatMap fun (id,v) => id :: layout v
+  return ⟨target, NativeText.scalar scalar :: operands ++ flags.map Bool.toNat, tables⟩
+
+theorem diagonalCall_operands {target live first rest flags tables call}
+    (resolved : diagonalCall target live first rest flags tables = some call) :
+    ∃ scalar, live[first.1]? = some scalar ∧
+      rest.all (fun (id,_) => decide (live[id]? = some scalar)) = true ∧
+      call.target = target ∧ call.diagonals = tables ∧
+      call.arguments = NativeText.scalar scalar ::
+        (first :: rest).flatMap (fun (id,v) => id :: layout v) ++ flags.map Bool.toNat := by
+  cases found : live[first.1]? with
+  | none => simp [diagonalCall, found] at resolved
+  | some scalar =>
+    by_cases same : rest.all (fun (id,_) => decide (live[id]? = some scalar)) = true
+    · simp [diagonalCall, found, same, guard] at resolved
+      subst call
+      exact ⟨scalar, rfl, same, rfl, rfl, by simp [List.append_assoc]⟩
+    · simp [diagonalCall, found, same, guard] at resolved
+      contradiction
+
 def resolveInstruction (live : Std.HashMap Nat Scalar) : Native.Instruction → Option Call
-  | .allocate a s n => some ⟨.allocate, [a, NativeText.scalar s, n]⟩
-  | .drop a => some ⟨.drop, [a]⟩
-  | .fill a v x => some ⟨.fill, [a] ++ layout v ++ literal x⟩
-  | .store a v r c x => some ⟨.store, [a] ++ layout v ++ [r,c] ++ literal x⟩
-  | .expect a v r c x => some ⟨.expect, [a] ++ layout v ++ [r,c] ++ literal x⟩
-  | .copy a v b w => some ⟨.copy, [a] ++ layout v ++ [b] ++ layout w⟩
-  | .pack3 a v b w i k j => some ⟨.pack3, [a] ++ layout v ++ [b] ++ layout w ++ [i,k,j]⟩
+  | .allocate a s n => some ⟨.allocate, [a, NativeText.scalar s, n], []⟩
+  | .drop a => some ⟨.drop, [a], []⟩
+  | .fill a v x => some ⟨.fill, [a] ++ layout v ++ literal x, []⟩
+  | .store a v r c x => some ⟨.store, [a] ++ layout v ++ [r,c] ++ literal x, []⟩
+  | .expect a v r c x => some ⟨.expect, [a] ++ layout v ++ [r,c] ++ literal x, []⟩
+  | .copy a v b w => some ⟨.copy, [a] ++ layout v ++ [b] ++ layout w, []⟩
+  | .pack3 a v b w i k j => some ⟨.pack3, [a] ++ layout v ++ [b] ++ layout w ++ [i,k,j], []⟩
   | .regroup3 a v b w dims src dst => do
     guard (dims.length == 3 && decide (src.Valid 3) && decide (dst.Valid 3))
-    return ⟨.regroup3, [a] ++ layout v ++ [b] ++ layout w ++ dims ++ [src.code, dst.code]⟩
+    return ⟨.regroup3, [a] ++ layout v ++ [b] ++ layout w ++ dims ++ [src.code, dst.code], []⟩
   | .gemm a va ca b vb cb out vo mode .nativeFast alpha beta => do
     let scalar ← live[out]?
     if live[a]? = some scalar ∧ live[b]? = some scalar ∧
         coefficientFits live scalar alpha ∧ coefficientFits live scalar beta then
       return ⟨.gemm, [NativeText.scalar scalar, a] ++ layout va ++ [ca.toNat, b] ++ layout vb ++
-        [cb.toNat, out] ++ layout vo ++ [NativeText.gemmMode mode] ++ coefficient alpha ++ coefficient beta⟩
+        [cb.toNat, out] ++ layout vo ++ [NativeText.gemmMode mode] ++ coefficient alpha ++ coefficient beta, []⟩
     else none
+  | .diagonalScale a va b vb w conj .nativeFast =>
+    diagonalCall .diagonalScale live (a,va) [(b,vb)] [conj] [w]
+  | .diagonalAdjoint a va b vb source target conj .nativeFast =>
+    diagonalCall .diagonalAdjoint live (a,va) [(b,vb)] [conj] [source,target]
+  | .diagonalPair a va b vb out vo scratch vs w cl cr .nativeFast =>
+    diagonalCall .diagonalPair live (a,va) [(b,vb),(out,vo),(scratch,vs)] [cl,cr] [w]
   | _ => none
 
 /-- Recover the physical element type of a matrix call from the allocations in
@@ -155,27 +222,147 @@ def resolveCalls (instructions : List Native.Instruction) : Option (List Call) :
     | _ => pure ()
   return calls.reverse
 
+/-- The normal successor of a call is the following block. Its error successor
+is the common arena cleanup. Each control edge transfers the current storage
+state to the destination block argument. The final index is the normal exit. -/
+inductive Op where
+  | call (operation : Call)
+  | branch (condition : Bool) (otherwisePC : Nat)
+  | jump (joinPC : Nat)
+  deriving DecidableEq, BEq, Repr
+
+instance : Inhabited Op := ⟨.jump 0⟩
+
+def Op.call? : Op → Option Call
+  | .call c => some c | _ => none
+
+def validGraph (ops : List Op) : Bool :=
+  let exit := ops.length
+  ops.zipIdx.all fun (op,pc) => match op with
+    | .call c => c.valid
+    | .branch _ target | .jump target => pc < target && target ≤ exit
+
+/-- The incoming storage state follows one successor of the current block.
+The program counter advances on every edge of a checked graph. -/
+def path (ops : Array Op) : Option (List Call) := Id.run do
+  let mut trace := []
+  let mut pc := 0
+  for _ in [:ops.size] do
+    let some op := ops[pc]? | break
+    match op with
+    | .call c => trace := c :: trace; pc := pc + 1
+    | .branch condition target => pc := if condition then pc + 1 else target
+    | .jump target => pc := target
+  return if pc == ops.size then some trace.reverse else none
+
+private inductive Arm where
+  | first (start : Nat) (condition : Bool) (entry : Std.HashMap Nat Scalar)
+  | second (jump : Nat)
+
+/-- Resolve both branches from the live allocations at their common entry.
+Only the authoritative storage checker decides whether the two exits join. -/
+def resolveGraph (instructions : List Native.Instruction) : Option (List Op) := do
+  let mut live : Std.HashMap Nat Scalar := {}
+  let mut arms : List Arm := []
+  let mut ops : Array Op := #[]
+  let mut skipped := false
+  for op in instructions do
+    match op, skipped with
+    | .branch condition, false =>
+      arms := .first ops.size condition live :: arms
+      ops := ops.push (.branch condition 0)
+    | .skip, false => skipped := true
+    | .otherwise, true =>
+      let .first start condition entry :: outer := arms | none
+      arms := .second ops.size :: outer
+      ops := (ops.set! start (.branch condition (ops.size+1))).push (.jump 0)
+      live := entry
+      skipped := false
+    | .finish, true =>
+      let .second jump :: outer := arms | none
+      arms := outer
+      ops := ops.set! jump (.jump ops.size)
+      skipped := false
+    | _, false =>
+      let c ← resolveInstruction live op
+      ops := ops.push (.call c)
+      match op with
+      | .allocate a s _ => live := live.insert a s
+      | .drop a => live := live.erase a
+      | _ => pure ()
+    | _, true => none
+  guard (arms.isEmpty && !skipped)
+  return ops.toList
+
+/-- Independent structured interpretation of the storage checker's branch
+markers. It neither uses block indices nor follows the generated jump table. -/
+def selectedInstructions (instructions : List Native.Instruction) : Option (List Native.Instruction) := do
+  let mut enabled := true
+  let mut scopes : List (Bool × Option Bool) := []
+  let mut result := []
+  for op in instructions do
+    match op with
+    | .branch condition =>
+      scopes := (enabled,some condition) :: scopes
+      enabled := enabled && condition
+    | .otherwise =>
+      let (parent,some condition) :: outer := scopes | none
+      scopes := (parent,none) :: outer
+      enabled := parent && !condition
+    | .finish =>
+      let (parent,none) :: outer := scopes | none
+      scopes := outer
+      enabled := parent
+    | .skip => pure ()
+    | _ => if enabled then result := op :: result
+  guard scopes.isEmpty
+  return result.reverse
+
 @[reducible] def Item : Phase → Type
-  | .optimization => Action
-  | .execution => Call
+  | .optimization => Storage.Statement
+  | .execution => Op
 
 instance (p : Phase) : DecidableEq (Item p) := by
   cases p <;> unfold Item <;> infer_instance
+
+inductive Destination where
+  | block (index : Nat)
+  | failed
+  deriving DecidableEq, BEq, Repr
+
+/-- A transfer supplies the producing instruction's effect token as a block
+argument. The two arms of a conditional are mutually exclusive. -/
+structure Transfer where
+  destination : Destination
+  argument : Nat
+  deriving DecidableEq, BEq, Repr
+
+def successors (p : Phase) (op : Item p) (pc : Nat) : List Destination := match p with
+  | .optimization => [.block (pc+1)]
+  | .execution => match op with
+    | .call _ => [.block (pc+1), .failed]
+    | .branch _ target => [.block (pc+1), .block target]
+    | .jump target => [.block target]
+
+def transfers (p : Phase) (op : Item p) (pc : Nat) : List Transfer :=
+  (successors p op pc).map fun target => ⟨target, pc+1⟩
 
 structure Effect (p : Phase) where
   input : Nat
   operation : Item p
   output : Nat
+  outgoing : List Transfer
 
 abbrev Block (p : Phase) := List (Effect p)
 
 def block {p : Phase} (items : List (Item p)) : Block p :=
-  items.zipIdx.map fun (op, i) => ⟨i, op, i + 1⟩
+  items.zipIdx.map fun (op, i) => ⟨i, op, i + 1, transfers p op i⟩
 
 def operations {p : Phase} (b : Block p) := b.map Effect.operation
 
 def ordered {p : Phase} (b : Block p) : Bool :=
-  b.zipIdx.all fun (step, i) => step.input == i && step.output == i + 1
+  b.zipIdx.all fun (step, i) => step.input == i && step.output == i + 1 &&
+    decide (step.outgoing = transfers p step.operation i)
 
 /-- The transition retains the result of the independent checker on every
 logical action. Reborrows, releases and other erased events still participate
@@ -184,44 +371,53 @@ structure Translation (opt : Block .optimization) (exe : Block .execution) where
   logicalOrder : ordered opt = true
   physicalOrder : ordered exe = true
   instructions : List Native.Instruction
-  ownership : CheckedPlan ((operations opt).map Statement.action)
-  lowered : Native.lower 4096 {} ((operations opt).map Statement.action) =
+  ownership : CheckedPlan (operations opt)
+  lowered : Native.lower 4096 {} (operations opt) =
     .ok (ownership.finalState, instructions)
-  physicalCalls : resolveCalls instructions = some (operations exe)
-  abi : (operations exe).all Call.valid = true
+  physicalGraph : resolveGraph instructions = some (operations exe)
+  abi : validGraph (operations exe) = true
+  trace : List Call
+  fromInstructions : (selectedInstructions instructions).bind resolveCalls = some trace
+  fromGraph : path (operations exe).toArray = some trace
 
 def verify (opt : Block .optimization) (exe : Block .execution) : Option (Translation opt exe) := do
   if hopt : ordered opt = true then
     if hexe : ordered exe = true then
-      let source := (operations opt).map Statement.action
+      let source := operations opt
       let .ok ownership := checkPlan source | none
       match h : Native.lower 4096 {} source with
       | .error _ => none
       | .ok (after, instructions) =>
         if final : after = ownership.finalState then
-          if calls : (resolveCalls instructions : Option (List Call)) = (some (operations exe) : Option (List Call)) then
-            if abi : (operations exe).all Call.valid = true then
-              return ⟨hopt, hexe, instructions, ownership, final ▸ h, calls, abi⟩
+          if exactGraph : resolveGraph instructions = some (operations exe) then
+            if abi : validGraph (operations exe) = true then
+              match fromInstructions : (selectedInstructions instructions).bind resolveCalls with
+              | none => none
+              | some trace =>
+                if fromGraph : path (operations exe).toArray = some trace then
+                  return ⟨hopt, hexe, instructions, ownership, final ▸ h, exactGraph, abi,
+                    trace, fromInstructions, fromGraph⟩
+                else none
             else none
           else none
         else none
     else none
   else none
 
-structure Lowered (actions : List Action) where
+structure Lowered (statements : List Statement) where
   opt : Block .optimization
-  original : operations opt = actions
+  original : operations opt = statements
   exe : Block .execution
   checked : Translation opt exe
 
-def lower (actions : List Action) : Option (Lowered actions) := do
-  let opt := block (p := .optimization) actions
-  let .ok (_, code) := Native.lower 4096 {} (actions.map Statement.action) | none
-  let calls ← resolveCalls code
-  let exe := block (p := .execution) calls
-  have origin : operations opt = actions := by
+def lower (statements : List Statement) : Option (Lowered statements) := do
+  let opt := block (p := .optimization) statements
+  let .ok (_, code) := Native.lower 4096 {} statements | none
+  let graph ← resolveGraph code
+  let exe := block (p := .execution) graph
+  have origin : operations opt = statements := by
     simp only [opt, operations, block, List.map_map, Function.comp_def]
-    exact List.zipIdx_map_fst 0 actions
+    exact List.zipIdx_map_fst 0 statements
   return ⟨opt, origin, exe, ← verify opt exe⟩
 
 end VastitasKernel.MidIR.StorageEffects

@@ -20,21 +20,34 @@ static VStorageLayout layout(uint64_t rows, uint64_t columns, int transpose, int
         transpose ? rows : columns, (stored_rows ? stored_rows : 1) + (padded ? 2 : 0), (uint8_t)transpose};
 }
 static void allocate(VStorageArena *arena, uint32_t id, uint8_t scalar, VStorageLayout view) {
-    assert(vstorage_allocate(arena, id, scalar, view.offset / (scalar ? 16 : 8) +
+    assert(vstorage_allocate(arena, id, scalar, view.offset / vstorage_element_bytes(scalar) +
         view.leading * view.columns) == VS_OK);
+}
+static uint64_t component_bits(uint8_t scalar, double value) {
+    if (vstorage_component_bytes(scalar) == 8) return bits(value);
+    float narrowed = (float)value;
+    uint32_t word;
+    memcpy(&word, &narrowed, sizeof(word));
+    return word;
 }
 static void put(VStorageArena *arena, uint32_t id, VStorageLayout view,
                 uint64_t row, uint64_t column, uint8_t scalar, double real, double imaginary) {
-    assert(vstorage_store(arena,id,view,row,column,scalar,bits(real),bits(imaginary)) == VS_OK);
+    assert(vstorage_store(arena,id,view,row,column,scalar,component_bits(scalar, real),component_bits(scalar, imaginary)) == VS_OK);
 }
 static void expect(VStorageArena *arena, uint32_t id, VStorageLayout view,
                    uint64_t row, uint64_t column, double real, double imaginary) {
     VStorageDense actual;
     assert(vstorage_prepare_dense(arena,id,view,&actual) == VS_OK);
     uint64_t index = actual.transposed ? column + row * actual.leading : row + column * actual.leading;
-    index *= actual.scalar ? 2 : 1;
-    assert(((const double *)actual.data)[index] == real);
-    if (actual.scalar) assert(((const double *)actual.data)[index+1] == imaginary);
+    int is_complex = vstorage_is_complex(actual.scalar);
+    index *= is_complex ? 2 : 1;
+    if (vstorage_component_bytes(actual.scalar) == 4) {
+        const float *data = actual.data;
+        assert(data[index] == real && (!is_complex || data[index + 1] == imaginary));
+    } else {
+        const double *data = actual.data;
+        assert(data[index] == real && (!is_complex || data[index + 1] == imaginary));
+    }
 }
 static void cleanup(VStorageArena *arena) {
     vstorage_close(arena);
@@ -333,7 +346,7 @@ static void coefficients(void) {
 }
 
 static void diagonal_pairing(void) {
-    for (uint8_t scalar=0;scalar<2;++scalar) for (int tx=0;tx<2;++tx) for (int ty=0;ty<2;++ty)
+    for (uint8_t scalar=0;scalar<4;++scalar) for (int tx=0;tx<2;++tx) for (int ty=0;ty<2;++ty)
         for(uint8_t cl=0;cl<2;++cl) for(uint8_t cr=0;cr<2;++cr) {
         VStorageArena *arena=vstorage_new(4096); assert(arena);
         VStorageLayout x=layout(2,1,tx,1), y=layout(2,1,ty,1);
@@ -345,21 +358,23 @@ static void diagonal_pairing(void) {
         uint8_t weights[16]; uint64_t values[2]={bits(2),bits(-4)};
         for(unsigned i=0;i<2;++i) for(unsigned j=0;j<8;++j) weights[8*i+j]=(uint8_t)(values[i]>>(8*j));
         VDiagonal diagonal={weights,sizeof(weights),0};
-        double expected_real=scalar?(cl==cr?-14:10):-2;
+        double expected_real=vstorage_is_complex(scalar)?(cl==cr?-14:10):-2;
         double expected_imaginary=cr?(cl?26:46):(cl?-46:-26);
         VStorageStats before=vstorage_stats(arena); VGemmReport report;
         for(unsigned repeat=0;repeat<2;++repeat) {
             assert(vgemm_diagonal_pair(arena,0,x,1,y,3,output,2,scratch,diagonal,cl,cr,&report)==VS_OK);
-            assert(report.kernel_calls==1 && report.written_bytes==(scalar?16:8));
+            assert(report.kernel_calls==1 && report.written_bytes==vstorage_element_bytes(scalar));
             expect(arena,3,output,0,0,expected_real,expected_imaginary);
             expect(arena,2,scratch,0,0,6,cr?4:-4); expect(arena,2,scratch,1,0,-4,cr?16:-16);
         }
         VStorageStats after=vstorage_stats(arena);
         assert(after.data_allocations==before.data_allocations && after.copied_bytes==before.copied_bytes);
-        assert(after.written_bytes-before.written_bytes==6*(scalar?16:8));
+        assert(after.written_bytes-before.written_bytes==6*vstorage_element_bytes(scalar));
         /* Invalid last coefficient, bounds and aliases leave both caller
          * destinations unchanged, including the earlier scratch elements. */
-        memset(weights+8,0,8); before=vstorage_stats(arena); report=(VGemmReport){83,84};
+        uint64_t invalid = vstorage_component_bytes(scalar) == 4 ? bits(16777217.0) : 0;
+        for (unsigned j=0; j<8; ++j) weights[8+j] = (uint8_t)(invalid >> (8*j));
+        before=vstorage_stats(arena); report=(VGemmReport){83,84};
         assert(vgemm_diagonal_pair(arena,0,x,1,y,3,output,2,scratch,diagonal,cl,cr,&report)==VS_OPERATION);
         expect(arena,2,scratch,0,0,6,cr?4:-4); expect(arena,3,output,0,0,expected_real,expected_imaginary);
         assert(report.kernel_calls==83 && report.written_bytes==84);
@@ -370,9 +385,30 @@ static void diagonal_pairing(void) {
         VStorageLayout bad=output; bad.offset=4096;
         assert(vgemm_diagonal_pair(arena,0,x,1,y,3,bad,2,scratch,diagonal,cl,cr,NULL)==VS_LAYOUT);
         VStorageLayout other={0,1,1,1,0};
-        assert(vstorage_allocate(arena,4,!scalar,1)==VS_OK);
+        assert(vstorage_allocate(arena,4,scalar ^ 1u,1)==VS_OK);
         assert(vgemm_diagonal_pair(arena,0,x,1,y,4,other,2,scratch,diagonal,cl,cr,NULL)==VS_SCALAR);
         assert(vstorage_stats(arena).written_bytes==before.written_bytes);
+        cleanup(arena);
+    }
+}
+
+/* An empty dot writes one positive-zero cell. The next cell shares its allocation. */
+static void empty_diagonal_pairing(void) {
+    for (uint8_t scalar = VS_F64; scalar <= VS_COMPLEX_F32; ++scalar) {
+        VStorageArena *arena = vstorage_new(256);
+        assert(arena);
+        for (unsigned id = 0; id < 3; ++id) assert(vstorage_allocate(arena, id, scalar, 0) == VS_OK);
+        assert(vstorage_allocate(arena, 3, scalar, 2) == VS_OK);
+        VStorageLayout empty = {0, 0, 1, 1, 0}, one = {0, 1, 1, 1, 0}, two = {0, 2, 1, 2, 0};
+        uint64_t sentinel = component_bits(scalar, -7);
+        assert(vstorage_fill(arena, 3, two, scalar, sentinel, sentinel) == VS_OK);
+        VDiagonal no_entries = {NULL, 0, 0};
+        VGemmReport report;
+        assert(vgemm_diagonal_pair(arena, 0, empty, 1, empty, 3, one, 2, empty,
+                                   no_entries, 1, 1, &report) == VS_OK);
+        assert(report.kernel_calls == 0 && report.written_bytes == vstorage_element_bytes(scalar));
+        assert(vstorage_expect(arena, 3, two, 0, 0, scalar, 0, 0) == VS_OK);
+        assert(vstorage_expect(arena, 3, two, 1, 0, scalar, sentinel, sentinel) == VS_OK);
         cleanup(arena);
     }
 }
@@ -501,7 +537,7 @@ int main(void) {
     assert(vgemm_backend_check()==VS_OK);
     scalar_outputs(); scalar_output_order(); binary32_dot_precision();
     real_orientations(); complex_product(); conjugation_and_nonfinite();
-    degenerate(); nonfinite_inputs(); failures_preserve_output(); complex_element_boundaries(); coefficients(); diagonal_pairing();
+    degenerate(); nonfinite_inputs(); failures_preserve_output(); complex_element_boundaries(); coefficients(); diagonal_pairing(); empty_diagonal_pairing();
     puts(vgemm_configuration());
     puts("GEMM: real/complex N/T/R/C layouts, fused 1x1 outputs matching the former BLAS call, reuse, empty dimensions and failure-before-write passed");
 }

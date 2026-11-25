@@ -68,10 +68,24 @@ EXACT_MAPPINGS = {
         "VastitasOracle.MidIR.projection_constructor_coverage"),
     STATIC_CALL_ORIGIN: ("static call", "midir.static.call.v1", STATIC_CALL_THEOREM),
     CONVERSION_ORIGIN: ("Nat-to-Int conversion", "midir.nat_to_int.v1", CONVERSION_THEOREM),
-    "VastitasKernel.Storage.Native.Instruction.pack3": (
-        "rank-three packing", "midir.storage.pack3", "VastitasOracle.StorageProgram.pack3_operands"),
-    "VastitasKernel.Storage.Native.Instruction.regroup3": (
-        "rank-three regrouping", "midir.storage.regroup3", "VastitasOracle.StorageProgram.regroup3_operands"),
+    **{
+        "VastitasKernel.Storage.Native.Instruction." + constructor: (
+            constructor, "midir.storage." + symbol, "VastitasOracle.StorageProgram." + theorem)
+        for constructor, symbol, theorem in [
+            ("allocate", "allocate", "allocate_operands"),
+            ("drop", "drop", "drop_operands"),
+            ("fill", "fill", "fill_operands"),
+            ("store", "store", "store_operands"),
+            ("expect", "expect", "expect_operands"),
+            ("copy", "copy", "copy_operands"),
+            ("gemm", "gemm", "gemm_representation"),
+            ("pack3", "pack3", "pack3_operands"),
+            ("regroup3", "regroup3", "regroup3_operands"),
+            ("diagonalScale", "diagonal_scale", "diagonal_scale_operands"),
+            ("diagonalAdjoint", "diagonal_adjoint", "diagonal_adjoint_operands"),
+            ("diagonalPair", "diagonal_pair", "diagonal_pair_operands"),
+        ]
+    },
 }
 STRUCTURAL_THEOREMS = {
     "VastitasKernel.Indexed.Core.Term." + origin: "VastitasOracle.MidIR." + theorem + "_constructor_coverage"

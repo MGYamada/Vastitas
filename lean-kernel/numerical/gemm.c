@@ -158,13 +158,13 @@ VStorageStatus vgemm_diagonal_pair(VStorageArena *arena,
         (status = vstorage_prepare_dense(arena, right, right_view, &original_right)) != VS_OK ||
         (status = vstorage_prepare_dense(arena, output, output_view, &c)) != VS_OK ||
         (status = vstorage_prepare_dense(arena, scratch, scratch_view, &b)) != VS_OK) return status;
-    if (vstorage_component_bytes(a.scalar) != 8 || a.scalar != b.scalar || a.scalar != c.scalar || a.scalar != original_right.scalar) return VS_SCALAR;
+    if (a.scalar != b.scalar || a.scalar != c.scalar || a.scalar != original_right.scalar) return VS_SCALAR;
     if (a.rows != 1 || b.columns != 1 || original_right.columns != 1 ||
         a.columns != b.rows || original_right.rows != b.rows || c.rows != 1 || c.columns != 1) return VS_SHAPE;
     /* The owner-only scratch contract is stricter than a disjoint loan. */
     if (scratch == left || scratch == right || scratch == output ||
         overlaps(&a, &c) || overlaps(&original_right, &c)) return VS_ALIAS;
-    if ((status = vdiagonal_validate(diagonal, b.rows)) != VS_OK) return status;
+    if ((status = vdiagonal_validate_for(diagonal, b.rows, b.scalar)) != VS_OK) return status;
     if (b.bytes > UINT64_MAX - c.bytes) return VS_OVERFLOW;
     if ((status = vstorage_prepare_write(arena, b.bytes + c.bytes)) != VS_OK) return status;
     /* Everything that can return failure has completed. The arena is used
@@ -174,14 +174,16 @@ VStorageStatus vgemm_diagonal_pair(VStorageArena *arena,
     vstorage_record_write(arena, b.bytes);
     VGemmReport result = {0, c.bytes};
     if (!b.rows) {
-        double *out = c.data;
-        out[0] = 0.0;
-        if (vstorage_is_complex(c.scalar)) out[1] = 0.0;
+        memset(c.data, 0, c.bytes);
     } else {
-        /* The scalar pairing reads the weighted scratch vector back through the
-         * same fused 1-by-1 path as an overwrite GEMM with default alpha. */
-        const double alpha[2] = {1.0, 0.0}, beta[2] = {0.0, 0.0};
-        dot_update64(&a, conjugate_left, &b, 0, &c, alpha, beta);
+        /* The scalar pairing uses the fixed-order overwrite dot at its storage width. */
+        if (vstorage_component_bytes(c.scalar) == 4) {
+            const float alpha[2] = {1, 0}, beta[2] = {0, 0};
+            dot_update32(&a, conjugate_left, &b, 0, &c, alpha, beta);
+        } else {
+            const double alpha[2] = {1, 0}, beta[2] = {0, 0};
+            dot_update64(&a, conjugate_left, &b, 0, &c, alpha, beta);
+        }
         result.kernel_calls = 1;
     }
     vstorage_record_write(arena, c.bytes);

@@ -30,3 +30,26 @@ int32_t vq_storage_gemm(VStorageArena *arena, uint64_t element,
         (uint32_t)right, view(right_offset, right_rows, right_columns, right_leading, right_transposed), (uint8_t)conjugate_right,
         (uint32_t)output, view(output_offset, rows, columns, leading, output_transposed), (VGemmMode)mode, alpha, beta, NULL));
 }
+
+int32_t vq_storage_diagonal_pair(VStorageArena *arena, uint64_t element,
+        uint64_t left, uint64_t l_offset, uint64_t l_rows, uint64_t l_cols, uint64_t l_ld, uint64_t l_transposed,
+        uint64_t right, uint64_t r_offset, uint64_t r_rows, uint64_t r_cols, uint64_t r_ld, uint64_t r_transposed,
+        uint64_t output, uint64_t o_offset, uint64_t o_rows, uint64_t o_cols, uint64_t o_ld, uint64_t o_transposed,
+        uint64_t scratch, uint64_t s_offset, uint64_t s_rows, uint64_t s_cols, uint64_t s_ld, uint64_t s_transposed,
+        uint64_t conj_left, uint64_t conj_right, const uint8_t *data, uint64_t bytes, uint64_t uniform) {
+    if (left > UINT32_MAX || right > UINT32_MAX || output > UINT32_MAX || scratch > UINT32_MAX)
+        return checked(VS_HANDLE);
+    if (l_transposed > 1 || r_transposed > 1 || o_transposed || s_transposed || conj_left > 1 || conj_right > 1)
+        return checked(VS_OPERATION);
+    const VStorageLayout l = view(l_offset, l_rows, l_cols, l_ld, l_transposed);
+    VDiagonal diagonal;
+    VStorageStatus status = diagonal_element(arena, element, (uint32_t)left, l);
+    if (status != VS_OK) return checked(status);
+    status = diagonal_descriptor(data, bytes, uniform, &diagonal);
+    if (status != VS_OK) return checked(status);
+    return checked(vgemm_diagonal_pair(arena, (uint32_t)left, l,
+        (uint32_t)right, view(r_offset, r_rows, r_cols, r_ld, r_transposed),
+        (uint32_t)output, view(o_offset, o_rows, o_cols, o_ld, 0),
+        (uint32_t)scratch, view(s_offset, s_rows, s_cols, s_ld, 0),
+        diagonal, (uint8_t)conj_left, (uint8_t)conj_right, NULL));
+}

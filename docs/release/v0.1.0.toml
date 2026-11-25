@@ -79,7 +79,7 @@ number = 758
 title = "Fixed-order numerical references"
 state = "open"
 depends = []
-remaining = "Lean models binary32/64 rounding, special values, flags and fixed-order kernels. The real zero-divisor and empty-dot laws are proved. On 828 tuples the independent references agree on scalar and complex bits and flags. C real division, complex division and inverse match the native observation for both widths and permitted aliases. The production one-cell dot adapter matches 948 Lean cases across all four representations. Zero alpha and zero beta have independent input and prior-destination irrelevance proofs. For related non-NaN operands Lean proves the one-operation observation and all five flags for four real arithmetic operations, and proves equality and order observations. The checked guard with product recovery gives the same real division at every bit pattern. Diagonal kernel differentials and public arithmetic integration remain."
+remaining = "Lean models binary32/64 rounding, special values, flags and fixed-order kernels. The real zero-divisor and empty-dot laws are proved. On 828 tuples the independent references agree on scalar and complex bits and flags. C real division, complex division and inverse match the native observation for both widths and permitted aliases. The production one-cell dot adapter matches 948 Lean cases across all four representations. Zero alpha and zero beta have independent input and prior-destination irrelevance proofs. For related non-NaN operands Lean proves the one-operation observation and all five flags for four real arithmetic operations, and proves equality and order observations. The checked guard with product recovery gives the same real division at every bit pattern. The production diagonal weighting and adjoint adapters match the Lean reference on 728 cells across the four representations. Checked weights meet the nonzero integer bound at their storage precision. Public arithmetic integration remains."
 
 [[issue]]
 number = 318
@@ -107,21 +107,21 @@ number = 750
 title = "Phase-indexed MidIR"
 state = "open"
 depends = []
-remaining = "The inventory tracks 612 constructors. For Unit, Bool, Nat and Int literals, the actual builder appends a nullary instruction and returns its SSA slot. Both phase denotations agree with the Core evaluator. CI compares fourteen instruction rows and five structural mappings with the compiled Lean proofs, including the physical operands of rank-three packing and regrouping. Conditional lowering connects both checked arms to one typed join. The linked parameter selection theorem returns the full integer at each call depth. Variable references, scopes, ascriptions and let bindings preserve the builder state transitions and Core evaluation under the stated slot premises. For a typed local initialized from a parameter and returned directly, both whole MidIR functions match the direct return. An ordinary function and both methods of an assembled family produce identical LLVM bytes under that change. The previous function revision fails replay. Finite tags resolve in their declared carrier or Hom fiber. Lookup instructions preserve the table and ordered operands. Explicit Nat-to-Int conversion consumes the operand’s SSA reference. The retained method returns the same unbounded integer in Core and both MidIR invokers for every natural. For static calls, the builder retains argument order and the selected target. Both phase invokers preserve the call under the callee-body premise, which is discharged for the two-parameter Int subtraction shape. The ordered pair constructor and field projection cover both integer types. A linked projection method agrees with Core for every input. Unary operators cover Boolean negation, boxed integer negation and exact signed literals. Linked parameter negation agrees in Core and both MidIR invokers. The binary constructor preserves the actual operand evaluation order and every admitted integer, Boolean and finite signature across both phases. The other 595 constructors await local mapping and release disposition. The typed pure MidIR fragment distinguishes Unit from Bool, preserves arbitrary-size Int literals and checks direct calls by symbol, family, specialization and nominal ABI. For static resource entries, linear effect tokens preserve the logical schedule and resolved physical calls. General control flow and full accepted-module coverage remain."
+remaining = "The inventory tracks 612 constructors. The compiled registry names all twelve static storage calls and their operand theorems. For Unit, Bool, Nat and Int literals, the actual builder appends a nullary instruction and returns its SSA slot. Both phase denotations agree with the Core evaluator. CI compares twenty-four instruction rows and five structural mappings with the compiled Lean proofs, including the physical operands of rank-three packing and regrouping. Conditional lowering connects both checked arms to one typed join. The linked parameter selection theorem returns the full integer at each call depth. Variable references, scopes, ascriptions and let bindings preserve the builder state transitions and Core evaluation under the stated slot premises. For a typed local initialized from a parameter and returned directly, both whole MidIR functions match the direct return. An ordinary function and both methods of an assembled family produce identical LLVM bytes under that change. The previous function revision fails replay. Finite tags resolve in their declared carrier or Hom fiber. Lookup instructions preserve the table and ordered operands. Explicit Nat-to-Int conversion consumes the operand’s SSA reference. The retained method returns the same unbounded integer in Core and both MidIR invokers for every natural. For static calls, the builder retains argument order and the selected target. Both phase invokers preserve the call under the callee-body premise, which is discharged for the two-parameter Int subtraction shape. The ordered pair constructor and field projection cover both integer types. A linked projection method agrees with Core for every input. Unary operators cover Boolean negation, boxed integer negation and exact signed literals. Linked parameter negation agrees in Core and both MidIR invokers. The binary constructor preserves the actual operand evaluation order and every admitted integer, Boolean and finite signature across both phases. The other 583 constructors await local mapping and release disposition. The typed pure MidIR fragment distinguishes Unit from Bool, preserves arbitrary-size Int literals and checks direct calls by symbol, family, specialization and nominal ABI. For static resource entries, each success, failure and branch edge carries the producing instruction’s effect token. Nested literal branches retain both arms of the ownership plan. Scalar-slot conditions and full accepted-module coverage remain."
 
 [[issue]]
 number = 751
 title = "Closed opcode registry"
 state = "open"
 depends = [750]
-remaining = "The closed pure fragment includes Boolean conjunction, disjunction and negation, finite tags, arbitrary-arity nominal lookup, branches and checked direct calls. Nat/Int literals, same-kind arithmetic, mixed division, negation and conversion retain their ordered signatures. Construction and both projections preserve the element sort and order for homogeneous Nat and Int pairs. The registry distinguishes instruction mappings from the five structural forms, which need no opcode. Static storage opcodes bind allocation and view operands, component tags and exact payloads. All six dynamic Nat and Int comparison signatures have MidIR denotations. Straight-line library comparisons borrow both integers and return a 32-bit Boolean through the shim. Branches on those results in hosted boxed programs, dynamic resource plans and numerical arithmetic still need release evidence."
+remaining = "The closed pure fragment includes Boolean conjunction, disjunction and negation, finite tags, arbitrary-arity nominal lookup, branches and checked direct calls. Nat/Int literals, same-kind arithmetic, mixed division, negation and conversion retain their ordered signatures. Construction and both projections preserve the element sort and order for homogeneous Nat and Int pairs. The registry distinguishes instruction mappings from the five structural forms, which need no opcode. Static storage opcodes bind allocation and view operands, component tags and exact payloads. A checked literal branch resolves both arms and the join target. Diagonal scale, adjoint and pairing preserve ordered weight tables, and pairing identifies the scratch allocation. All six dynamic Nat and Int comparison signatures have MidIR denotations. Straight-line library comparisons borrow both integers and return a 32-bit Boolean through the shim. Branches on those results in hosted boxed programs, dynamic resource plans and numerical arithmetic still need release evidence."
 
 [[issue]]
 number = 752
 title = "Translation validation"
 state = "open"
 depends = [751]
-remaining = "Unary lookup, binary nominal lookup and S3 composition, a forwarding caller, literal and folded Int entries, and an assembled Boolean family have complete LLVM-byte correspondence. For a folded entry the proof ties the full integer, ordered canonical operator keys and current revision to both MidIR phases. The Opt-to-Exec theorem covers linked calls at every depth. For a single boxed integer library both phases and the parsed calls give the same return observation under the runtime contract. Static storage entries bind the checked plan and both phase schedules to the parsed LLVM bytes. Their modeled first-failure and normal exits preserve arena cleanup. General module witnesses, branches and reverse observations remain."
+remaining = "Unary lookup, binary nominal lookup and S3 composition, a forwarding caller, literal and folded Int entries, and an assembled Boolean family have complete LLVM-byte correspondence. For a folded entry the proof ties the full integer, ordered canonical operator keys and current revision to both MidIR phases. The Opt-to-Exec theorem covers linked calls at every depth. For a single boxed integer library both phases and the parsed calls give the same return observation under the runtime contract. Static storage entries bind the checked plan and both phase schedules to the parsed LLVM bytes. For nested literal guards, the selected graph path agrees with an independent traversal of the physical instructions. The model executes that path up to the first failed call and releases the acquired arena on either exit. General module witnesses, scalar-slot branches and reverse observations remain."
 
 [[issue]]
 number = 282
@@ -142,7 +142,7 @@ number = 753
 title = "LLVM emission and native backend"
 state = "open"
 depends = [752]
-remaining = "The public LLVM preview emits complete bytes for unary lookup, its forwarding caller, signed literal and folded arithmetic entries, and a Bool caller with both predecessor edges of a phi. LLVM 23.1.4 on macOS arm64 also executed the closure Monad unit and binary lookup on S3, including reversed source operands. The compiler linked and installed three entry executables, which returned 255, 10 and 42. Closed finite packages emit direct calls, guarded row-major lookups with up to six axes, nullary lookups and phi nodes. The structured lookup retains both Boolean methods in 2,623 bytes for macOS arm64 and 2,647 bytes for x86-64 Linux. Both files have the same function model. On macOS, LLVM 23.1.4 emitted an ELF64 relocatable object from the Linux bytes. Straight-line boxed Nat/Int libraries call the versioned shim and release intermediate values. The static storage entry links a fixed C runtime and executes standard-chart identities at both widths for real and complex coordinates. Broader CFGs, numerical arithmetic, release qualification and production verification modes remain."
+remaining = "The public LLVM preview emits complete bytes for unary lookup, its forwarding caller, signed literal and folded arithmetic entries, and a Bool caller with both predecessor edges of a phi. LLVM 23.1.4 on macOS arm64 also executed the closure Monad unit and binary lookup on S3, including reversed source operands. The compiler linked and installed three entry executables, which returned 255, 10 and 42. Closed finite packages emit direct calls, guarded row-major lookups with up to six axes, nullary lookups and phi nodes. The structured lookup retains both Boolean methods in 2,623 bytes for macOS arm64 and 2,647 bytes for x86-64 Linux. Both files have the same function model. On macOS, LLVM 23.1.4 emitted an ELF64 relocatable object from the Linux bytes. Straight-line boxed Nat/Int libraries call the versioned shim and release intermediate values. The static storage entry links a fixed C runtime and executes standard-chart identities at both widths for real and complex coordinates. The binary32 adjoint emits two private constants and carries their lengths and uniform flags through the checked call. The 2,857-byte storage branch fixture retains both nested alternatives, three writes and a shared checked read. Broader CFGs, numerical arithmetic, release qualification and production verification modes remain."
 
 [[issue]]
 number = 779
@@ -365,19 +365,19 @@ document = ""
 
 [row.dimension.midir]
 state = "partial"
-claims = ["compiler-ir.midir@representation", "compiler-ir.storage@static-effects", "compiler-ir.storage@gemm-abi"]
-note = "The checked static plan fixes both effect orders and the physical operands for identity copies and GEMM in all four representations. Dynamic branches and runtime dimensions remain open."
+claims = ["compiler-ir.midir@representation", "compiler-ir.storage@static-effects", "compiler-ir.storage@gemm-abi", "compiler-ir.storage@diagonal-abi"]
+note = "The checked static plan fixes both effect orders and the physical operands for identity copies and GEMM in all four representations. Diagonal calls carry the common representation, the ordered weight tables and their uniform flags. Dynamic branches and runtime dimensions remain open."
 document = ""
 
 [row.dimension.llvm]
 state = "partial"
-claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.storage@static-effects", "compiler-ir.storage@gemm-abi"]
-note = "The canonical module binds every byte of the target, status branches, calls, cleanup and literal exit to the checked entry. The corpus retains all four width and carrier variants of the identity copy and a scaled product with literal and view coefficients."
+claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.storage@static-effects", "compiler-ir.storage@gemm-abi", "compiler-ir.storage@diagonal-abi"]
+note = "The canonical module binds every byte of the target, status branches, calls, cleanup and literal exit to the checked entry. The corpus retains all four width and carrier variants of the identity copy and a scaled product with literal and view coefficients. The binary32 adjoint corpus file retains distinct private constants for the source and target weights."
 document = ""
 
 [row.dimension.official]
 state = "partial"
-claims = ["compiler-ir.numeric-order@reference", "compiler-ir.numeric-order@reference-boundaries", "compiler-ir.numeric-order@one-step", "compiler-ir.realization@affine-expansion", "compiler-ir.realization@identity-origin", "compiler-ir.float-carrier@reference-laws", "compiler-ir.realization@exact-fields", "compiler-ir.realization@exact-chart-selection", "compiler-ir.realization@rational-coordinates", "compiler-ir.realization@coordinate-interpretation", "compiler-ir.storage@static-effects", "compiler-ir.storage@static-cleanup", "compiler-ir.storage@gemm-abi"]
+claims = ["compiler-ir.numeric-order@reference", "compiler-ir.numeric-order@reference-boundaries", "compiler-ir.numeric-order@one-step", "compiler-ir.realization@affine-expansion", "compiler-ir.realization@identity-origin", "compiler-ir.float-carrier@reference-laws", "compiler-ir.realization@exact-fields", "compiler-ir.realization@exact-chart-selection", "compiler-ir.realization@rational-coordinates", "compiler-ir.realization@coordinate-interpretation", "compiler-ir.storage@static-effects", "compiler-ir.storage@static-cleanup", "compiler-ir.storage@gemm-abi", "compiler-ir.storage@diagonal-abi"]
 note = "An accepted public run gives its lexical site, source identity declaration, nominal graph and checked storage copy. Complex copies also recover the selected mathematical model. The binary reference proves the real one-step result and flag relation, including the infinity-times-zero case. It also proves the signed-zero divisor and dot coefficient cases. Raw and checked unit, associativity, lift, short-circuit and trace projection are proved for the fixed reference. The exact real and complex models satisfy their field propositions, and the Bridge preserves their operations. The static LLVM model preserves the successful call order and the first-failure prefix with a single arena cleanup. Per-artifact verification and general compiler refinement remain."
 document = ""
 
@@ -420,7 +420,7 @@ document = ""
 [row.dimension.core]
 state = "partial"
 claims = ["compiler-ir.coverage@ledger", "compiler-ir.coverage@inventory", "compiler-ir.coverage@literal-lowering", "compiler-ir.coverage@finite-lowering", "compiler-ir.coverage@binding-lowering", "compiler-ir.coverage@static-call-lowering", "compiler-ir.coverage@conversion-lowering", "compiler-ir.coverage@pair-lowering", "compiler-ir.coverage@unary-lowering", "compiler-ir.coverage@branch-lowering", "compiler-ir.coverage@binary-lowering", "compiler-ir.operators@selected-method"]
-note = "The source-schema inventory checks 612 entries and their payloads. Four literal constructors, finite tags, finite lookups, explicit Nat-to-Int conversion and first-order static calls have proved instruction mappings. Variable references, scopes, ascriptions, let bindings and conditionals have proved structural mappings. The linked conditional method preserves its Boolean choice and two integer operands in both phases. Pair construction, field projection and unary and binary operators cover their complete opcode lists. Two storage mappings preserve the physical views, dimensions and grouping codes for rank-three packing and regrouping. The other 593 await review. Full scalar and indexed Core-to-MidIR coverage remains."
+note = "The source-schema inventory checks 612 entries and their payloads. Four literal constructors, finite tags, finite lookups, explicit Nat-to-Int conversion and first-order static calls have proved instruction mappings. Variable references, scopes, ascriptions, let bindings and conditionals have proved structural mappings. The linked conditional method preserves its Boolean choice and two integer operands in both phases. Pair construction, field projection and unary and binary operators cover their complete opcode lists. Twelve storage mappings cover primitive memory operations, rank-three packing and regrouping, NativeFast GEMM and diagonal calls. The other 583 await review. Full scalar and indexed Core-to-MidIR coverage remains."
 document = ""
 
 [row.dimension.midir]
@@ -485,20 +485,20 @@ document = ""
 
 [row.dimension.midir]
 state = "partial"
-claims = ["compiler-ir.midir@representation", "compiler-ir.storage@static-effects"]
-note = "The two phase-indexed effect blocks preserve logical ownership events, physical operand order and a unique successor token for each operation."
+claims = ["compiler-ir.midir@representation", "compiler-ir.storage@static-effects", "compiler-ir.storage@physical-opcodes"]
+note = "Both phases retain the checked literal branch structure. Each edge supplies the producer’s output token to its target, including the first-error cleanup edge. Physical allocation identities and call arguments remain distinct across alternative arms."
 document = ""
 
 [row.dimension.llvm]
 state = "partial"
-claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.storage@static-effects"]
-note = "The complete parsed bytes carry the same physical operations and failure edges for the accepted static plan."
+claims = ["compiler-ir.llvm-bytes@bytes", "compiler-ir.storage@static-effects", "compiler-ir.storage@physical-opcodes"]
+note = "The complete parsed bytes carry every physical operation, including unselected arms, control edges, shared joins and failure exits. The retained nested-branch module has 2,857 bytes."
 document = ""
 
 [row.dimension.official]
 state = "partial"
 claims = ["compiler-ir.constitution@finite-proofs", "compiler-ir.storage@static-effects", "compiler-ir.storage@static-cleanup", "compiler-ir.storage@erased-unit"]
-note = "The general Oracle proof binds the static plan and its failure prefix. The finite constitution and per-input certificates for these modules remain pending."
+note = "The Oracle relates the selected graph trace to the storage checker’s physical instructions. For any sequence of foreign responses, model execution performs a prefix and releases the acquired arena. The finite constitution and per-input certificates for these modules remain pending."
 document = ""
 
 [row.dimension.fast]
@@ -510,7 +510,7 @@ document = ""
 [row.dimension.native]
 state = "partial"
 claims = ["compiler-ir.backend@native", "compiler-ir.storage@static-native"]
-note = "Native storage examples exercise all four scalar representations and compare a failing expectation with the reference path. Branches and reverse observations remain open."
+note = "Native storage examples exercise all four scalar representations. A nested literal branch writes one of three bit patterns into the shared allocation. Checking the wrong pattern after the join exercises the first-error exit. Runtime guard values and reverse observations remain open."
 document = ""
 
 [row.dimension.performance]

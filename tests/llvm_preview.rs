@@ -1434,3 +1434,97 @@ resource fn main() -> Int { call touch() -> (); value { 42 } }";
         assert!(rejected.stdout.is_empty());
     }
 }
+
+#[test]
+fn storage_branch_preserves_both_arms_and_executes_the_selected_path() {
+    let source = include_str!("../llvm/fixtures/StorageBranch.vast");
+    let scratch = Scratch::empty("LLVM nested storage branch");
+    for (outer, inner, expected, status) in [
+        (true, false, 42, 42),
+        (true, true, 17, 42),
+        (false, true, 7, 42),
+        (false, false, 42, 1),
+    ] {
+        let program = source
+            .replace("if true {", &format!("if {outer} {{"))
+            .replace("if false { fill", &format!("if {inner} {{ fill"))
+            .replace(
+                "expect(r,0,0,f32_bits(42))",
+                &format!("expect(r,0,0,f32_bits({expected}))"),
+            );
+        let output = preview(&scratch, &program);
+        success(&output);
+        let ir = std::str::from_utf8(&output.stdout).unwrap();
+        assert!(ir.contains(&format!("br i1 {outer}, label %next2, label %next9")));
+        assert!(ir.contains(&format!("br i1 {inner}, label %next5, label %next7")));
+        assert_eq!(ir.matches("call i32 @vq_storage_fill(").count(), 3);
+        assert_eq!(ir.matches("call i32 @vq_storage_allocate(").count(), 3);
+        assert_eq!(ir.matches("call void @vstorage_delete(").count(), 2);
+        let control = scratch.build_and_run("app/Vastitas.toml");
+        assert_eq!(control.status, status);
+        if status == 1 {
+            assert!(
+                control.stderr.contains("E_NATIVE_EXPECT"),
+                "{}",
+                control.stderr
+            );
+        }
+        #[cfg(feature = "llvm-native")]
+        {
+            let binary = scratch.0.join("llvm-branch");
+            success(
+                &scratch
+                    .command("build", "app/Vastitas.toml")
+                    .args(["--llvm-preview", "-o"])
+                    .arg(&binary)
+                    .output()
+                    .unwrap(),
+            );
+            let actual = std::process::Command::new(binary).output().unwrap();
+            assert_eq!(common::ran(&actual), control);
+            assert_eq!(String::from_utf8_lossy(&actual.stderr), control.stderr);
+        }
+    }
+}
+
+#[test]
+fn storage_branch_checks_the_cold_arm_and_never_uses_a_slot_projection_as_a_decision() {
+    let source = include_str!("../llvm/fixtures/StorageBranch.vast");
+    let scratch = Scratch::empty("LLVM checked branch revision");
+    success(&preview(&scratch, source));
+    let revision = scratch
+        .command("check", "app/Vastitas.toml")
+        .arg("--print-function-revision")
+        .output()
+        .unwrap();
+    success(&revision);
+    let saved = scratch.0.join("branch.json");
+    std::fs::write(&saved, &revision.stdout).unwrap();
+    success(&preview(
+        &scratch,
+        &source.replace("f32_bits(17)", "f32_bits(18)"),
+    ));
+    let stale = scratch
+        .command("check", "app/Vastitas.toml")
+        .args(TARGET)
+        .arg("--expect-function-revision")
+        .arg(&saved)
+        .output()
+        .unwrap();
+    expect_code(&stale, "E_FUNCTION_REVISION");
+    assert!(stale.stdout.is_empty());
+
+    let malformed = preview(&scratch, &source.replace("drop(second);", ""));
+    expect_code(&malformed, "E_RESOURCE_JOIN");
+    assert!(malformed.stdout.is_empty());
+    let dynamic = source.replace("if true {", "let flag: Bool = value { true }; if flag {");
+    let rejected = preview(&scratch, &dynamic);
+    expect_code(&rejected, "E_UNSUPPORTED");
+    assert!(rejected.stdout.is_empty());
+    success(
+        &scratch
+            .command("check", "app/Vastitas.toml")
+            .output()
+            .unwrap(),
+    );
+}

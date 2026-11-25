@@ -2,8 +2,8 @@
   "schema_version": 2,
   "scope": "constructor coverage only; no compiler admission",
   "snapshot": {
-    "base_commit": "9c290239014cb30ea115e2882b83b33b548e966b",
-    "schema_sha256": "b211582018cc03a200c955caf6757e9d042623590f07fa09af272375f9f57b96"
+    "base_commit": "5ce83b44dfad40ad89ec406699a9d136a1d8255d",
+    "schema_sha256": "00d7e5f055deb39a1a3f9c9a8dc7cabbc4c105a00947e9fb13033734c47a0f3f"
   },
   "schema": {
     "sources": [
@@ -4555,7 +4555,7 @@
     ],
     "runtime": {
       "manifest": "src/runtime_inputs.rs",
-      "manifest_sha256": "56db6097cbd9c9d48bda0b1b070c9a616fc5881a7c5156d7b7605c965d2672a2",
+      "manifest_sha256": "c45417152ff5e2e9c9009e0caff50bcbd052a86150dec83c1ba3e4378a568967",
       "packages": [
         {
           "id": "KERNEL",
@@ -4590,7 +4590,8 @@
             "ffi.c",
             "ffi_result.h",
             "diagonal.c",
-            "diagonal.h"
+            "diagonal.h",
+            "diagonal_kernels.inc"
           ],
           "forbidden": [
             "lakefile.toml"
@@ -4712,11 +4713,15 @@
         },
         {
           "source": "lean-kernel/native/diagonal.c",
-          "sha256": "7d2c1359dedfa256c9f5f7311a1b6a1823af7cc3e30782938d0b43c52cb29c00"
+          "sha256": "5b94171791942ca37000d887b7ecfd84d989782a44d4f5d3dd2890de78e4de5b"
         },
         {
           "source": "lean-kernel/native/diagonal.h",
-          "sha256": "a04126248907d64bdeb87123276b53f4cd69c9a07c0156465ba8a59f422c996f"
+          "sha256": "5cffa3a86add82aeca664abd18be85886653bd65722725a09924b476b98497c9"
+        },
+        {
+          "source": "lean-kernel/native/diagonal_kernels.inc",
+          "sha256": "f0402bb4d80cc4d57aaaa66416654bb96f4001eaaba1b900a3f36075807a7b42"
         },
         {
           "source": "lean-kernel/native/ffi.c",
@@ -4732,7 +4737,7 @@
         },
         {
           "source": "lean-kernel/native/lakefile.lean",
-          "sha256": "9c0261b0ce57d554ad9aa96ce7741650e10b1c28746a911642dbb4059bf6d348"
+          "sha256": "82d3724e70c2017c99dba11b0eccbcfd2791039b835297ef1b99b054bb89542a"
         },
         {
           "source": "lean-kernel/native/lean-toolchain",
@@ -4752,7 +4757,7 @@
         },
         {
           "source": "lean-kernel/numerical/gemm.c",
-          "sha256": "55bc64d88e927b6bddedc638ebed58a0c06c2c3d2604ece25e6a5501d30aa9cd"
+          "sha256": "6371b0b7973f653f809366041b401ff1505a24bd43d1fdb21135238706080096"
         },
         {
           "source": "lean-kernel/numerical/gemm.h",
@@ -8178,11 +8183,13 @@
     },
     {
       "origin": "VastitasKernel.Storage.Native.Instruction.allocate",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Storage.Native.Instruction.allocate",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": "midir.storage.allocate",
+      "reason": "Preserves the allocation handle, physical representation and element count.",
+      "evidence": [
+        "VastitasOracle.StorageProgram.allocate_operands"
+      ]
     },
     {
       "origin": "VastitasKernel.Storage.Native.Instruction.branch",
@@ -8194,59 +8201,73 @@
     },
     {
       "origin": "VastitasKernel.Storage.Native.Instruction.copy",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Storage.Native.Instruction.copy",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": "midir.storage.copy",
+      "reason": "Preserves the source and destination views and their handle order.",
+      "evidence": [
+        "VastitasOracle.StorageProgram.copy_operands"
+      ]
     },
     {
       "origin": "VastitasKernel.Storage.Native.Instruction.diagonalAdjoint",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Storage.Native.Instruction.diagonalAdjoint",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": "midir.storage.diagonal_adjoint",
+      "reason": "For a resolved NativeFast call, the source and target weight tables remain in their checked order at the shared physical representation.",
+      "evidence": [
+        "VastitasOracle.StorageProgram.diagonal_adjoint_operands"
+      ]
     },
     {
       "origin": "VastitasKernel.Storage.Native.Instruction.diagonalPair",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Storage.Native.Instruction.diagonalPair",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": "midir.storage.diagonal_pair",
+      "reason": "For a resolved NativeFast call, both inputs, the destination and scratch share the representation, and the call preserves the weights and scratch handle.",
+      "evidence": [
+        "VastitasOracle.StorageProgram.diagonal_pair_operands"
+      ]
     },
     {
       "origin": "VastitasKernel.Storage.Native.Instruction.diagonalScale",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Storage.Native.Instruction.diagonalScale",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": "midir.storage.diagonal_scale",
+      "reason": "For a resolved NativeFast call, both views share the component representation and the call preserves the table and conjugation flag.",
+      "evidence": [
+        "VastitasOracle.StorageProgram.diagonal_scale_operands"
+      ]
     },
     {
       "origin": "VastitasKernel.Storage.Native.Instruction.drop",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Storage.Native.Instruction.drop",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": "midir.storage.drop",
+      "reason": "Releases the physical handle from the checked schedule.",
+      "evidence": [
+        "VastitasOracle.StorageProgram.drop_operands"
+      ]
     },
     {
       "origin": "VastitasKernel.Storage.Native.Instruction.expect",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Storage.Native.Instruction.expect",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": "midir.storage.expect",
+      "reason": "Compares the ordered cell coordinates with the checked representation and payload bits.",
+      "evidence": [
+        "VastitasOracle.StorageProgram.expect_operands"
+      ]
     },
     {
       "origin": "VastitasKernel.Storage.Native.Instruction.fill",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Storage.Native.Instruction.fill",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": "midir.storage.fill",
+      "reason": "Preserves the physical view and the tag and bits of both scalar components.",
+      "evidence": [
+        "VastitasOracle.StorageProgram.fill_operands"
+      ]
     },
     {
       "origin": "VastitasKernel.Storage.Native.Instruction.finish",
@@ -8258,11 +8279,13 @@
     },
     {
       "origin": "VastitasKernel.Storage.Native.Instruction.gemm",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Storage.Native.Instruction.gemm",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": "midir.storage.gemm",
+      "reason": "For a resolved NativeFast call, all three matrix handles have the representation passed to the numerical adapter.",
+      "evidence": [
+        "VastitasOracle.StorageProgram.gemm_representation"
+      ]
     },
     {
       "origin": "VastitasKernel.Storage.Native.Instruction.otherwise",
@@ -8302,11 +8325,13 @@
     },
     {
       "origin": "VastitasKernel.Storage.Native.Instruction.store",
-      "disposition": "pending",
+      "disposition": "lowered",
       "owner": "#751",
-      "planned_opcode": "midir.Storage.Native.Instruction.store",
-      "reason": "Requires typed MidIR lowering, closed registry entry and preservation evidence.",
-      "evidence": []
+      "planned_opcode": "midir.storage.store",
+      "reason": "Preserves the physical view, ordered cell coordinates and scalar bits.",
+      "evidence": [
+        "VastitasOracle.StorageProgram.store_operands"
+      ]
     },
     {
       "origin": "VastitasKernel.Storage.Numerical.Evaluation.dual",

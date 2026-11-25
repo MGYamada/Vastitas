@@ -110,8 +110,8 @@ ROW_OBLIGATIONS = {
     'resources': {
         'source': ('compiler-ir.edition@admission', 'compiler-ir.storage@static-native'),
         'core': ('compiler-ir.storage@refinement', 'compiler-ir.storage@static-effects', 'compiler-ir.storage@erased-unit'),
-        'midir': ('compiler-ir.midir@representation', 'compiler-ir.storage@static-effects'),
-        'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.storage@static-effects'),
+        'midir': ('compiler-ir.midir@representation', 'compiler-ir.storage@static-effects', 'compiler-ir.storage@physical-opcodes'),
+        'llvm': ('compiler-ir.llvm-bytes@bytes', 'compiler-ir.storage@static-effects', 'compiler-ir.storage@physical-opcodes'),
         'official': ('compiler-ir.constitution@finite-proofs', 'compiler-ir.storage@static-effects',
                      'compiler-ir.storage@static-cleanup', 'compiler-ir.storage@erased-unit'),
         'native': ('compiler-ir.backend@native', 'compiler-ir.storage@static-native'),
@@ -155,7 +155,8 @@ def required_status(dimension, claim):
         return 'proved-bridge'
     if (claim in {'compiler-ir.coverage@literal-lowering', 'compiler-ir.coverage@finite-lowering',
                   'compiler-ir.coverage@binding-lowering', 'compiler-ir.coverage@static-call-lowering',
-                  'compiler-ir.storage@static-effects', 'compiler-ir.storage@gemm-abi', 'compiler-ir.storage@erased-unit',
+                  'compiler-ir.storage@static-effects', 'compiler-ir.storage@gemm-abi', 'compiler-ir.storage@diagonal-abi',
+                  'compiler-ir.storage@physical-opcodes', 'compiler-ir.storage@erased-unit',
                   'compiler-ir.edition@manifest-source', 'compiler-ir.edition@finite-declaration-source', 'compiler-ir.families@singleton-source',
                   'compiler-ir.edition@namespace-source', 'compiler-ir.edition@affine-source', 'compiler-ir.edition@resource-cell-source', 'compiler-ir.edition@resource-product-source', 'compiler-ir.edition@resource-ownership-source', 'compiler-ir.edition@resource-value-source',
                   'compiler-ir.families@selector-source', 'compiler-ir.operators@selected-method'}

@@ -26,17 +26,31 @@ private def row (entry : Name × String) (proof : Name) : Json :=
   Json.mkObj [("origin", toJson entry.1.toString), ("opcode", toJson entry.2),
     ("theorem", toJson proof.toString)]
 
+/-- Every storage ABI symbol must name the physical instruction and local
+operand theorem that justify its coverage row. -/
+private def storageRow (callee : StorageEffects.Callee) : Json :=
+  let (origin, proof) : Name × Name := match callee with
+    | .allocate => (``VastitasKernel.Storage.Native.Instruction.allocate, ``VastitasOracle.StorageProgram.allocate_operands)
+    | .drop => (``VastitasKernel.Storage.Native.Instruction.drop, ``VastitasOracle.StorageProgram.drop_operands)
+    | .fill => (``VastitasKernel.Storage.Native.Instruction.fill, ``VastitasOracle.StorageProgram.fill_operands)
+    | .store => (``VastitasKernel.Storage.Native.Instruction.store, ``VastitasOracle.StorageProgram.store_operands)
+    | .expect => (``VastitasKernel.Storage.Native.Instruction.expect, ``VastitasOracle.StorageProgram.expect_operands)
+    | .copy => (``VastitasKernel.Storage.Native.Instruction.copy, ``VastitasOracle.StorageProgram.copy_operands)
+    | .gemm => (``VastitasKernel.Storage.Native.Instruction.gemm, ``VastitasOracle.StorageProgram.gemm_representation)
+    | .pack3 => (``VastitasKernel.Storage.Native.Instruction.pack3, ``VastitasOracle.StorageProgram.pack3_operands)
+    | .regroup3 => (``VastitasKernel.Storage.Native.Instruction.regroup3, ``VastitasOracle.StorageProgram.regroup3_operands)
+    | .diagonalScale => (``VastitasKernel.Storage.Native.Instruction.diagonalScale, ``VastitasOracle.StorageProgram.diagonal_scale_operands)
+    | .diagonalAdjoint => (``VastitasKernel.Storage.Native.Instruction.diagonalAdjoint, ``VastitasOracle.StorageProgram.diagonal_adjoint_operands)
+    | .diagonalPair => (``VastitasKernel.Storage.Native.Instruction.diagonalPair, ``VastitasOracle.StorageProgram.diagonal_pair_operands)
+  row (origin, "storage." ++ callee.name) proof
+
 def main : IO Unit := do
   let literals := literalRegistry.map fun entry => row entry ``VastitasOracle.MidIR.literal_constructor_coverage
   let finite := row finiteTagRegistryRow ``VastitasOracle.MidIR.finite_tag_constructor_coverage
   let lookup := row lookupRegistryRow ``VastitasOracle.MidIR.finite_lookup_constructor_coverage
   let conversion := row natToIntRegistryRow ``VastitasOracle.MidIR.nat_to_int_constructor_coverage
   let call := row staticCallRegistryRow ``VastitasOracle.MidIR.static_call_constructor_coverage
-  let packing (origin : Name) (callee : StorageEffects.Callee) (proof : Name) :=
-    row (origin, "storage." ++ callee.name) proof
-  let storageRows := [
-    packing ``VastitasKernel.Storage.Native.Instruction.pack3 .pack3 ``VastitasOracle.StorageProgram.pack3_operands,
-    packing ``VastitasKernel.Storage.Native.Instruction.regroup3 .regroup3 ``VastitasOracle.StorageProgram.regroup3_operands]
+  let storageRows := StorageEffects.Callee.all.map storageRow
   let structural (origin proof : Name) := Json.mkObj [
     ("origin", toJson origin.toString), ("opcode", Json.null), ("theorem", toJson proof.toString)]
   let alternatives (origin : Name) (tags : List String) (proof : Name) := Json.mkObj [

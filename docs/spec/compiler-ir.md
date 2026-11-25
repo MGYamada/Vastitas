@@ -16,7 +16,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [One phase-indexed typed MidIR](#compiler-ir.midir) | Planned, Tested, Tested, Proved (oracle) |
 | [Closed opcodes have independent meanings](#compiler-ir.registry) | Planned, Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle) |
 | [Semantics are independent of validators](#compiler-ir.semantics) | Planned |
-| [Storage safety comes from checked refinement](#compiler-ir.storage) | Planned, Proved (oracle), Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested |
+| [Storage safety comes from checked refinement](#compiler-ir.storage) | Planned, Proved (oracle), Proved (oracle), Proved (oracle), Tested, Proved (oracle), Proved (oracle), Proved (oracle), Tested |
 | [One foreign Lean runtime preserves exact arithmetic](#compiler-ir.runtime) | Planned |
 | [Floating carriers stay in the resource layer](#compiler-ir.float-carrier) | Planned, Tested, Proved (oracle) |
 | [Realization binds mathematical and numerical identities](#compiler-ir.realization) | Planned, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (bridge), Proved (oracle), Planned, Tested, Proved (oracle), Tested, Tested, Proved (oracle) |
@@ -409,7 +409,7 @@ Claims:
 A ledger at a named source revision must enumerate every accepted Core, storage action, native storage instruction and runtime-extent constructor. For each constructor it records an admitted typed MidIR mapping or an explicit finite-profile rejection. Each admitted entry identifies its source fixture, family and method, model, ownership facts, opcode and downstream proof obligation. Any constructor or runtime change regenerates the ledger. The runtime inventory follows the transitive closure of the admitted snapshot, including frame and spectral runtimes where used; an older list of runtime modules is not a completeness argument. Missing entries must fail the coverage check instead of silently inheriting admission.
 
 - Example: Adding a Core constructor without an admitted mapping or rejection prevents the coverage ledger from passing.
-- Not executed: The source-schema guard, fourteen instruction mappings and five structural mappings run in CI. Whole-module release coverage remains pending.
+- Not executed: The source-schema guard, twenty-four instruction mappings and five structural mappings run in CI. Whole-module release coverage remains pending.
 
 Claims:
 
@@ -424,7 +424,8 @@ Claims:
     - `RepositoryTests.test_structural_rows_require_the_matching_proof_and_no_instruction` in [`scripts/test_check_midir_coverage.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_check_midir_coverage.py)
     - `RepositoryTests.test_static_call_mapping_requires_the_exact_constructor_opcode_and_theorem` in [`scripts/test_check_midir_coverage.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_check_midir_coverage.py)
     - `RepositoryTests.test_conversion_rejects_an_integer_negation_or_a_static_call_proof` in [`scripts/test_check_midir_coverage.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_check_midir_coverage.py)
-  - Note: This claim covers the reviewed constructor signatures, referenced record schemas and runtime manifest closure in config/midir-coverage.json. The guard rejects source drift, incomplete inventories and JSON-only promotion to admission. Four ground literals, finite tags, finite lookups, explicit Nat-to-Int conversion, homogeneous pairs and projections, unary Boolean and integer operations, binary operators, and first-order static calls have local lowering proofs. Variable references, scopes, typed ascriptions, let bindings and conditionals have structural mappings without an opcode. A constructor with several opcodes names every alternative in registry order. The two physical storage packing instructions preserve source and destination layouts, dimensions and, for regrouping, both axis orders and splits in the execution call. CI compares each origin, opcode or alternatives, and theorem with the compiled Lean registry. The other 593 rows await review. Whole-module acceptance remains a separate obligation for every row. The release coverage check enforces that distinction.
+    - `RepositoryTests.test_storage_symbols_require_their_own_operand_theorems` in [`scripts/test_check_midir_coverage.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/test_check_midir_coverage.py)
+  - Note: This claim covers the reviewed constructor signatures, referenced record schemas and runtime manifest closure in config/midir-coverage.json. The guard rejects source drift, incomplete inventories and JSON-only promotion to admission. Four ground literals, finite tags, finite lookups, explicit Nat-to-Int conversion, homogeneous pairs and projections, unary Boolean and integer operations, binary operators, and first-order static calls have local lowering proofs. Variable references, scopes, typed ascriptions, let bindings and conditionals have structural mappings without an opcode. A constructor with several opcodes names every alternative in registry order. The two physical storage packing instructions preserve source and destination layouts, dimensions and, for regrouping, both axis orders and splits in the execution call. The storage registry also covers allocation, release, cell operations, copy, GEMM and diagonal calls. CI compares each origin, opcode or alternatives, and theorem with the compiled Lean registry. The other 583 rows await review. Whole-module acceptance remains a separate obligation for every row. The release coverage check enforces that distinction.
 - `binary-lowering`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.BinaryCoverage`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BinaryCoverage.lean): `VastitasOracle.MidIR.binary_constructor_coverage`
@@ -601,6 +602,12 @@ Claims:
 
 - `refinement`: [Planned](../specifications.md#planned)
   - Issue: [#752](https://github.com/MGYamada/Vastitas/issues/752)
+- `physical-opcodes`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.storage_callees_complete`, `VastitasOracle.StorageProgram.storage_symbols_unique`, `VastitasOracle.StorageProgram.allocate_operands`, `VastitasOracle.StorageProgram.drop_operands`, `VastitasOracle.StorageProgram.fill_operands`, `VastitasOracle.StorageProgram.store_operands`, `VastitasOracle.StorageProgram.expect_operands`, `VastitasOracle.StorageProgram.copy_operands`, `VastitasOracle.StorageProgram.pack3_operands`, `VastitasOracle.StorageProgram.regroup3_operands`
+  - Premises:
+    - The operand equations concern the static physical instruction supplied to the resolver. The registry ranges over the storage ABI callee type.
+  - Note: The twelve static storage callees have distinct ABI names and every callee occurs in the exported list. The six basic memory instructions preserve their physical operands, including both component bit patterns for literals. Separate theorems cover rank-three packing, GEMM and diagonal numerical operations.
 - `static-effects`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.correspondence`

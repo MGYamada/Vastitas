@@ -40,6 +40,46 @@ theorem erased_unit {json main callee} {req : ResourceSource.Wire.CheckedInput j
   rw [u.literal]
   rfl
 
+/-- The hosted storage ABI takes a handle and the five fields of its physical view. -/
+def viewWords (handle : Nat) (v : Storage.Layout) : List Nat :=
+  [handle, v.offset, v.rows, v.columns, v.leading, v.transposed.toNat]
+
+/-- The ABI represents each scalar literal by a tag and two zero-extended words. -/
+def literalWords : Storage.Literal → List Nat
+  | .f64 bits => [0,bits.toNat,0]
+  | .complexF64 real imag => [1,real.toNat,imag.toNat]
+  | .f32 bits => [2,bits.toNat,0]
+  | .complexF32 real imag => [3,real.toNat,imag.toNat]
+
+theorem allocate_operands (live : Std.HashMap Nat Storage.Scalar) (id count : Nat) (element : Storage.Scalar) :
+    resolveInstruction live (.allocate id element count) =
+      some ⟨.allocate, [id, Storage.NativeText.scalar element, count], []⟩ := rfl
+
+theorem drop_operands (live : Std.HashMap Nat Storage.Scalar) (id : Nat) :
+    resolveInstruction live (.drop id) = some ⟨.drop, [id], []⟩ := rfl
+
+theorem fill_operands (live : Std.HashMap Nat Storage.Scalar) (id : Nat) (v : Storage.Layout) (x : Storage.Literal) :
+    resolveInstruction live (.fill id v x) = some ⟨.fill, viewWords id v ++ literalWords x, []⟩ := by
+  cases x <;> rfl
+
+theorem store_operands (live : Std.HashMap Nat Storage.Scalar) (id : Nat) (v : Storage.Layout)
+    (row col : Nat) (x : Storage.Literal) :
+    resolveInstruction live (.store id v row col x) =
+      some ⟨.store, viewWords id v ++ [row,col] ++ literalWords x, []⟩ := by cases x <;> rfl
+
+theorem expect_operands (live : Std.HashMap Nat Storage.Scalar) (id : Nat) (v : Storage.Layout)
+    (row col : Nat) (x : Storage.Literal) :
+    resolveInstruction live (.expect id v row col x) =
+      some ⟨.expect, viewWords id v ++ [row,col] ++ literalWords x, []⟩ := by cases x <;> rfl
+
+theorem copy_operands (live : Std.HashMap Nat Storage.Scalar) (src dst : Nat) (input output : Storage.Layout) :
+    resolveInstruction live (.copy src input dst output) =
+      some ⟨.copy, viewWords src input ++ viewWords dst output, []⟩ := rfl
+
+theorem storage_callees_complete (op : Callee) : op ∈ Callee.all := by cases op <;> simp [Callee.all]
+
+theorem storage_symbols_unique : (Callee.all.map Callee.name).Nodup := by decide
+
 /-- The fixed packing call preserves both physical views and the ordered i,k,j dimensions. -/
 theorem pack3_operands (live : Std.HashMap Nat Storage.Scalar) (a b i k j : Nat) (v w : Storage.Layout) :
     resolveInstruction live (.pack3 a v b w i k j) = some ⟨.pack3, [

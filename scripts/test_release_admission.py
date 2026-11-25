@@ -79,6 +79,7 @@ class AdmissionTests(unittest.TestCase):
 
     def test_static_storage_refinement_requires_a_proof_at_every_layer(self):
         storage_proofs = {'compiler-ir.storage@static-effects', 'compiler-ir.storage@gemm-abi',
+                          'compiler-ir.storage@diagonal-abi', 'compiler-ir.storage@physical-opcodes',
                           'compiler-ir.storage@erased-unit'}
         for row in self.data['row']:
             for dimension, cell in row['dimension'].items():

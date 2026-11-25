@@ -517,6 +517,12 @@ fn diagonal_llvm_schedules_cover_both_precisions_and_empty_weights() {
             2,
         ),
         (REAL.to_owned(), COMPLEX.to_owned(), true, 0),
+        (
+            branched(REAL),
+            branched(COMPLEX).replacen("if false", "if true", 1),
+            true,
+            0,
+        ),
         (f32_pairing(false), f32_pairing(true), true, 2),
         (empty(false, "0"), empty(true, "9007199254740993"), true, 0),
     ] {

@@ -12,9 +12,14 @@ open MidIR.StorageEffects
 
 structure Code where
   header : TargetHeader
-  calls : List Call
+  steps : List Op
   status : UInt8
   deriving DecidableEq
+
+def Code.linear (header : TargetHeader) (calls : List Call) (status : UInt8) : Code :=
+  ⟨header, calls.map Op.call, status⟩
+
+def Code.calls (c : Code) := c.steps.filterMap Op.call?
 
 private def symbol (f : Callee) := "@vq_storage_" ++ f.name
 
@@ -64,23 +69,28 @@ def runCalls {σ : Type} (invoke : σ → Call → σ × Bool) (result : UInt8) 
     | (_, false) => ([op], .failed)
 
 def Code.run {σ : Type} (c : Code) (arena : Option σ) (invoke : σ → Call → σ × Bool) : List Call × Exit :=
-  if c.calls.isEmpty then ([], .immediate c.status) else
+  if c.steps.isEmpty then ([], .immediate c.status) else
     match arena with
     | none => ([], .unavailable)
-    | some state => runCalls invoke c.status state c.calls
+    | some state => match path c.steps.toArray with
+      | some selected => runCalls invoke c.status state selected
+      | none => ([], .failed)
 
 private def body (c : Code) (pool : DiagonalConstant.Pool) : List String :=
-  if c.calls.isEmpty then ["define i32 @main() {", "entry:"] ++ (Exit.immediate c.status).lines ++ ["}"] else
+  if c.steps.isEmpty then ["define i32 @main() {", "entry:"] ++ (Exit.immediate c.status).lines ++ ["}"] else
     let headers := ["declare ptr @vq_storage_new(i64)", "declare void @vstorage_delete(ptr)"] ++
       (Callee.all.filter (fun f => c.calls.any (·.target == f))).map prototype
-    let steps := c.calls.zipIdx.flatMap fun (op,i) =>
-      [s!"next{i}:", callLine pool op i, s!"  %ok{i} = icmp eq i32 %status{i}, 0",
-       s!"  br i1 %ok{i}, label %next{i+1}, label %failed"]
+    let steps := c.steps.zipIdx.flatMap fun (op,i) =>
+      s!"next{i}:" :: (match op with
+        | .call call => [callLine pool call i, s!"  %ok{i} = icmp eq i32 %status{i}, 0",
+            s!"  br i1 %ok{i}, label %next{i+1}, label %failed"]
+        | .branch condition target => [s!"  br i1 {condition}, label %next{i+1}, label %next{target}"]
+        | .jump target => [s!"  br label %next{target}"])
     let globals := pool.entries.toList.zipIdx.map fun (entries,i) => DiagonalConstant.line i entries
     globals ++ headers ++ ["", "define i32 @main() {", "entry:",
       s!"  %arena = call ptr @vq_storage_new(i64 {Storage.byteLimit})",
       "  %created = icmp ne ptr %arena, null", "  br i1 %created, label %next0, label %unavailable"] ++
-      steps ++ [s!"next{c.calls.length}:"] ++ (Exit.success c.status).lines ++
+      steps ++ [s!"next{c.steps.length}:"] ++ (Exit.success c.status).lines ++
       ["failed:"] ++ Exit.failed.lines ++ ["unavailable:"] ++ Exit.unavailable.lines ++ ["}"]
 
 private def bodyText (c : Code) (pool : DiagonalConstant.Pool) : String :=
@@ -118,7 +128,6 @@ private def readCall (tables : Array (List UInt64)) (line : String) : Option Cal
     diagonals := (← DiagonalConstant.readOperand tables ptr length uniform) :: diagonals
     rest := tail
   let op := Call.mk f arguments diagonals.reverse
-  guard op.valid
   return op
 
 private def decode (bytes : List UInt8) : Option Code := do
@@ -130,12 +139,24 @@ private def decode (bytes : List UInt8) : Option Code := do
   for line in lines do
     if line.startsWith "@vq_diag" then
       tables := tables.push (← DiagonalConstant.readLine tables.size line)
-  let calls ← (lines.filter (·.startsWith "  %status")).mapM (readCall tables)
+  let mut reversed := []
+  for line in lines do
+    if line.startsWith "  %status" then
+      reversed := .call (← readCall tables line) :: reversed
+    else if line.startsWith "  br i1 true," || line.startsWith "  br i1 false," then
+      let [_,_,target] := line.splitOn ", label %next" | none
+      guard (target.utf8ByteSize ≤ 8)
+      reversed := .branch (line.startsWith "  br i1 true,") (← target.toNat?) :: reversed
+    else if let some target := line.dropPrefix? "  br label %next" then
+      guard (target.toString.utf8ByteSize ≤ 8)
+      reversed := .jump (← target.toString.toNat?) :: reversed
+  let steps : List Op := reversed.reverse
+  guard (validGraph steps)
   let exit ← lines.find? (·.startsWith "  ret i32 ")
   let token ← exit.dropPrefix? "  ret i32 "
   let value ← token.toString.toNat?
   guard (value < 256)
-  return ⟨header,calls,value.toUInt8⟩
+  return ⟨header,steps,value.toUInt8⟩
 
 def parse (bytes : List UInt8) : Option Code :=
   match decode bytes with

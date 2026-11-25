@@ -1,0 +1,19 @@
+resource fn main() -> Int {
+    allocate cell: F32<RR>[1];
+    borrow w = write(cell,layout(0,1,1,1,false));
+    if true {
+        allocate first: F32<RR>[1];
+        drop(first);
+        if false { fill(w,f32_bits(17)); } else { fill(w,f32_bits(42)); }
+    } else {
+        allocate second: F64<RR>[1];
+        drop(second);
+        fill(w,f32_bits(7));
+    }
+    release(w);
+    borrow r = read(cell,layout(0,1,1,1,false));
+    expect(r,0,0,f32_bits(42));
+    release(r);
+    drop(cell);
+    value { 42 }
+}

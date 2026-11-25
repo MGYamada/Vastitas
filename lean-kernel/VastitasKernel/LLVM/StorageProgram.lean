@@ -4,16 +4,19 @@ import VastitasKernel.MidIR.PackageLink
 
 set_option autoImplicit false
 
-/-! The source-bound entry of a straight-line resource program. The public
+/-! The source-bound entry of a static resource program. The public
 checker supplies all body audits, the exact mixed schedule, and the Core
 function selected for its terminal value. -/
 namespace VastitasKernel.LLVM.StorageProgram
 open ResourceSource Indexed MidIR Storage
 open UnaryFunction (confirm getChecked)
 
-private def action? : ValueFlow.Statement → Option Storage.Action
-  | .action a => some a
-  | _ => none
+/-- Reconstruct the mixed schedule from the exact storage plan. A scalar slot
+condition has no literal here, even when its ownership projection is false. -/
+def sourceFlow : List Storage.Statement → List ValueFlow.Statement
+  | [] => []
+  | .action a :: rest => .action a :: sourceFlow rest
+  | .branch c yes no :: rest => .branch (.literal c) (sourceFlow yes) (sourceFlow no) :: sourceFlow rest
 
 /-- A reached resource callee with no scalar result demand still has a checked
 Core return body. Only a closed literal Unit can be erased by this backend. -/
@@ -69,13 +72,11 @@ structure Artifact {json : Lean.Json} {main : Bool} (req : Wire.CheckedInput jso
   owner : Namespace.Owner
   ownerAt : req.checked.lowered.owners[entry]? = some owner
   namedMain : owner.scope.package.source = req.input.root ∧ owner.scope.path = [] ∧ owner.name = "main"
-  actions : List Storage.Action
   resultSlot : Nat
   fragment : Nat
   flow : (req.checked.execution entry selected).checked.context.flow.toList =
-    actions.map ValueFlow.Statement.action ++ [.value resultSlot fragment []]
+    sourceFlow (req.checked.execution entry selected).checked.statements ++ [.value resultSlot fragment []]
   returned : (req.checked.execution entry selected).checked.context.returnedValue = some (resultSlot, .int)
-  fromPlan : (req.checked.execution entry selected).checked.statements = actions.map Storage.Statement.action
   function : Functions.Function
   functionAt : req.checked.lowered.functions[entry]? = some function
   entryResult : function.valueResult = some (fragment, [], .int)
@@ -89,7 +90,7 @@ structure Artifact {json : Lean.Json} {main : Bool} (req : Wire.CheckedInput jso
   coreSignature : core.id = target.function ∧ core.parameters.isEmpty = true ∧ core.returnType = .pure .int
   literal : IntLiteral
   term : core.body = .scope literal.term
-  effects : StorageEffects.Lowered actions
+  effects : StorageEffects.Lowered (req.checked.execution entry selected).checked.statements
   revision : Lean.Json
   revisionFrom : revision = FunctionRevision.artifact (Wire.revisionInput json) req.checked
 
@@ -106,10 +107,8 @@ def compile {json : Lean.Json} {main : Bool} (req : Wire.CheckedInput json main)
   let exec := (req.checked.execution entry selected).checked
   let flow := exec.context.flow.toList
   let some (.value resultSlot fragment []) := flow.getLast? | none
-  let actions ← flow.dropLast.mapM action?
-  let ⟨whole⟩ ← confirm (flow = actions.map ValueFlow.Statement.action ++ [.value resultSlot fragment []])
+  let ⟨whole⟩ ← confirm (flow = sourceFlow exec.statements ++ [.value resultSlot fragment []])
   let ⟨returned⟩ ← confirm (exec.context.returnedValue = some (resultSlot, .int))
-  let ⟨fromPlan⟩ ← confirm (exec.statements = actions.map Storage.Statement.action)
   let ⟨function, functionAt⟩ ← getChecked req.checked.lowered.functions[entry]?
   let ⟨entryResult⟩ ← confirm (function.valueResult = some (fragment, [], .int))
   let ⟨target, checkedTarget⟩ ← getChecked req.checked.targets.entries[fragment]?
@@ -118,10 +117,10 @@ def compile {json : Lean.Json} {main : Bool} (req : Wire.CheckedInput json main)
   let ⟨core, exactCore⟩ ← getChecked req.checked.values.compiled.core.module.functions[target.function]?
   let ⟨coreSignature⟩ ← confirm (core.id = target.function ∧ core.parameters.isEmpty = true ∧ core.returnType = .pure .int)
   let ⟨literal, term⟩ ← ExitFunction.literalBody core.body
-  let effects ← StorageEffects.lower actions
+  let effects ← StorageEffects.lower exec.statements
   let revision := FunctionRevision.artifact (Wire.revisionInput json) req.checked
   guard (FunctionRevision.bounded revision)
-  return ⟨entry, selected, owner, ownerAt, namedMain, actions, resultSlot, fragment, whole, returned, fromPlan,
+  return ⟨entry, selected, owner, ownerAt, namedMain, resultSlot, fragment, whole, returned,
     function, functionAt, entryResult, target, checkedTarget, signature, coverage, observations, core, exactCore, coreSignature,
     literal, term, effects, revision, rfl⟩
 

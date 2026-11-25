@@ -222,27 +222,147 @@ def resolveCalls (instructions : List Native.Instruction) : Option (List Call) :
     | _ => pure ()
   return calls.reverse
 
+/-- The normal successor of a call is the following block. Its error successor
+is the common arena cleanup. Each control edge transfers the current storage
+state to the destination block argument. The final index is the normal exit. -/
+inductive Op where
+  | call (operation : Call)
+  | branch (condition : Bool) (otherwisePC : Nat)
+  | jump (joinPC : Nat)
+  deriving DecidableEq, BEq, Repr
+
+instance : Inhabited Op := ⟨.jump 0⟩
+
+def Op.call? : Op → Option Call
+  | .call c => some c | _ => none
+
+def validGraph (ops : List Op) : Bool :=
+  let exit := ops.length
+  ops.zipIdx.all fun (op,pc) => match op with
+    | .call c => c.valid
+    | .branch _ target | .jump target => pc < target && target ≤ exit
+
+/-- The incoming storage state follows one successor of the current block.
+The program counter advances on every edge of a checked graph. -/
+def path (ops : Array Op) : Option (List Call) := Id.run do
+  let mut trace := []
+  let mut pc := 0
+  for _ in [:ops.size] do
+    let some op := ops[pc]? | break
+    match op with
+    | .call c => trace := c :: trace; pc := pc + 1
+    | .branch condition target => pc := if condition then pc + 1 else target
+    | .jump target => pc := target
+  return if pc == ops.size then some trace.reverse else none
+
+private inductive Arm where
+  | first (start : Nat) (condition : Bool) (entry : Std.HashMap Nat Scalar)
+  | second (jump : Nat)
+
+/-- Resolve both branches from the live allocations at their common entry.
+Only the authoritative storage checker decides whether the two exits join. -/
+def resolveGraph (instructions : List Native.Instruction) : Option (List Op) := do
+  let mut live : Std.HashMap Nat Scalar := {}
+  let mut arms : List Arm := []
+  let mut ops : Array Op := #[]
+  let mut skipped := false
+  for op in instructions do
+    match op, skipped with
+    | .branch condition, false =>
+      arms := .first ops.size condition live :: arms
+      ops := ops.push (.branch condition 0)
+    | .skip, false => skipped := true
+    | .otherwise, true =>
+      let .first start condition entry :: outer := arms | none
+      arms := .second ops.size :: outer
+      ops := (ops.set! start (.branch condition (ops.size+1))).push (.jump 0)
+      live := entry
+      skipped := false
+    | .finish, true =>
+      let .second jump :: outer := arms | none
+      arms := outer
+      ops := ops.set! jump (.jump ops.size)
+      skipped := false
+    | _, false =>
+      let c ← resolveInstruction live op
+      ops := ops.push (.call c)
+      match op with
+      | .allocate a s _ => live := live.insert a s
+      | .drop a => live := live.erase a
+      | _ => pure ()
+    | _, true => none
+  guard (arms.isEmpty && !skipped)
+  return ops.toList
+
+/-- Independent structured interpretation of the storage checker's branch
+markers. It neither uses block indices nor follows the generated jump table. -/
+def selectedInstructions (instructions : List Native.Instruction) : Option (List Native.Instruction) := do
+  let mut enabled := true
+  let mut scopes : List (Bool × Option Bool) := []
+  let mut result := []
+  for op in instructions do
+    match op with
+    | .branch condition =>
+      scopes := (enabled,some condition) :: scopes
+      enabled := enabled && condition
+    | .otherwise =>
+      let (parent,some condition) :: outer := scopes | none
+      scopes := (parent,none) :: outer
+      enabled := parent && !condition
+    | .finish =>
+      let (parent,none) :: outer := scopes | none
+      scopes := outer
+      enabled := parent
+    | .skip => pure ()
+    | _ => if enabled then result := op :: result
+  guard scopes.isEmpty
+  return result.reverse
+
 @[reducible] def Item : Phase → Type
-  | .optimization => Action
-  | .execution => Call
+  | .optimization => Storage.Statement
+  | .execution => Op
 
 instance (p : Phase) : DecidableEq (Item p) := by
   cases p <;> unfold Item <;> infer_instance
+
+inductive Destination where
+  | block (index : Nat)
+  | failed
+  deriving DecidableEq, BEq, Repr
+
+/-- A transfer supplies the producing instruction's effect token as a block
+argument. The two arms of a conditional are mutually exclusive. -/
+structure Transfer where
+  destination : Destination
+  argument : Nat
+  deriving DecidableEq, BEq, Repr
+
+def successors (p : Phase) (op : Item p) (pc : Nat) : List Destination := match p with
+  | .optimization => [.block (pc+1)]
+  | .execution => match op with
+    | .call _ => [.block (pc+1), .failed]
+    | .branch _ target => [.block (pc+1), .block target]
+    | .jump target => [.block target]
+
+def transfers (p : Phase) (op : Item p) (pc : Nat) : List Transfer :=
+  (successors p op pc).map fun target => ⟨target, pc+1⟩
 
 structure Effect (p : Phase) where
   input : Nat
   operation : Item p
   output : Nat
+  outgoing : List Transfer
 
 abbrev Block (p : Phase) := List (Effect p)
 
 def block {p : Phase} (items : List (Item p)) : Block p :=
-  items.zipIdx.map fun (op, i) => ⟨i, op, i + 1⟩
+  items.zipIdx.map fun (op, i) => ⟨i, op, i + 1, transfers p op i⟩
 
 def operations {p : Phase} (b : Block p) := b.map Effect.operation
 
 def ordered {p : Phase} (b : Block p) : Bool :=
-  b.zipIdx.all fun (step, i) => step.input == i && step.output == i + 1
+  b.zipIdx.all fun (step, i) => step.input == i && step.output == i + 1 &&
+    decide (step.outgoing = transfers p step.operation i)
 
 /-- The transition retains the result of the independent checker on every
 logical action. Reborrows, releases and other erased events still participate
@@ -251,44 +371,53 @@ structure Translation (opt : Block .optimization) (exe : Block .execution) where
   logicalOrder : ordered opt = true
   physicalOrder : ordered exe = true
   instructions : List Native.Instruction
-  ownership : CheckedPlan ((operations opt).map Statement.action)
-  lowered : Native.lower 4096 {} ((operations opt).map Statement.action) =
+  ownership : CheckedPlan (operations opt)
+  lowered : Native.lower 4096 {} (operations opt) =
     .ok (ownership.finalState, instructions)
-  physicalCalls : resolveCalls instructions = some (operations exe)
-  abi : (operations exe).all Call.valid = true
+  physicalGraph : resolveGraph instructions = some (operations exe)
+  abi : validGraph (operations exe) = true
+  trace : List Call
+  fromInstructions : (selectedInstructions instructions).bind resolveCalls = some trace
+  fromGraph : path (operations exe).toArray = some trace
 
 def verify (opt : Block .optimization) (exe : Block .execution) : Option (Translation opt exe) := do
   if hopt : ordered opt = true then
     if hexe : ordered exe = true then
-      let source := (operations opt).map Statement.action
+      let source := operations opt
       let .ok ownership := checkPlan source | none
       match h : Native.lower 4096 {} source with
       | .error _ => none
       | .ok (after, instructions) =>
         if final : after = ownership.finalState then
-          if calls : (resolveCalls instructions : Option (List Call)) = (some (operations exe) : Option (List Call)) then
-            if abi : (operations exe).all Call.valid = true then
-              return ⟨hopt, hexe, instructions, ownership, final ▸ h, calls, abi⟩
+          if exactGraph : resolveGraph instructions = some (operations exe) then
+            if abi : validGraph (operations exe) = true then
+              match fromInstructions : (selectedInstructions instructions).bind resolveCalls with
+              | none => none
+              | some trace =>
+                if fromGraph : path (operations exe).toArray = some trace then
+                  return ⟨hopt, hexe, instructions, ownership, final ▸ h, exactGraph, abi,
+                    trace, fromInstructions, fromGraph⟩
+                else none
             else none
           else none
         else none
     else none
   else none
 
-structure Lowered (actions : List Action) where
+structure Lowered (statements : List Statement) where
   opt : Block .optimization
-  original : operations opt = actions
+  original : operations opt = statements
   exe : Block .execution
   checked : Translation opt exe
 
-def lower (actions : List Action) : Option (Lowered actions) := do
-  let opt := block (p := .optimization) actions
-  let .ok (_, code) := Native.lower 4096 {} (actions.map Statement.action) | none
-  let calls ← resolveCalls code
-  let exe := block (p := .execution) calls
-  have origin : operations opt = actions := by
+def lower (statements : List Statement) : Option (Lowered statements) := do
+  let opt := block (p := .optimization) statements
+  let .ok (_, code) := Native.lower 4096 {} statements | none
+  let graph ← resolveGraph code
+  let exe := block (p := .execution) graph
+  have origin : operations opt = statements := by
     simp only [opt, operations, block, List.map_map, Function.comp_def]
-    exact List.zipIdx_map_fst 0 actions
+    exact List.zipIdx_map_fst 0 statements
   return ⟨opt, origin, exe, ← verify opt exe⟩
 
 end VastitasKernel.MidIR.StorageEffects

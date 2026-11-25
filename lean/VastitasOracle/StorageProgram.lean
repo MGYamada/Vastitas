@@ -15,22 +15,65 @@ theorem correspondence {json main header} {req : ResourceSource.Wire.CheckedInpu
     (fuel : Nat) :
     bytes = a.model.print ∧ a.model.header = header ∧
     a.revision = ResourceSource.FunctionRevision.artifact (ResourceSource.Wire.revisionInput json) req.checked ∧
-    (req.checked.execution a.entry a.selected).checked.statements = (operations a.effects.opt).map Storage.Statement.action ∧
+    (req.checked.execution a.entry a.selected).checked.statements = operations a.effects.opt ∧
     ordered a.effects.opt = true ∧ ordered a.effects.exe = true ∧
     Storage.Native.lower 4096 {} ((req.checked.execution a.entry a.selected).checked.statements) =
       .ok (a.effects.checked.ownership.finalState, a.effects.checked.instructions) ∧
-    resolveCalls a.effects.checked.instructions = some a.model.calls ∧
-    a.model.calls.all Call.valid = true ∧
+    resolveGraph a.effects.checked.instructions = some a.model.steps ∧
+    validGraph a.model.steps = true ∧
+    (selectedInstructions a.effects.checked.instructions).bind resolveCalls = some a.effects.checked.trace ∧
+    path a.model.steps.toArray = some a.effects.checked.trace ∧
     Core.Semantics.eval req.checked.values.compiled.core.module (fuel + 3) (fun _ => none) a.core.body =
       some (.integer a.literal.value) ∧ a.model.status.toNat = (a.literal.value % 256).toNat := by
-  have source := a.effects.original
-  have same := a.fromPlan.trans (congrArg (List.map Storage.Statement.action) source.symm)
+  have same := a.effects.original.symm
   refine ⟨StorageModule.parse_sound parsed,rfl,a.revisionFrom,same,a.effects.checked.logicalOrder,
-    a.effects.checked.physicalOrder,?_,a.effects.checked.physicalCalls,
-    a.effects.checked.abi,?_,ExitMain.statusOf_exact _⟩
+    a.effects.checked.physicalOrder,?_,a.effects.checked.physicalGraph,
+    a.effects.checked.abi,a.effects.checked.fromInstructions,a.effects.checked.fromGraph,?_,ExitMain.statusOf_exact _⟩
   · exact (congrArg (Storage.Native.lower 4096 {}) same).trans a.effects.checked.lowered
   · rw [a.term]
     exact ExitFunction.coreLiteral _ _ _
+
+/-- Each edge of an accepted block carries the producer's output to the
+specified successor. This includes the failure edge of an external call. -/
+theorem block_transfers {p : MidIR.Phase} {b : Block p} (checked : ordered b = true)
+    {step : Effect p} {pc : Nat} (atPC : (step,pc) ∈ b.zipIdx) :
+    step.input = pc ∧ step.output = pc+1 ∧
+    step.outgoing = (successors p step.operation pc).map (fun target => ⟨target,step.output⟩) := by
+  unfold ordered at checked
+  have h := List.all_eq_true.mp checked (step,pc) atPC
+  change (step.input == pc && step.output == pc+1 &&
+    decide (step.outgoing = transfers p step.operation pc)) = true at h
+  simp only [Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at h
+  exact ⟨h.1.1,h.1.2,by simpa [transfers, h.1.2] using h.2⟩
+
+/-- The physical checker emits the two arm schedules in source order and checks
+their join before lowering the continuation. Allocation identities for the
+second arm start beyond those allocated in the first. -/
+theorem lower_branch_schedule (fuel : Nat) (condition : Bool)
+    {entry left right merged finalState : Storage.State} {yes no rest : List Storage.Statement}
+    {yesCode noCode restCode : List Storage.Native.Instruction}
+    (first : Storage.Native.lower fuel entry yes = .ok (left,yesCode))
+    (second : Storage.Native.lower fuel {entry with nextAllocation := left.nextAllocation} no =
+      .ok (right,noCode))
+    (joined : Storage.join left right = .ok merged)
+    (tail : Storage.Native.lower fuel merged rest = .ok (finalState,restCode)) :
+    Storage.Native.lower (fuel+1) entry (.branch condition yes no :: rest) =
+      .ok (finalState, ([.branch condition] ++ yesCode ++ [.skip,.otherwise] ++
+        noCode ++ [.skip,.finish]) ++ restCode) := by
+  simp [Storage.Native.lower, first, second, joined, tail, Bind.bind, Except.bind, pure, Except.pure]
+
+/-- The control-flow witness retains both arms and the resource condition in
+the same physical statement tree checked for initialization and ownership. -/
+theorem project_sourceFlow (statements : List Storage.Statement) :
+    Storage.ValueFlow.project (LLVM.StorageProgram.sourceFlow statements) = statements := by
+  match statements with
+  | [] => simp [LLVM.StorageProgram.sourceFlow, Storage.ValueFlow.project]
+  | .action a :: rest =>
+    simp only [LLVM.StorageProgram.sourceFlow, Storage.ValueFlow.project, project_sourceFlow rest]
+  | .branch c yes no :: rest =>
+    simp only [LLVM.StorageProgram.sourceFlow, Storage.ValueFlow.project, Storage.ValueFlow.Condition.projection,
+      project_sourceFlow yes, project_sourceFlow no, project_sourceFlow rest]
+termination_by sizeOf statements
 
 /-- A checked nullary return of an inlined resource callee evaluates to Unit
 at every sufficient fuel, including when its result was not requested. -/
@@ -39,6 +82,15 @@ theorem erased_unit {json main callee} {req : ResourceSource.Wire.CheckedInput j
     Core.Semantics.eval req.checked.values.compiled.core.module (fuel + 2) (fun _ => none) u.core.body = some .unit := by
   rw [u.literal]
   rfl
+
+/-- The LLVM-model execution threads the same state through the same calls as
+the structured physical schedule, for every response of the foreign runtime. -/
+theorem selected_run {json main header} {req : ResourceSource.Wire.CheckedInput json main}
+    (a : LLVM.StorageProgram.Artifact req header) (nonempty : a.model.steps.isEmpty = false)
+    {σ : Type} (state : σ) (invoke : σ → Call → σ × Bool) :
+    a.model.run (some state) invoke = runCalls invoke a.model.status state a.effects.checked.trace := by
+  have selected : path a.model.steps.toArray = some a.effects.checked.trace := a.effects.checked.fromGraph
+  simp [StorageModule.Code.run, nonempty, selected]
 
 /-- The hosted storage ABI takes a handle and the five fields of its physical view. -/
 def viewWords (handle : Nat) (v : Storage.Layout) : List Nat :=
@@ -157,6 +209,16 @@ theorem acquired_run {σ : Type} (invoke : σ → Call → σ × Bool) (result :
         obtain ⟨before,cleanup⟩ := ih next
         simp only [runCalls,h]
         exact ⟨List.cons_prefix_cons.mpr ⟨rfl,before⟩,cleanup⟩
+
+/-- Every foreign status sequence executes a prefix of the independently
+selected physical calls. Either exit from an acquired arena releases it. -/
+theorem selected_cleanup {json main header} {req : ResourceSource.Wire.CheckedInput json main}
+    (a : LLVM.StorageProgram.Artifact req header) (nonempty : a.model.steps.isEmpty = false)
+    {σ : Type} (state : σ) (invoke : σ → Call → σ × Bool) :
+    (a.model.run (some state) invoke).1 <+: a.effects.checked.trace ∧
+    (a.model.run (some state) invoke).2.releases = true := by
+  rw [selected_run a nonempty state invoke]
+  exact acquired_run invoke a.model.status state a.effects.checked.trace
 
 /-- A failing operation consumes its own effect token and never executes a
 later operation. Its hosted exit releases the arena and returns status 1. -/

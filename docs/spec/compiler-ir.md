@@ -596,7 +596,7 @@ Claims:
 The ownership authority is the kernel storage checker on the storage plan of accepted Core. MidIR does not introduce a competing ownership checker. Each lowering preserves the plan's initialized bytes, provenance, layouts, aliases, suspended reborrows, inside-out returns, branch joins and normal or failure cleanup through refinement. A transformation that changes allocation, reuse, aliases or release order must provide their mapping in its untrusted witness. Local SSA well-formedness alone proves none of these resource facts. No owner or loan may escape its checked scope.
 
 - Example: Moving a release before the final read is rejected even when each function has a well-typed SSA body.
-- Not executed: The checker refines linear static plans, including NativeFast GEMM, with a literal entry result. Dynamic control flow and runtime extents require additional lowering.
+- Not executed: The checker refines static plans with nested literal guards, fixed layouts and a literal entry result. Scalar-slot guards and runtime extents require additional lowering.
 
 Claims:
 
@@ -610,25 +610,27 @@ Claims:
   - Note: The twelve static storage callees have distinct ABI names and every callee occurs in the exported list. The six basic memory instructions preserve their physical operands, including both component bit patterns for literals. Separate theorems cover rank-three packing, GEMM and diagonal numerical operations.
 - `static-effects`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
-    - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.correspondence`
+    - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.correspondence`, `VastitasOracle.StorageProgram.project_sourceFlow`, `VastitasOracle.StorageProgram.lower_branch_schedule`, `VastitasOracle.StorageProgram.block_transfers`
   - Premises:
     - The public checker accepted this wire and resource entry. Its static storage plan and literal Core result yielded an artifact. The complete bytes parse to that artifact's model.
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
-  - Note: Both phases preserve the original ordered plan and its physical lowering. The theorem binds the revision, every call operand, target header, canonical bytes and the exit value derived from the selected Core literal.
+  - Note: The optimization block retains the original statements and nested arms. Physical lowering checks their ownership join, assigns disjoint fresh allocation identities and emits both arms. Every successor receives the current operation’s output token. The selected graph path agrees with an independent traversal of the checked physical instructions. The revision, ordered operands, target header, complete bytes and terminal Core result belong to the same artifact.
 - `static-cleanup`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
-    - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.acquired_run`, `VastitasOracle.StorageProgram.stop_on_failure`
+    - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.acquired_run`, `VastitasOracle.StorageProgram.stop_on_failure`, `VastitasOracle.StorageProgram.selected_run`, `VastitasOracle.StorageProgram.selected_cleanup`
   - Premises:
     - The modeled entry acquired its arena. Each external storage call supplies its status and successor state.
-  - Note: The call trace is a prefix of the checked schedule. The first failed call prevents later effects, releases the arena and returns 1. The normal exit also releases the arena.
+  - Note: For every foreign response, execution follows a prefix of the calls selected from the physical schedule. The first failed call prevents later effects, releases the arena and returns 1. The normal exit also releases the arena.
 - `static-native`: [Tested](../specifications.md#tested)
   - Evidence:
     - [`VastitasKernel.LLVM.StorageRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/LLVM/StorageRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
     - `storage_entry_returns_the_checked_literal_after_its_effects` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
+    - `storage_branch_preserves_both_arms_and_executes_the_selected_path` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
+    - `storage_branch_checks_the_cold_arm_and_never_uses_a_slot_projection_as_a_decision` in [`tests/llvm_preview.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/llvm_preview.rs)
     - `canonical_realization_runs_into_existing_storage_and_replays_its_revision` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `real32_identity_preserves_payloads_and_replays_its_precision` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
     - `complex_charts_copy_both_components_and_bind_the_full_model_chain` in [`tests/numerical_realization.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/numerical_realization.rs)
-  - Note: Checked allocation, fill, store, expect, copy and drop have a fixed external storage ABI. Native LLVM and Lean/C builds exercise the four standard-chart identity representations, failure reporting and literal process status.
+  - Note: Checked allocation, fill, store, expect, copy and drop have a fixed external storage ABI. Native LLVM and Lean/C builds exercise the four standard-chart identity representations, nested literal resource branches, failure reporting and literal process status.
 - `gemm-abi`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.StorageProgram`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageProgram.lean): `VastitasOracle.StorageProgram.gemm_representation`

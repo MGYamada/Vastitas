@@ -3,21 +3,21 @@ import VastitasKernel.LLVM.StorageModule
 namespace VastitasKernel.LLVM.StorageRegression
 open Storage MidIR.StorageEffects StorageModule
 
-private def src : Block .optimization := block [Action.allocate 17 .f32 2, .drop 17]
+private def src : Block .optimization := block [.action (.allocate 17 .f32 2), .action (.drop 17)]
 private def alloc : Call := ⟨.allocate,[0, 2, 2], []⟩
 private def drop : Call := ⟨.drop,[0], []⟩
-private def exe : Block .execution := block [alloc, drop]
+private def exe : Block .execution := block [.call alloc, .call drop]
 
 #guard (verify src exe).isSome
-#guard (verify src [⟨0,alloc,1⟩,⟨0,drop,1⟩]).isNone
-#guard (verify src (block [drop,alloc])).isNone
+#guard (verify src [⟨0,.call alloc,1,transfers .execution (.call alloc) 0⟩,⟨0,.call drop,1,transfers .execution (.call drop) 1⟩]).isNone
+#guard (verify src (block [.call drop,.call alloc])).isNone
 #guard !(Call.mk .allocate [2^32,0,1] []).valid
 #guard !(Call.mk .allocate [0,4,1] []).valid
 #guard !(Call.mk .fill [0,0,1,1,1,0,2,2^32,0] []).valid
 #guard !(Call.mk .fill [0,0,1,1,1,0,0,0,1] []).valid
-#guard (verify src (block [⟨.allocate,[0,0,2], []⟩,drop])).isNone
-#guard (verify src (block [alloc,⟨.drop,[17], []⟩])).isNone
-#guard (verify (block [.allocate 17 .f32 2, .drop 17, .drop 17]) exe).isNone
+#guard (verify src (block [.call ⟨.allocate,[0,0,2], []⟩,.call drop])).isNone
+#guard (verify src (block [.call alloc,.call ⟨.drop,[17], []⟩])).isNone
+#guard (verify (block [.action (.allocate 17 .f32 2), .action (.drop 17), .action (.drop 17)]) exe).isNone
 
 private def one : Layout := ⟨0, 1, 1, 1, false⟩
 private def matrixOps (element : Scalar) : List Native.Instruction :=
@@ -57,14 +57,14 @@ private def regroup : Call := ⟨.regroup3, pack.arguments ++ [21,42], []⟩
 private def header : TargetHeader :=
   ⟨⟨"x86_64-unknown-linux-gnu".toUTF8.data.toList, by decide⟩,
    ⟨"e-p:64:64".toUTF8.data.toList, by decide⟩⟩
-private def model : Code := ⟨header,[alloc, drop],42⟩
+private def model : Code := .linear header [alloc, drop] 42
 private def printed := (String.fromUTF8? ⟨model.print.toArray⟩).get!
 private def modified (old new : String) := (printed.replace old new).toUTF8.data.toList
 
 #guard parse model.print == some model
-private def packingModel : Code := ⟨header, [pack, regroup], 0⟩
+private def packingModel : Code := .linear header [pack, regroup] 0
 #guard parse packingModel.print == some packingModel
-#guard (parse ({ packingModel with calls := [⟨.regroup3, regroup.arguments.set 16 0, []⟩] }).print).isNone
+#guard (parse ({ packingModel with steps := [.call ⟨.regroup3, regroup.arguments.set 16 0, []⟩] }).print).isNone
 #guard (parse (modified "br i1 %ok0, label %next1" "br i1 %ok0, label %next2")).isNone
 #guard (parse (modified "call void @vstorage_delete(ptr %arena)" "")).isNone
 #guard (parse (modified "call i32" "tail call i32")).isNone
@@ -74,7 +74,7 @@ private def packingModel : Code := ⟨header, [pack, regroup], 0⟩
 private def weights : Diagonal := ⟨false, [0xc000000000000000]⟩
 private def targetWeight : Diagonal := ⟨true, [0x4008000000000000]⟩
 private def adjoint : Call := ⟨.diagonalAdjoint, [2,0,0,1,1,1,0,1,0,1,1,1,0,1], [weights,targetWeight]⟩
-private def adjointModel : Code := ⟨header, [adjoint, adjoint], 0⟩
+private def adjointModel : Code := .linear header [adjoint, adjoint] 0
 private def adjointText := String.fromUTF8! ⟨adjointModel.print.toArray⟩
 private def edit (before after : String) := (adjointText.replace before after).toUTF8.data.toList
 #guard adjoint.valid && parse adjointModel.print == some adjointModel
@@ -102,5 +102,38 @@ private def edit (before after : String) := (adjointText.replace before after).t
 #guard (DiagonalConstant.readLine 1 (DiagonalConstant.line 0 weights.entries)).isNone
 #guard let entries := (List.range 4096).map Nat.toUInt64
   DiagonalConstant.readLine 0 (DiagonalConstant.line 0 entries) == some entries
+
+private def branchSrc := block (p := .optimization) [
+  .branch false [.action (.allocate 17 .f32 2), .action (.drop 17)]
+                [.action (.allocate 18 .f64 1), .action (.drop 18)]]
+private def cold : Call := ⟨.allocate,[1,0,1],[]⟩
+private def coldDrop : Call := ⟨.drop,[1],[]⟩
+private def branchOps : List Op := [.branch false 4,.call alloc,.call drop,.jump 6,.call cold,.call coldDrop]
+#guard (verify branchSrc (block branchOps)).isSome
+#guard let exe := block (p := .execution) branchOps
+  let forged := exe.modify 0 fun step => {step with outgoing := [⟨.block 1,1⟩,⟨.block 4,0⟩]}
+  (verify branchSrc forged).isNone
+#guard let exe := block (p := .execution) branchOps
+  let erasedFailure := exe.modify 1 fun step => {step with outgoing := [⟨.block 2,2⟩]}
+  (verify branchSrc erasedFailure).isNone
+#guard path branchOps.toArray == some [cold,coldDrop]
+#guard (verify branchSrc (block (branchOps.set 0 (.branch true 4)))).isNone
+#guard (verify branchSrc (block (branchOps.set 0 (.branch false 2)))).isNone
+#guard (verify branchSrc (block (branchOps.set 3 (.jump 5)))).isNone
+#guard (verify branchSrc (block (branchOps.set 1 (.call cold)))).isNone
+#guard (resolveGraph [.branch true,.skip,.finish]).isNone
+#guard (resolveGraph [.branch true,.otherwise,.skip,.finish]).isNone
+#guard (resolveGraph [.branch true,.skip,.otherwise]).isNone
+#guard (resolveGraph [.skip]).isNone
+#guard !(validGraph (branchOps.set 3 (.jump 3)))
+#guard !(validGraph (branchOps.set 0 (.branch false 7)))
+private def branchModel : Code := ⟨header,branchOps,42⟩
+#guard parse branchModel.print == some branchModel
+#guard branchModel.run (some ()) (fun s _ => (s,true)) == ([cold,coldDrop],.success 42)
+#guard branchModel.run (some ()) (fun s _ => (s,false)) == ([cold],.failed)
+#guard branchModel.run none (fun (s : Unit) _ => (s,true)) == ([],.unavailable)
+#guard let text := String.fromUTF8! ⟨branchModel.print.toArray⟩
+  (parse ((text.replace "br label %next6" "br label %next3").toUTF8.data.toList)).isNone &&
+  parse ((text.replace "br label %next6" "br label %next5").toUTF8.data.toList) != some branchModel
 
 end VastitasKernel.LLVM.StorageRegression

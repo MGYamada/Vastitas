@@ -7,6 +7,7 @@
  * or caller-provided Gram witness. Native callers still receive no authority. */
 typedef struct { const uint8_t *data; size_t bytes; uint8_t uniform; } VDiagonal;
 VStorageStatus vdiagonal_validate(VDiagonal diagonal, uint64_t dimension);
+VStorageStatus vdiagonal_validate_for(VDiagonal diagonal, uint64_t dimension, uint8_t scalar);
 double vdiagonal_entry(VDiagonal diagonal, uint64_t index);
 int vdiagonal_overlaps(const VStorageDense *left, const VStorageDense *right);
 void vdiagonal_weight_prepared(const VStorageDense *input, const VStorageDense *output,

@@ -36,10 +36,10 @@ structure Diagonal where
   entries : List UInt64
   deriving Repr, BEq, DecidableEq, Inhabited
 
-def Diagonal.valid (diagonal : Diagonal) (dimension : Nat) : Bool :=
+def Diagonal.valid (diagonal : Diagonal) (dimension : Nat) (maxMagnitude : Nat := 2^53) : Bool :=
   (if diagonal.uniform then diagonal.entries.length == 1
     else diagonal.entries.length == dimension && diagonal.entries.length ≤ 4096) &&
-  diagonal.entries.all (fun bits => (diagonalInteger bits).isSome)
+  diagonal.entries.all (fun bits => (diagonalInteger bits).any (fun n => n.natAbs ≤ maxMagnitude))
 
 def Diagonal.entry? (diagonal : Diagonal) (index : Nat) : Option UInt64 :=
   diagonal.entries[if diagonal.uniform then 0 else index]?

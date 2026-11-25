@@ -72,7 +72,7 @@ def main():
         paths += [p for p in directory.rglob('*') if p.is_file() and
                   not {'results','__pycache__'}.intersection(p.relative_to(directory).parts)]
     paths += [ROOT/p for p in ('scripts/build_openblas.py','lean-kernel/native/storage.c',
-        'lean-kernel/native/storage.h','lean-kernel/native/diagonal.c','lean-kernel/native/diagonal.h',
+        'lean-kernel/native/storage.h','lean-kernel/native/diagonal.c','lean-kernel/native/diagonal.h','lean-kernel/native/diagonal_kernels.inc',
         'lean-kernel/numerical/gemm.c','lean-kernel/numerical/gemm.h', 'lean-kernel/numerical/gemm_kernels.inc')]
     inputs={}
     for p in sorted(paths):

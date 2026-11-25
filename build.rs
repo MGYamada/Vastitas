@@ -15,6 +15,7 @@ fn main() {
             "lean-kernel/native/storage.h",
             "lean-kernel/native/diagonal.c",
             "lean-kernel/native/diagonal.h",
+            "lean-kernel/native/diagonal_kernels.inc",
             "lean-kernel/numerical/gemm.h",
             "llvm/runtime/storage.c",
             "llvm/runtime/storage_abi.h",

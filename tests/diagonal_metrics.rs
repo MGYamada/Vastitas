@@ -81,21 +81,64 @@ fn empty(complex: bool, scale: &str) -> String {
         drop(input); drop(output); drop(scratch_owner); drop(scalar_result); value {{ () }} }}")
 }
 
+fn f32_pairing(complex: bool) -> String {
+    let (profile, scalar, x, y, expected) = if complex {
+        (
+            "ComplexSmooth",
+            "F32<CC>",
+            "complex32(1,2)",
+            "complex32(3,4)",
+            "complex32(33,-6)",
+        )
+    } else {
+        ("RealSmooth", "F32<RR>", "f32(1)", "f32(3)", "f32(9)")
+    };
+    format!("pub resource fn exercise() -> Unit {{
+        space v = linear(super::profiles::{profile},1); basis bv = basis(v);
+        involution sigma = canonical(v); metric h = scaled_identity(bv,sigma,3);
+        space vc = conjugate(v,sigma); basis bc = derived(bv,vc);
+        allocate a: {scalar}[1]; allocate b: {scalar}[1];
+        allocate tmp: {scalar}[1]; allocate result: {scalar}[1];
+        borrow wa = write(a,layout(0,1,1,1,false)); fill(wa,{x}); release(wa);
+        borrow wb = write(b,layout(0,1,1,1,false)); fill(wb,{y}); release(wb);
+        borrow ra = read(a,layout(0,1,1,1,false)); vector x = view(ra,bv);
+        vector xc = conjugate(x,bc,sigma);
+        borrow rb = read(b,layout(0,1,1,1,false)); vector y = view(rb,bv);
+        borrow out = write(result,layout(0,1,1,1,false));
+        hermitian_diagonal(xc,y,out,h,scratch(tmp,layout(0,1,1,1,false)),overwrite,NativeFast);
+        release(out); borrow check_result = read(result,layout(0,1,1,1,false));
+        expect(check_result,0,0,{expected}); release(check_result); release(xc); release(rb); release(ra);
+        drop(a); drop(b); drop(tmp); drop(result); value {{ () }} }}")
+}
+
 fn boundary(complex: bool, scale: &str) -> String {
-    let (scalar, profile, input, expected) = if complex {
+    let (scalar, input, expected) = if complex {
         (
             "F64<CC>",
-            "ComplexSmooth",
             "complex_bits(4607182418800017408,4607182418800017408)",
             "complex_bits(4607182418800017408,13830554455654793216)",
         )
     } else {
         (
             "F64<RR>",
-            "RealSmooth",
             "f64_bits(4607182418800017408)",
             "f64_bits(4607182418800017408)",
         )
+    };
+    adjoint_program(complex, scale, scalar, input, expected)
+}
+
+fn adjoint_program(
+    complex: bool,
+    scale: &str,
+    scalar: &str,
+    input: &str,
+    expected: &str,
+) -> String {
+    let profile = if complex {
+        "ComplexSmooth"
+    } else {
+        "RealSmooth"
     };
     format!("pub resource fn exercise() -> Unit {{
       space v = linear(super::profiles::{profile},1); basis b = basis(v);
@@ -106,6 +149,35 @@ fn boundary(complex: bool, scale: &str) -> String {
       map input = view(r,b,b); map output = view(w,b,b); adjoint_into(input,output,h,h,NativeFast);
       release(r); release(w); borrow verify = read(out,layout(0,1,1,1,false)); expect(verify,0,0,{expected});
       release(verify); drop(a); drop(out); value {{ () }} }}")
+}
+
+// Rounding the product at binary32 gives 16,777,214 after division by five.
+// Widening the product, or cancelling the equal weights, gives 16,777,215.
+fn single_adjoint(complex: bool, scale: &str) -> String {
+    let re = 16_777_215_f32.to_bits();
+    let result = if scale == "5" {
+        16_777_214_f32
+    } else {
+        16_777_215_f32
+    };
+    let (scalar, input, expected) = if complex {
+        (
+            "F32<CC>",
+            format!("complex32_bits({re},{re})"),
+            format!(
+                "complex32_bits({},{})",
+                result.to_bits(),
+                (-result).to_bits()
+            ),
+        )
+    } else {
+        (
+            "F32<RR>",
+            format!("f32_bits({re})"),
+            format!("f32_bits({})", result.to_bits()),
+        )
+    };
+    adjoint_program(complex, scale, scalar, &input, &expected)
 }
 
 #[test]
@@ -365,9 +437,29 @@ fn diagonal_wire_never_accepts_raw_gram_certificates() {
 }
 
 #[test]
+fn diagonal_weights_obey_the_exact_integer_bound_of_the_storage_component() {
+    for weight in ["16777216", "-16777216"] {
+        let s = fixture(
+            &single_adjoint(false, weight),
+            &single_adjoint(true, weight),
+        );
+        success(&command(&s, "check").output().unwrap());
+    }
+    for weight in ["16777217", "-16777217"] {
+        rejection(&single_adjoint(false, weight), "E_RESOURCE_DIAGONAL");
+        let s = fixture(REAL, &single_adjoint(true, weight));
+        common::expect_code(
+            &command(&s, "check").output().unwrap(),
+            "E_RESOURCE_DIAGONAL",
+        );
+    }
+}
+
+#[test]
 fn materialized_diagonal_adjoint_builds_without_openblas() {
     for (real, complex) in [
         (adjoint_only(REAL), adjoint_only(COMPLEX)),
+        (single_adjoint(false, "5"), single_adjoint(true, "5")),
         (
             boundary(false, "9007199254740992"),
             boundary(true, "-9007199254740992"),
@@ -396,6 +488,7 @@ fn diagonal_pairing_builds_executes_real_complex_and_empty_forms() {
     let options = common::numerical_build_options(None);
     for (real, complex) in [
         (REAL.to_owned(), COMPLEX.to_owned()),
+        (f32_pairing(false), f32_pairing(true)),
         (empty(false, "0"), empty(true, "9007199254740993")),
         (
             with_runtime_tree(

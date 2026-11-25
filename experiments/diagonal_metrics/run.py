@@ -40,7 +40,7 @@ def main():
             raise RuntimeError(f"{command}\n{p.stdout}\n{p.stderr}")
         return p.stdout
     files = [HERE / name for name in ["probe.c", "direct.c", "direct.h", "run.py"]]
-    files += [ROOT / "lean-kernel/native" / name for name in ["storage.c", "storage.h", "diagonal.c", "diagonal.h"]]
+    files += [ROOT / "lean-kernel/native" / name for name in ["storage.c", "storage.h", "diagonal.c", "diagonal.h", "diagonal_kernels.inc"]]
     files += [ROOT / "lean-kernel/numerical" / name for name in ["gemm.c", "gemm.h", "gemm_kernels.inc"]]
     sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
     for path in files:

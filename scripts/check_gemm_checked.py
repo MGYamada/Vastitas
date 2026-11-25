@@ -155,16 +155,20 @@ def cached_packing_fixture(complex_scalar):
 
 
 
-def diagonal_fixture(complex_scalar):
+def diagonal_fixture(precision, complex_scalar):
     """Actual raw lowering: no-BLAS adjoint and two compound scratch reuses."""
-    scalar = "complex_f64" if complex_scalar else "f64"
-    width = 16 if complex_scalar else 8
-    bits = lambda x: struct.unpack("<Q", struct.pack("<d", x))[0]
+    scalar = ("complex_" if complex_scalar else "") + f"f{precision}"
+    width = precision // 8 * (2 if complex_scalar else 1)
+    def weight(x):
+        # Gram coefficients are always encoded as binary64 integer values.
+        return struct.unpack("<Q", struct.pack("<d", x))[0]
+    def bits(x):
+        return struct.unpack("<I", struct.pack("<f", x))[0] if precision == 32 else weight(x)
     def literal(real, imaginary=0):
-        return (dict(kind="complex_f64", real=bits(real), imaginary=bits(imaginary))
-                if complex_scalar else dict(kind="f64", bits=bits(real)))
+        return (dict(kind=scalar, real=bits(real), imaginary=bits(imaginary))
+                if complex_scalar else dict(kind=scalar, bits=bits(real)))
     layout = dict(offset=0, rows=1, columns=1, leading=1, transposed=False)
-    diagonal = dict(uniform=True, entries=[bits(2.0)])
+    diagonal = dict(uniform=True, entries=[weight(2)])
     steps = []
     def action(op, **fields):
         steps.append(dict(kind="action", action=dict(op=op, **fields)))
@@ -177,7 +181,7 @@ def diagonal_fixture(complex_scalar):
         action("borrow", name=20+owner, source=dict(kind="owner", name=owner), layout=layout, access="read")
     action("borrow", name=13, source=dict(kind="owner", name=3), layout=layout, access="write")
     action("diagonal_adjoint", input=20, output=13, source=diagonal,
-           target=dict(uniform=True, entries=[bits(3.0)]), conjugate=True, policy="native_fast")
+           target=dict(uniform=True, entries=[weight(3)]), conjugate=True, policy="native_fast")
     action("release", loan=13)
     action("borrow", name=23, source=dict(kind="owner", name=3), layout=layout, access="read_write")
     action("expect", loan=23,row=0,column=0,value=literal(0,-1.5) if complex_scalar else literal(1.5))
@@ -309,8 +313,8 @@ def check(prefix, lean_cc=None):
             counters = [int(x) for x in match[1].split(",")]
             assert counters[:6] == expected_counters, counters
             print(f"cached packing {'complex' if complex_scalar else 'real'}: allocations/frees/live/peak/written/copied={counters[:6]}")
-        for complex_scalar in [False, True]:
-            source, expected_counters = diagonal_fixture(complex_scalar)
+        for precision, complex_scalar in itertools.product((32, 64), (False, True)):
+            source, expected_counters = diagonal_fixture(precision, complex_scalar)
             path.write_text(json.dumps(source))
             run([emitter, path, work / "Main.lean", 256])
             generated = (work / "Main.lean").read_text()
@@ -337,10 +341,10 @@ def check(prefix, lean_cc=None):
                 bad = copy.deepcopy(source)
                 next(step["action"] for step in bad["statements"] if step["action"]["op"]=="diagonal_pair")[field]=value
                 path.write_text(json.dumps(bad))
-                output = work / f"bad-diagonal-{complex_scalar}-{field}.lean"
+                output = work / f"bad-diagonal-{precision}-{complex_scalar}-{field}.lean"
                 result = run([emitter,path,output,256],success=False)
                 assert "resource component rejected" in result.stderr and not output.exists(),result
-            print(f"diagonal {'complex' if complex_scalar else 'real'}: allocations/frees/live/peak/written/copied={counters[:6]}")
+            print(f"diagonal {precision}-bit {'complex' if complex_scalar else 'real'}: allocations/frees/live/peak/written/copied={counters[:6]}")
         # Each raw action is rejected before code generation; no native output
         # file may be produced on an initialization/mode/policy/alias failure.
         first_gemm = next(i for i, s in enumerate(fixture["statements"]) if s["action"]["op"] == "gemm")

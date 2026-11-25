@@ -2,8 +2,8 @@
   "schema_version": 2,
   "scope": "constructor coverage only; no compiler admission",
   "snapshot": {
-    "base_commit": "9c290239014cb30ea115e2882b83b33b548e966b",
-    "schema_sha256": "b211582018cc03a200c955caf6757e9d042623590f07fa09af272375f9f57b96"
+    "base_commit": "5ce83b44dfad40ad89ec406699a9d136a1d8255d",
+    "schema_sha256": "00d7e5f055deb39a1a3f9c9a8dc7cabbc4c105a00947e9fb13033734c47a0f3f"
   },
   "schema": {
     "sources": [
@@ -4555,7 +4555,7 @@
     ],
     "runtime": {
       "manifest": "src/runtime_inputs.rs",
-      "manifest_sha256": "56db6097cbd9c9d48bda0b1b070c9a616fc5881a7c5156d7b7605c965d2672a2",
+      "manifest_sha256": "c45417152ff5e2e9c9009e0caff50bcbd052a86150dec83c1ba3e4378a568967",
       "packages": [
         {
           "id": "KERNEL",
@@ -4590,7 +4590,8 @@
             "ffi.c",
             "ffi_result.h",
             "diagonal.c",
-            "diagonal.h"
+            "diagonal.h",
+            "diagonal_kernels.inc"
           ],
           "forbidden": [
             "lakefile.toml"
@@ -4712,11 +4713,15 @@
         },
         {
           "source": "lean-kernel/native/diagonal.c",
-          "sha256": "7d2c1359dedfa256c9f5f7311a1b6a1823af7cc3e30782938d0b43c52cb29c00"
+          "sha256": "5b94171791942ca37000d887b7ecfd84d989782a44d4f5d3dd2890de78e4de5b"
         },
         {
           "source": "lean-kernel/native/diagonal.h",
-          "sha256": "a04126248907d64bdeb87123276b53f4cd69c9a07c0156465ba8a59f422c996f"
+          "sha256": "5cffa3a86add82aeca664abd18be85886653bd65722725a09924b476b98497c9"
+        },
+        {
+          "source": "lean-kernel/native/diagonal_kernels.inc",
+          "sha256": "f0402bb4d80cc4d57aaaa66416654bb96f4001eaaba1b900a3f36075807a7b42"
         },
         {
           "source": "lean-kernel/native/ffi.c",
@@ -4732,7 +4737,7 @@
         },
         {
           "source": "lean-kernel/native/lakefile.lean",
-          "sha256": "9c0261b0ce57d554ad9aa96ce7741650e10b1c28746a911642dbb4059bf6d348"
+          "sha256": "82d3724e70c2017c99dba11b0eccbcfd2791039b835297ef1b99b054bb89542a"
         },
         {
           "source": "lean-kernel/native/lean-toolchain",
@@ -4752,7 +4757,7 @@
         },
         {
           "source": "lean-kernel/numerical/gemm.c",
-          "sha256": "55bc64d88e927b6bddedc638ebed58a0c06c2c3d2604ece25e6a5501d30aa9cd"
+          "sha256": "6371b0b7973f653f809366041b401ff1505a24bd43d1fdb21135238706080096"
         },
         {
           "source": "lean-kernel/numerical/gemm.h",

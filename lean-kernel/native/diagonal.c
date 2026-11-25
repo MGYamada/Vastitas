@@ -2,6 +2,9 @@
 #include <float.h>
 #include <string.h>
 
+_Static_assert(sizeof(float) == 4 && FLT_RADIX == 2 && FLT_MANT_DIG == 24 && FLT_MAX_EXP == 128,
+               "binary32 component ABI required");
+
 _Static_assert(sizeof(double) == 8 && FLT_RADIX == 2 && DBL_MANT_DIG == 53 && DBL_MAX_EXP == 1024,
                "binary64 component ABI required");
 
@@ -30,7 +33,10 @@ static inline double weight_at(const uint8_t *data, uint64_t index) {
     return value;
 }
 
-VStorageStatus vdiagonal_validate(VDiagonal diagonal, uint64_t dimension) {
+VStorageStatus vdiagonal_validate_for(VDiagonal diagonal, uint64_t dimension, uint8_t scalar) {
+    const unsigned width = vstorage_component_bytes(scalar);
+    if (!width) return VS_SCALAR;
+    const uint64_t largest = (uint64_t)(1023 + (width == 4 ? 24 : 53)) << 52;
     if (diagonal.uniform > 1 || diagonal.bytes % 8) return VS_OPERATION;
     size_t count = diagonal.bytes / 8;
     if ((diagonal.uniform && count != 1) || (!diagonal.uniform && (count != dimension || count > 4096)) ||
@@ -39,13 +45,17 @@ VStorageStatus vdiagonal_validate(VDiagonal diagonal, uint64_t dimension) {
         uint64_t bits = bits_at(diagonal.data, i);
         uint64_t exponent = (bits >> 52) & 2047;
         uint64_t significand = (UINT64_C(1) << 52) | (bits & ((UINT64_C(1) << 52) - 1));
-        if (exponent < 1023 || exponent > 1076) return VS_OPERATION;
+        if (exponent < 1023 || (bits & (UINT64_MAX >> 1)) > largest) return VS_OPERATION;
         if (exponent <= 1075) {
             unsigned shift = (unsigned)(1075 - exponent);
             if (significand & ((UINT64_C(1) << shift) - 1)) return VS_OPERATION;
         } else if (significand != (UINT64_C(1) << 52)) return VS_OPERATION;
     }
     return VS_OK;
+}
+
+VStorageStatus vdiagonal_validate(VDiagonal diagonal, uint64_t dimension) {
+    return vdiagonal_validate_for(diagonal, dimension, VS_F64);
 }
 
 double vdiagonal_entry(VDiagonal diagonal, uint64_t index) {
@@ -71,38 +81,27 @@ static uint64_t coordinate(const VStorageDense *view, uint64_t row, uint64_t col
 #define SPECIALIZED static inline
 #endif
 
-SPECIALIZED void weight_kernel(const VStorageDense *input, const VStorageDense *output,
-                                 const uint8_t *weights, const int uniform, uint8_t conjugate) {
-    const double *from = input->data;
-    double *to = output->data;
-    const double fixed = uniform ? weight_at(weights, 0) : 0.0;
-    /* Ordinary columns are contiguous even when their enclosing allocations
-     * have padded leading dimensions. Select representation/stride once, not
-     * per element. A transposed physical row retains the explicit stride path. */
-    if (!input->transposed && !vstorage_is_complex(input->scalar)) {
-        for (uint64_t i=0;i<input->rows;++i) to[i]=from[i]*(uniform?fixed:weight_at(weights,i));
-        return;
-    }
-    if (!input->transposed && vstorage_is_complex(input->scalar)) {
-        for (uint64_t i=0;i<input->rows;++i) {
-            double weight=uniform?fixed:weight_at(weights,i);
-            to[2*i]=from[2*i]*weight;
-            to[2*i+1]=(conjugate?-from[2*i+1]:from[2*i+1])*weight;
-        }
-        return;
-    }
-    for (uint64_t i = 0; i < input->rows; ++i) {
-        uint64_t a = coordinate(input, i, 0), b = coordinate(output, i, 0);
-        double weight = uniform ? fixed : weight_at(weights, i);
-        to[b] = from[a] * weight;
-        if (vstorage_is_complex(input->scalar)) to[b + 1] = (conjugate ? -from[a + 1] : from[a + 1]) * weight;
-    }
-}
+#define COMPONENT float
+#define LOCAL(name) name##32
+#include "diagonal_kernels.inc"
+#undef COMPONENT
+#undef LOCAL
+
+#define COMPONENT double
+#define LOCAL(name) name##64
+#include "diagonal_kernels.inc"
+#undef COMPONENT
+#undef LOCAL
 
 void vdiagonal_weight_prepared(const VStorageDense *input, const VStorageDense *output,
                               VDiagonal diagonal, uint8_t conjugate) {
-    if (diagonal.uniform) weight_kernel(input, output, diagonal.data, 1, conjugate);
-    else weight_kernel(input, output, diagonal.data, 0, conjugate);
+    if (vstorage_component_bytes(input->scalar) == 4) {
+        if (diagonal.uniform) weight_kernel32(input, output, diagonal.data, 1, conjugate);
+        else weight_kernel32(input, output, diagonal.data, 0, conjugate);
+    } else {
+        if (diagonal.uniform) weight_kernel64(input, output, diagonal.data, 1, conjugate);
+        else weight_kernel64(input, output, diagonal.data, 0, conjugate);
+    }
 }
 
 static VStorageStatus operands(VStorageArena *arena, uint32_t input, VStorageLayout input_view,
@@ -113,7 +112,7 @@ static VStorageStatus operands(VStorageArena *arena, uint32_t input, VStorageLay
     if (status != VS_OK) return status;
     status = vstorage_prepare_dense(arena, output, output_view, b);
     if (status != VS_OK) return status;
-    if (a->scalar != b->scalar || vstorage_component_bytes(a->scalar) != 8) return VS_SCALAR;
+    if (a->scalar != b->scalar) return VS_SCALAR;
     if (vdiagonal_overlaps(a, b)) return VS_ALIAS;
     return VS_OK;
 }
@@ -125,50 +124,11 @@ VStorageStatus vdiagonal_scale(VStorageArena *arena,
     VStorageStatus status = operands(arena, input, input_view, output, output_view, conjugate, &a, &b);
     if (status != VS_OK) return status;
     if (a.columns != 1 || b.columns != 1 || a.rows != b.rows) return VS_SHAPE;
-    if ((status = vdiagonal_validate(diagonal, a.rows)) != VS_OK ||
+    if ((status = vdiagonal_validate_for(diagonal, a.rows, a.scalar)) != VS_OK ||
         (status = vstorage_prepare_write(arena, b.bytes)) != VS_OK) return status;
     vdiagonal_weight_prepared(&a, &b, diagonal, conjugate);
     vstorage_record_write(arena, b.bytes);
     return VS_OK;
-}
-
-/* The target weight is decoded once per destination column. A nonuniform
- * source weight is one load per element; a uniform one is decoded once. */
-SPECIALIZED void adjoint_kernel(const VStorageDense *a, const VStorageDense *b,
-                                  const uint8_t *source, const int source_uniform,
-                                  VDiagonal target, uint8_t conjugate) {
-    const double *in = a->data;
-    double *out = b->data;
-    const double fixed = source_uniform ? weight_at(source, 0) : 0.0;
-    const uint64_t target_step = target.uniform ? 0 : 1;
-    if (!a->transposed && !vstorage_is_complex(a->scalar)) {
-        for (uint64_t j=0;j<b->columns;++j) {
-            double target_weight=weight_at(target.data,j*target_step);
-            for (uint64_t i=0;i<b->rows;++i)
-                out[j*b->leading+i]=(in[i*a->leading+j]*target_weight)/
-                    (source_uniform?fixed:weight_at(source,i));
-        }
-    } else if (!a->transposed && vstorage_is_complex(a->scalar)) {
-        for (uint64_t j=0;j<b->columns;++j) {
-            double target_weight=weight_at(target.data,j*target_step);
-            for (uint64_t i=0;i<b->rows;++i) {
-                uint64_t from=2*(i*a->leading+j),to=2*(j*b->leading+i);
-                double source_weight=source_uniform?fixed:weight_at(source,i);
-                out[to]=(in[from]*target_weight)/source_weight;
-                out[to+1]=((conjugate?-in[from+1]:in[from+1])*target_weight)/source_weight;
-            }
-        }
-    } else {
-        for (uint64_t j = 0; j < b->columns; ++j) {
-            double target_weight = weight_at(target.data, j * target_step);
-            for (uint64_t i = 0; i < b->rows; ++i) {
-                uint64_t from = coordinate(a, j, i), to = coordinate(b, i, j);
-                double source_weight = source_uniform ? fixed : weight_at(source, i);
-                out[to] = (in[from] * target_weight) / source_weight;
-                if (vstorage_is_complex(a->scalar)) out[to + 1] = ((conjugate ? -in[from + 1] : in[from + 1]) * target_weight) / source_weight;
-            }
-        }
-    }
 }
 
 VStorageStatus vdiagonal_adjoint(VStorageArena *arena,
@@ -178,15 +138,20 @@ VStorageStatus vdiagonal_adjoint(VStorageArena *arena,
     VStorageStatus status = operands(arena, input, input_view, output, output_view, conjugate, &a, &b);
     if (status != VS_OK) return status;
     if (a.columns != b.rows || a.rows != b.columns) return VS_SHAPE;
-    if ((status = vdiagonal_validate(source, a.columns)) != VS_OK ||
-        (status = vdiagonal_validate(target, a.rows)) != VS_OK ||
+    if ((status = vdiagonal_validate_for(source, a.columns, a.scalar)) != VS_OK ||
+        (status = vdiagonal_validate_for(target, a.rows, a.scalar)) != VS_OK ||
         (status = vstorage_prepare_write(arena, b.bytes)) != VS_OK) return status;
     if (!b.bytes) return VS_OK;
     /* Column-major destination traversal. No inverse matrix, coefficient copy,
      * data allocation, BLAS invocation, tolerance test or old-output read.
      * Source uniformity is tested once here, not per element. */
-    if (source.uniform) adjoint_kernel(&a, &b, source.data, 1, target, conjugate);
-    else adjoint_kernel(&a, &b, source.data, 0, target, conjugate);
+    if (vstorage_component_bytes(a.scalar) == 4) {
+        if (source.uniform) adjoint_kernel32(&a, &b, source.data, 1, target, conjugate);
+        else adjoint_kernel32(&a, &b, source.data, 0, target, conjugate);
+    } else {
+        if (source.uniform) adjoint_kernel64(&a, &b, source.data, 1, target, conjugate);
+        else adjoint_kernel64(&a, &b, source.data, 0, target, conjugate);
+    }
     vstorage_record_write(arena, b.bytes);
     return VS_OK;
 }

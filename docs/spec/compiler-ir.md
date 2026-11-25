@@ -21,7 +21,7 @@ This specification is the source of the adopted finite compiler-IR v1 contract. 
 | [Floating carriers stay in the resource layer](#compiler-ir.float-carrier) | Planned, Tested, Proved (oracle) |
 | [Realization binds mathematical and numerical identities](#compiler-ir.realization) | Planned, Tested, Proved (oracle), Proved (oracle), Proved (oracle), Proved (bridge), Proved (oracle), Planned, Tested, Proved (oracle), Tested, Tested, Proved (oracle) |
 | [NativeFast preserves calls and reports unavailable flags](#compiler-ir.native-fast) | Planned, Tested |
-| [Floating observation does not permit a compiler quotient](#compiler-ir.numeric-order) | Planned, Proved (oracle), Proved (oracle), Planned |
+| [Floating observation does not permit a compiler quotient](#compiler-ir.numeric-order) | Planned, Proved (oracle), Proved (oracle), Proved (oracle), Planned |
 | [Tensor meaning precedes storage and GEMM](#compiler-ir.tensor) | Planned, Planned, Tested, Proved (oracle), Tested |
 | [Finite category models use checked tables](#compiler-ir.finite-models) | Planned, Tested, Proved (oracle), Proved (oracle), Tested, Tested, Proved (oracle), Tested, Proved (oracle), Tested, Proved (oracle), Planned, Proved (oracle), Planned, Tested |
 | [Finite binders do not admit general polymorphism](#compiler-ir.finite-binders) | Planned, Tested, Tested, Tested, Proved (oracle) |
@@ -843,6 +843,12 @@ Claims:
   - Premises:
     - For real division the numerator is finite and the divisor is a signed zero in binary32 or binary64. The empty dot keeps its cell when beta tests as nonzero and one. For input independence the corresponding alpha or beta zero predicate must hold.
   - Note: A finite numerator divided by either signed zero returns zero with the exclusive-or sign and empty reference flags. An empty dot with unit beta returns the prior cell with empty flags. Zero alpha makes both inputs irrelevant, and zero beta makes the old destination irrelevant, including their contributions to flags. On 828 input tuples across both widths, scripts/check_float_kernels.py compares Lean with the independent integer and rational reference on scalar and complex result bits and local flags. It also compares C real division, ordered complex division and inverse, including aliased outputs. The C comparison checks arithmetic NaNs by class and every other result by bits. scripts/check_dot_kernel.py compares the production scalar-output GEMM adapter with Lean on 948 dots across the four representations. Its unit-beta copy cases also check the full signaling NaN payload.
+- `diagonal-weights`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.StorageMetric`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/StorageMetric.lean): `VastitasOracle.StorageMetric.adjoint_weights`, `VastitasOracle.StorageMetric.scale_weights`, `VastitasOracle.StorageMetric.coefficient_at_precision`
+  - Premises:
+    - The storage checker accepts the adjoint or column scaling, and the coefficient occurs in its validated table.
+  - Note: Each encoded coefficient decodes to a nonzero integer admitted as a reference weight at its allocation's component width. The magnitude bound is 2^24 for binary32 and 2^53 for binary64. The native adapter comparison in scripts/check_float_kernels.py checks both scale and adjoint for 728 cells across the four representations. Arithmetic NaNs compare by class. All other components compare by bits.
 - `lowering`: [Planned](../specifications.md#planned)
   - Issue: [#751](https://github.com/MGYamada/Vastitas/issues/751)
 

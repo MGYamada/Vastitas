@@ -224,6 +224,8 @@ def verify_reader(r):
     required_inputs.update(('scripts/build_openblas.py','lean-kernel/native/storage.c','lean-kernel/native/storage.h',
                            'lean-kernel/native/diagonal.c','lean-kernel/native/diagonal.h',
                            'lean-kernel/numerical/gemm.c','lean-kernel/numerical/gemm.h'))
+    if b'#include "diagonal_kernels.inc"' in r.read('inputs/repository/lean-kernel/native/diagonal.c'):
+        required_inputs.add('lean-kernel/native/diagonal_kernels.inc')
     if b'#include "gemm_kernels.inc"' in r.read('inputs/repository/lean-kernel/numerical/gemm.c'):
         required_inputs.add('lean-kernel/numerical/gemm_kernels.inc')
     require(required_inputs <= set(record['repository']['inputs']), 'missing required source input')

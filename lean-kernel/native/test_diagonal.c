@@ -12,7 +12,14 @@ static void encode(uint8_t *output, double value) {
     for (unsigned i = 0; i < 8; ++i) output[i] = (uint8_t)(raw >> (8*i));
 }
 static VStorageLayout layout(unsigned scalar, uint64_t rows, uint64_t columns, uint64_t leading, uint8_t transpose) {
-    return (VStorageLayout){scalar ? 16 : 8,rows,columns,leading,transpose};
+    return (VStorageLayout){vstorage_element_bytes((uint8_t)scalar),rows,columns,leading,transpose};
+}
+static uint64_t component_bits(uint8_t scalar, double value) {
+    if (vstorage_component_bytes(scalar) == 8) return bits(value);
+    float narrowed = (float)value;
+    uint32_t word;
+    memcpy(&word, &narrowed, sizeof(word));
+    return word;
 }
 static void rectangles(unsigned scalar, unsigned transpose, uint8_t conjugate) {
     VStorageArena *arena = vstorage_new(4096); assert(arena);
@@ -22,7 +29,7 @@ static void rectangles(unsigned scalar, unsigned transpose, uint8_t conjugate) {
     VStorageLayout output = layout(scalar,2,3,3,0);
     for (uint64_t j=0;j<2;++j) for (uint64_t i=0;i<3;++i) {
         double value=(double)(1+2*i+j);
-        assert(vstorage_store(arena,0,input,i,j,(uint8_t)scalar,bits(value),bits(value))==VS_OK);
+        assert(vstorage_store(arena,0,input,i,j,(uint8_t)scalar,component_bits(scalar,value),component_bits(scalar,value))==VS_OK);
     }
     uint8_t source[16],target[24];
     encode(source,2); encode(source+8,-4);
@@ -33,17 +40,17 @@ static void rectangles(unsigned scalar, unsigned transpose, uint8_t conjugate) {
     double gv[2]={2,-4},gw[3]={3,5,-2};
     for (uint64_t j=0;j<3;++j) for (uint64_t i=0;i<2;++i) {
         double value=((double)(1+2*j+i)*gw[j])/gv[i];
-        assert(vstorage_expect(arena,1,output,i,j,(uint8_t)scalar,bits(value),bits(conjugate?-value:value))==VS_OK);
+        assert(vstorage_expect(arena,1,output,i,j,(uint8_t)scalar,component_bits(scalar,value),component_bits(scalar,conjugate?-value:value))==VS_OK);
     }
     VStorageStats after=vstorage_stats(arena);
     assert(after.data_allocations==before.data_allocations && after.copied_bytes==before.copied_bytes);
-    assert(after.written_bytes-before.written_bytes==6*(scalar?16:8));
+    assert(after.written_bytes-before.written_bytes==6*vstorage_element_bytes((uint8_t)scalar));
     /* A malformed last entry must fail before the first destination element. */
-    encode(target+16,1.5);
+    encode(target+16,vstorage_component_bytes(scalar) == 4 ? 16777217.0 : 1.5);
     before=vstorage_stats(arena);
     assert(vdiagonal_adjoint(arena,0,input,1,output,v,w,conjugate)==VS_OPERATION);
     assert(vstorage_stats(arena).written_bytes==before.written_bytes);
-    assert(vstorage_expect(arena,1,output,0,0,(uint8_t)scalar,bits(1.5),bits(conjugate?-1.5:1.5))==VS_OK);
+    assert(vstorage_expect(arena,1,output,0,0,(uint8_t)scalar,component_bits(scalar,1.5),component_bits(scalar,conjugate?-1.5:1.5))==VS_OK);
     encode(target+16,-2);
     assert(vdiagonal_adjoint(arena,0,input,0,output,v,w,conjugate)==VS_ALIAS);
     vstorage_close(arena);
@@ -163,7 +170,7 @@ int main(void) {
         for (uint8_t conjugate=0;conjugate<2;++conjugate) for (uint8_t su=0;su<2;++su)
             for (uint8_t tu=0;tu<2;++tu) for (unsigned shift=0;shift<8;shift+=3)
                 old_decoding_outputs(scalar,transpose,conjugate,su,tu,shift);
-    for (unsigned scalar=0;scalar<2;++scalar) for (unsigned transpose=0;transpose<2;++transpose)
+    for (unsigned scalar=0;scalar<4;++scalar) for (unsigned transpose=0;transpose<2;++transpose)
         for(uint8_t conjugate=0;conjugate<2;++conjugate) rectangles(scalar,transpose,conjugate);
     puts("Diagonal: exact bounded coefficients, unaligned whole-entry decoding bit-identical to bytewise decoding, real/complex padded/transposed adjoints and scaling, failure preservation and allocation-free writes passed");
     return 0;

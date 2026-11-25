@@ -771,8 +771,6 @@ structure DiagonalOperands where
 def checkDiagonalOperands (state : State) (input output : Symbol) : Except Error DiagonalOperands := do
   let (input, inputAllocation) ← usable state input false
   let (output, outputAllocation) ← usable state output true
-  if inputAllocation.scalar.componentBytes != 8 then
-    reject "E_RESOURCE_DIAGONAL" "this diagonal coefficient table requires binary64 storage"
   if inputAllocation.scalar != outputAllocation.scalar then
     reject "E_RESOURCE_DIAGONAL" "diagonal operation requires matching scalar representations"
   if !inputAllocation.initialization.covers inputAllocation.scalar input.layout then
@@ -783,12 +781,18 @@ def checkDiagonalOperands (state : State) (input output : Symbol) : Except Error
     reject "E_RESOURCE_ALIAS" "diagonal input and destination must be disjoint"
   return ⟨input, output, inputAllocation, outputAllocation⟩
 
+/-- Every integer through this magnitude is exactly representable in a component. -/
+def Scalar.diagonalLimit (s : Scalar) : Nat :=
+  match s with
+  | .f32 | .complexF32 => 2^24
+  | .f64 | .complexF64 => 2^53
+
 def checkDiagonalAdjoint (state : State) (request : DiagonalAdjoint) : Except Error DiagonalOperands := do
   let operands ← checkDiagonalOperands state request.input request.output
   if operands.output.layout.logicalRows != operands.input.layout.logicalColumns ||
       operands.output.layout.logicalColumns != operands.input.layout.logicalRows ||
-      !request.source.valid operands.input.layout.logicalColumns ||
-      !request.target.valid operands.input.layout.logicalRows then
+      !request.source.valid operands.input.layout.logicalColumns operands.inputAllocation.scalar.diagonalLimit ||
+      !request.target.valid operands.input.layout.logicalRows operands.inputAllocation.scalar.diagonalLimit then
     reject "E_RESOURCE_DIAGONAL" "adjoint requires reversed shapes and exact bounded nonzero integer diagonals"
   return operands
 
@@ -796,7 +800,7 @@ def checkDiagonalScale (state : State) (request : DiagonalScale) : Except Error 
   let operands ← checkDiagonalOperands state request.input request.output
   if operands.output.layout.logicalRows != operands.input.layout.logicalRows ||
       operands.output.layout.logicalColumns != 1 || operands.input.layout.logicalColumns != 1 ||
-      !request.diagonal.valid operands.input.layout.logicalRows then
+      !request.diagonal.valid operands.input.layout.logicalRows operands.inputAllocation.scalar.diagonalLimit then
     reject "E_RESOURCE_DIAGONAL" "diagonal weighting requires matching columns and exact bounded nonzero entries"
   return operands
 

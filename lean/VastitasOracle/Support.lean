@@ -139,6 +139,22 @@ theorem mapM_some_getElem? {f : α → Option β} {as : List α} {bs : List β}
     omega
   | some b => exact ⟨b, by rw [← image, image'], rfl⟩
 
+theorem mapM_project {α β γ : Type} {step : α → Option β} (left : α → γ) (right : β → γ)
+    (agree : ∀ x y, step x = some y → left x = right y) {xs : List α} {ys : List β}
+    (h : xs.mapM step = some ys) : xs.map left = ys.map right := by
+  induction xs generalizing ys with
+  | nil => simpa using congrArg (List.map right) (Option.some.inj h).symm
+  | cons x xs ih =>
+    simp only [List.mapM_cons, Option.pure_def, Option.bind_eq_bind, Option.bind_eq_some_iff,
+      Option.some.injEq] at h
+    obtain ⟨y, head, tail, rest, rfl⟩ := h
+    simp [agree x y head, ih rest]
+
+theorem array_list_mapM {α β : Type} {step : α → Option β} {xs : Array α} {ys : Array β}
+    (h : xs.mapM step = some ys) : xs.toList.mapM step = some ys.toList := by
+  rw [← Array.toList_mapM, h]
+  rfl
+
 end Option
 
 end VastitasOracle.Support

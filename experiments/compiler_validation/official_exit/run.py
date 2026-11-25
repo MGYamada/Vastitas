@@ -195,6 +195,18 @@ def revision_source(receipt):
             "]\nend VastitasQualification.ExitFixture\n")
 
 
+def unique_fields(pairs):
+    values = dict(pairs)
+    if len(values) != len(pairs):
+        raise ValueError("duplicate field in public revision")
+    return values
+
+
+def check_retained_revision(receipt):
+    if revision_source(receipt).encode() != (HERE / "ExpectedRevision.lean").read_bytes():
+        raise ValueError("the complete public revision differs from the closed artifact")
+
+
 def live_fixture(args, *, bind_revision=False):
     """Compare the installed public compiler to each value of the retained closed theorem."""
     frontend = args.frontend.resolve()
@@ -209,15 +221,9 @@ def live_fixture(args, *, bind_revision=False):
     def invoke(options):
         return subprocess.check_output([frontend, "check", source.name, *options], cwd=source.parent, env=env)
 
-    def unique_fields(pairs):
-        values = dict(pairs)
-        if len(values) != len(pairs):
-            raise ValueError("duplicate field in public revision")
-        return values
-
     receipt = json.loads(invoke(["--print-function-revision"]), object_pairs_hook=unique_fields)
-    if bind_revision and revision_source(receipt).encode() != (HERE / "ExpectedRevision.lean").read_bytes():
-        raise ValueError("the complete public revision differs from the closed artifact")
+    if bind_revision:
+        check_retained_revision(receipt)
     def canonical(value):
         return json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
 
@@ -254,7 +260,10 @@ def check(args):
     paths = subprocess.check_output(["lake", "-d", "lean", "env", "printenv", "LEAN_PATH"], cwd=ROOT, text=True).strip()
     frontend = args.frontend.resolve()
     revision = subprocess.check_output([frontend, "check", source.name, "--print-function-revision"], cwd=source.parent)
-    wire = json.loads(revision)["input"]
+    receipt = json.loads(revision, object_pairs_hook=unique_fields)
+    if args.artifact and source == DEFAULT_SOURCE and ll == DEFAULT_LL:
+        check_retained_revision(receipt)
+    wire = receipt["input"]
     physical = source.read_bytes()
     if (wire["version"] != 10 or wire["file"] != source.name
             or wire["root"] != "vastitas:compat:flat"
@@ -290,6 +299,9 @@ def check(args):
             result["module_source_sha256"] = source_sha256
             if result["status"] != "passed":
                 log = (work / (name + ".stdout")).read_text() + (work / (name + ".stderr")).read_text()
+                error = re.search(r"^.*?:\d+:\d+: error:.*", log, re.MULTILINE)
+                if error:
+                    result["diagnostic"] = log[error.start():error.start() + 1200]
                 if result["timed_out"]:
                     result["failure_kind"] = "wall-time-limit"
                 elif "excessive memory consumption" in log:
@@ -342,6 +354,11 @@ def check(args):
             modules.extend((name, "VastitasQualification.ExitAdmission." + theorem) for name, theorem in ARTIFACT)
         if args.provision_fast:
             modules.extend(ENDPOINTS)
+        elif args.artifact:
+            # Provisioning already checks these modules when it constructs the export authority.
+            modules.extend([("RevisionData", None), ("ExpectedRevision", None),
+                            ("RevisionBinding", "VastitasQualification.ExitAdmission.exactRevision"),
+                            ("FastSubject", "VastitasQualification.ExitAdmission.boundArtifact")])
         for name, theorem in modules:
             shutil.copyfile(HERE / (name + ".lean"), work / (name + ".lean"))
             build(name, theorem)

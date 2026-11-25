@@ -187,12 +187,17 @@ The [public wire run](results/macos-arm64-wire.json) passed all 26 named
 kernel replays. Replaying `PureProgram` took 9.82 seconds and 933,068,800 bytes
 peak RSS. Replaying `PublicWire` took 43.59 seconds and 606,781,440 bytes.
 The closed theorem asserts that the real protocol-10 request succeeds with
-the executable entry check enabled.
+the executable entry check enabled. The literal has no finite declarations.
+Admission checks that the finite projection of the returned Core is also empty.
+The closed proof discharges that equality on the compiled module of the actual pass.
 
 
 ## Closed public executable artifact
 
 The artifact experiment runs on the same frozen imports as the wire proof.
+It compares the public receipt with the retained revision, including the method
+ordinal and result type of integer negation. Official replay checks this complete
+revision against the same signed-literal artifact that determines the LLVM bytes.
 [ResourceRecord.lean](ResourceRecord.lean) reconstructs every computational
 field of the checked input. [RevisionBound.lean](RevisionBound.lean) applies the
 actual size check to the complete nominal revision.

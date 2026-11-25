@@ -37,32 +37,28 @@ theorem wire_from_checked {j : Json} {p : ResourceSource.Program} {main : Bool}
     (packages : ResourceSource.Wire.packageShapesMatch c = true)
     (revision : ResourceSource.Wire.RevisionMatches j c) :
     (ResourceSource.Wire.check j main).isOk = true := by
-  unfold ResourceSource.Wire.check
+  rw [ResourceSource.Wire.check_of_decoded decoded]
+  unfold ResourceSource.Wire.checkDecoded
+  obtain ⟨r,hr,same⟩ := namespace_ok _ j (fun _ => ResourceSource.check p main) ResourceSource.Wire.namespaceUnits u c price accepted bound
   split
   · simp_all
-  · rename_i input hi
-    replace hi := Except.ok.inj (hi.symm.trans decoded)
-    subst input
-    obtain ⟨r,hr,same⟩ := namespace_ok _ j (fun _ => ResourceSource.check p main) ResourceSource.Wire.namespaceUnits u c price accepted bound
-    split
-    · simp_all
-    · rename_i r' hr'
-      replace hr' := Except.ok.inj (hr'.symm.trans hr)
-      subst r'
-      cases h : AssemblySource.check j r.value.pureProgram.authority.headers.assembled.prepared.core.assembly with
-      | error err =>
-        rw [← same,h] at trace
+  · rename_i r' hr'
+    replace hr' := Except.ok.inj (hr'.symm.trans hr)
+    subst r'
+    cases h : AssemblySource.check j r.value.pureProgram.authority.headers.assembled.prepared.core.assembly with
+    | error err =>
+      rw [← same,h] at trace
+      contradiction
+    | ok result =>
+      have hrev : ResourceSource.Wire.RevisionMatches j r.value := same ▸ revision
+      have hdefs : ResourceSource.Wire.definitionsMatch r.value = true := same ▸ definitions
+      have hpackages : ResourceSource.Wire.packageShapesMatch r.value = true := same ▸ packages
+      simp [hdefs,hpackages,hrev,bind,Except.bind]
+      split
+      · rename_i _ mismatch
+        rw [edits] at mismatch
         contradiction
-      | ok result =>
-        have hrev : ResourceSource.Wire.RevisionMatches j r.value := same ▸ revision
-        have hdefs : ResourceSource.Wire.definitionsMatch r.value = true := same ▸ definitions
-        have hpackages : ResourceSource.Wire.packageShapesMatch r.value = true := same ▸ packages
-        simp [hdefs,hpackages,hrev,bind,Except.bind]
-        split
-        · rename_i _ mismatch
-          rw [edits] at mismatch
-          contradiction
-        · rfl
+      · rfl
 
 theorem resourceFromPure (pure : Indexed.AuthoritySource.CheckedProgram candidate.pureProgram true)
     (accepted : Indexed.AuthoritySource.checkProgram candidate.pureProgram true = .ok pure) :
@@ -107,12 +103,14 @@ theorem noEvents (j : Json) (r : AssemblySource.RootFile) (s : Span)
 
 theorem eventsChecked (parsedEvents : AssemblyText.parse text 0 = .ok []) (s : Span) : (AssemblySource.check wire ⟨[],s⟩).isOk = true :=
   noEvents _ _ _ file readEvents parsedEvents
-/-- The literal's physical program has no indexed definition. The sublist
-check therefore succeeds for the actual Core returned by the checker. -/
-theorem literalDefinitions (c : ResourceSource.Checked candidate true) :
+/-- The signed literal declares no finite entries. Its compiled Core must have
+the same empty finite projection, including declarations unused by main. -/
+theorem literalDefinitions (c : ResourceSource.Checked candidate true)
+    (finite : ResourceSource.Wire.coreFiniteEntries c.pureProgram.compiled.core.module.declarations.indexed = []) :
     ResourceSource.Wire.definitionsMatch c = true := by
-  change ([] : List Indexed.Entry).isSublist _ = true
-  simp
+  change (([] : List Indexed.Entry).isSublist _ &&
+    ([] == ResourceSource.Wire.coreFiniteEntries c.pureProgram.compiled.core.module.declarations.indexed)) = true
+  simp [finite]
 
 /-- The literal contains no package cases to match against the returned Core. -/
 theorem literalPackages (c : ResourceSource.Checked candidate true) :
@@ -123,7 +121,8 @@ theorem literalPackages (c : ResourceSource.Checked candidate true) :
 theorem checkedIf (lexical : AssemblyText.parse text 0 = .ok []) (c : ResourceSource.Checked candidate true)
     (accepted : ResourceSource.check candidate true = .ok c)
     (cost : 34 + ResourceSource.Wire.namespaceUnits c ≤ Limits.namespaceProgramWork)
-    (events : c.pureProgram.authority.headers.assembled.prepared.core.assembly.events = []) :
+    (events : c.pureProgram.authority.headers.assembled.prepared.core.assembly.events = [])
+    (finite : ResourceSource.Wire.coreFiniteEntries c.pureProgram.compiled.core.module.declarations.indexed = []) :
     (ResourceSource.Wire.check wire true).isOk = true := by
   apply wire_from_checked decodedProgram c accepted _ price cost
   · let a := c.pureProgram.authority.headers.assembled.prepared.core.assembly
@@ -132,7 +131,7 @@ theorem checkedIf (lexical : AssemblyText.parse text 0 = .ok []) (c : ResourceSo
     rw [show c.pureProgram.authority.headers.assembled.prepared.core.assembly = ⟨[], a.span⟩ from eqn]
     exact eventsChecked lexical _
   · exact physicalEdits
-  · exact literalDefinitions c
+  · exact literalDefinitions c finite
   · exact literalPackages c
   · unfold ResourceSource.Wire.RevisionMatches
     change True
@@ -142,13 +141,15 @@ theorem wireFromPure (lexical : AssemblyText.parse text 0 = .ok [])
     (pure : Indexed.AuthoritySource.CheckedProgram candidate.pureProgram true)
     (accepted : Indexed.AuthoritySource.checkProgram candidate.pureProgram true = .ok pure)
     (cost : 34 + pure.namespaceUnits ≤ Limits.namespaceProgramWork)
-    (events : pure.authority.headers.assembled.prepared.core.assembly.events = []) :
+    (events : pure.authority.headers.assembled.prepared.core.assembly.events = [])
+    (finite : ResourceSource.Wire.coreFiniteEntries pure.compiled.core.module.declarations.indexed = []) :
     (ResourceSource.Wire.check wire true).isOk = true := by
   obtain ⟨c,produced,kept⟩ := resourceFromPure pure accepted
   apply checkedIf lexical c produced
   · change 34 + (c.pureProgram.namespaceUnits + 0) ≤ _
     simpa only [kept,Nat.add_zero]
   · simpa [kept] using events
+  · exact (congrArg (fun p => ResourceSource.Wire.coreFiniteEntries p.compiled.core.module.declarations.indexed) kept).trans finite
 
 /-- This gate reads the actual protected-profile pass and preserves its budget
 and original assembly obligations. An arbitrary prebuilt Core is insufficient. -/
@@ -156,7 +157,8 @@ def passReady : Bool :=
   match Indexed.AuthoritySource.checkProgram candidate.pureProgram true with
   | .error _ => false
   | .ok p => decide (34 + p.namespaceUnits ≤ Limits.namespaceProgramWork) &&
-      p.authority.headers.assembled.prepared.core.assembly.events.isEmpty
+      p.authority.headers.assembled.prepared.core.assembly.events.isEmpty &&
+      (ResourceSource.Wire.coreFiniteEntries p.compiled.core.module.declarations.indexed).isEmpty
 
 theorem wire_of_parts (pass : passReady = true) (lex : AssemblyText.parse text 0 = .ok []) :
     (ResourceSource.Wire.check wire true).isOk = true := by
@@ -164,9 +166,12 @@ theorem wire_of_parts (pass : passReady = true) (lex : AssemblyText.parse text 0
   cases h : Indexed.AuthoritySource.checkProgram candidate.pureProgram true with
   | error e => simp [h] at pass
   | ok p =>
-    obtain ⟨cost,events⟩ : 34 + p.namespaceUnits ≤ Limits.namespaceProgramWork ∧
-        p.authority.headers.assembled.prepared.core.assembly.events = [] := by simpa [h] using pass
-    exact wireFromPure lex p h cost events
+    obtain ⟨⟨cost,events⟩,finite⟩ :
+        (34 + p.namespaceUnits ≤ Limits.namespaceProgramWork ∧
+          p.authority.headers.assembled.prepared.core.assembly.events = []) ∧
+        ResourceSource.Wire.coreFiniteEntries p.compiled.core.module.declarations.indexed = [] := by
+      simpa [h] using pass
+    exact wireFromPure lex p h cost events finite
 
 end VastitasQualification.ExitAdmission
 #print axioms VastitasQualification.ExitAdmission.wire_of_parts

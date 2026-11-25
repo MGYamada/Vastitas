@@ -685,11 +685,63 @@ def packageShapesMatch {input : Program} {main : Bool} (checked : Checked input 
   resolvedSublist (writtenDefinitionActions input checked.pureProgram.compiler.input.body.index packageShape?)
     checked.pureProgram.compiled.core.module.declarations.packages
 
+/-- The finite surface forms with a single persistent entry in the indexed Core
+environment. Selecting by constructor avoids building token lists during replay. -/
+def finiteBody : Indexed.Source.Body → Bool
+  | .finiteCarrier .. | .finiteTable .. | .composableTable ..
+  | .categorySchema | .functorSchema | .isoSchema | .natTransSchema | .monadSchema | .kleisliSchema ..
+  | .finiteCategory .. | .finiteOpposite .. | .finiteFunctor .. | .finiteIso ..
+  | .finiteNatTrans .. | .finiteMonad .. | .finiteKleisli .. => true
+  | _ => false
+
+theorem finiteBody_eq_form (d : Indexed.Source.Declaration) :
+    finiteBody d.body = (FiniteSourceFiles.form d).isSome := by
+  cases h : d.body <;> simp [finiteBody, FiniteSourceFiles.form, h]
+
+def finiteDeclarations (input : Program) : List (Indexed.DeclId × Indexed.Source.Declaration) :=
+  input.packages.flatMap fun pkg => pkg.modules.flatMap fun m =>
+    m.pureModule.declarations.filterMap fun d =>
+      if finiteBody d.body then some (⟨⟨pkg.id, m.pureModule.module.path⟩, d.name⟩, d) else none
+
+/-- Resolve this one declaration using the same nominal projection cache for
+the entire input. The resulting entry includes the ordered tags, rows or
+instance fields and its declaring owner. -/
+def resolveFiniteEntry (index : Namespace.Indexed) (graphs : Indexed.Source.GraphSources)
+    (cache : Indexed.Source.ProjectionCache) (owned : Indexed.DeclId × Indexed.Source.Declaration) :
+    Namespace.Result Indexed.Entry := do
+  let (owner, d) := owned
+  let env ← (Indexed.Source.resolveBody index graphs cache owner d.span d.body ⟨[], [], []⟩).run' []
+  let [entry] := env.indexed | Namespace.problem d.span "E_MODULE_SOURCE" "expected one finite declaration"
+  return entry
+
+def coreFiniteEntries (actual : Indexed.Environment) : Indexed.Environment :=
+  actual.filter fun e => match e.declaration with
+    | .finiteCarrier .. | .finiteTable .. | .composableTable ..
+    | .categorySchema | .functorSchema | .isoSchema | .natTransSchema | .monadSchema | .kleisliSchema ..
+    | .finiteCategory .. | .finiteOpposite .. | .finiteFunctor .. | .finiteIso ..
+    | .finiteNatTrans .. | .finiteMonad .. | .finiteKleisli .. => true
+    | _ => false
+
+def resolveFiniteEntries (index : Namespace.Indexed) (decls : List (Indexed.DeclId × Indexed.Source.Declaration)) :
+    Namespace.Result Indexed.Environment := do
+  if decls.isEmpty then return []
+  let graphs := Indexed.Source.graphSources decls
+  let cache ← (Indexed.Source.buildProjectionCache index graphs decls).run' []
+  decls.mapM (resolveFiniteEntry index graphs cache)
+
+def finiteEntriesMatch (index : Namespace.Indexed) (decls : List (Indexed.DeclId × Indexed.Source.Declaration))
+    (actual : Indexed.Environment) : Bool :=
+  match resolveFiniteEntries index decls with
+  | .error _ => false
+  | .ok entries => entries == coreFiniteEntries actual
+
 /-- Check against the exact final Core consumed by emission. Other kinds of
 declarations and synthetic packages may occur between the physical entries. -/
 def definitionsMatch {input : Program} {main : Bool} (checked : Checked input main) : Bool :=
-  resolvedSublist (writtenDefinitions input checked.pureProgram.compiler.input.body.index)
-    checked.pureProgram.compiled.core.module.declarations.indexed
+  let index := checked.pureProgram.compiler.input.body.index
+  let actual := checked.pureProgram.compiled.core.module.declarations.indexed
+  resolvedSublist (writtenDefinitions input index) actual &&
+    finiteEntriesMatch index (finiteDeclarations input) actual
 
 structure CheckedInput (json : Json) (requireMain : Bool) where
   input : Program
@@ -705,22 +757,38 @@ structure CheckedInput (json : Json) (requireMain : Bool) where
   `legacy_geometry` has no part, and the checked passes. -/
   namespaceReceipt : Namespace.RequestReceipt input.pureProgram.source.headers.indexed json (namespaceUnits checked)
 
+/-- Continue admission from the exact decoded request so that choosing the
+entry rule never requires a second source scan. -/
+def checkDecoded {json : Json} {input : Program} (decoded : program json = .ok input)
+    (requireMain : Bool) : Except Diagnostic (CheckedInput json requireMain) :=
+  match Namespace.checkRequest input.pureProgram.source.headers.indexed json
+      (fun _ => ResourceSource.check input requireMain) namespaceUnits with
+  | .error diagnostic => .error diagnostic
+  | .ok result => do
+    let assembly ← AssemblySource.check json result.value.pureProgram.authority.headers.assembled.prepared.core.assembly
+    match edits : EditSourceFiles.check json input with
+    | .error diagnostic => .error diagnostic
+    | .ok () =>
+      if definitions : definitionsMatch result.value = true ∧ packageShapesMatch result.value = true then
+        if h : RevisionMatches json result.value then
+          .ok ⟨input, decoded, result.value, result.accepted, assembly, edits, definitions.1, definitions.2, h, result.receipt⟩
+        else .error { code := "E_FUNCTION_REVISION", message := "supplied function revision differs from the checked input or its selected methods" }
+      else .error { code := "E_MODULE_SOURCE", message := "source indexed definition differs from the returned Core" }
+
 def check (json : Json) (requireMain : Bool) : Except Diagnostic (CheckedInput json requireMain) :=
   match decoded : program json with
   | .error message => .error {code := "E_PROTOCOL", message}
-  | .ok input => match Namespace.checkRequest input.pureProgram.source.headers.indexed json
-        (fun _ => ResourceSource.check input requireMain) namespaceUnits with
-    | .error diagnostic => .error diagnostic
-    | .ok result => do
-      let assembly ← AssemblySource.check json result.value.pureProgram.authority.headers.assembled.prepared.core.assembly
-      match edits : EditSourceFiles.check json input with
-      | .error diagnostic => .error diagnostic
-      | .ok () =>
-        if definitions : definitionsMatch result.value = true ∧ packageShapesMatch result.value = true then
-          if h : RevisionMatches json result.value then
-            .ok ⟨input, decoded, result.value, result.accepted, assembly, edits, definitions.1, definitions.2, h, result.receipt⟩
-          else .error { code := "E_FUNCTION_REVISION", message := "supplied function revision differs from the checked input or its selected methods" }
-        else .error { code := "E_MODULE_SOURCE", message := "source indexed definition differs from the returned Core" }
+  | .ok _ => checkDecoded decoded requireMain
+
+theorem check_of_decoded {json : Json} {input : Program} (decoded : program json = .ok input) (main : Bool) :
+    check json main = checkDecoded decoded main := by
+  unfold check
+  split
+  · rename_i _ h
+    simp [decoded] at h
+  · rename_i _ h
+    cases Except.ok.inj (h.symm.trans decoded)
+    rfl
 
 /-- Public generation consumes the budgeted wire request's exact checked program. -/
 def emit (json : Json) : Except Diagnostic Codegen.Generated := do

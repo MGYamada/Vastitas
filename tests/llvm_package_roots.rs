@@ -217,13 +217,43 @@ fn assembled_predicate_and_nominal_multi_axis_lookup_share_the_checked_module() 
         .unwrap();
     success(&revision);
     std::fs::write(project.0.join("checked.json"), &revision.stdout).unwrap();
-    for (source, expected) in [
-        (SOURCE.to_owned(), 42),
+    let probe_fifth_row = SOURCE
+        .replace(
+            "Row::hi, Column::middle, Bit::on",
+            "Row::lo, Column::right, Bit::on",
+        )
+        .replace("() => d9", "() => d5");
+    let two_joins = common::checked_replace(
+        SOURCE,
+        "if choose(true, hit) && !choose(true, false) { 42 } else { 7 }",
+        "let pick = if hit { choose(true, false) } else { choose(false, true) };\n    if pick { 19 } else { 23 }",
+    );
+    for (source, expected, linked_methods) in [
+        (SOURCE.to_owned(), 42, 2),
         (
             SOURCE.replace("(hi, middle, on) => d9", "(hi, middle, on) => d8"),
             7,
+            2,
         ),
-        (SOURCE.replace("!a || b", "!a && b"), 7),
+        (SOURCE.replace("!a || b", "!a && b"), 7, 2),
+        (
+            SOURCE.replace("choose(true, false)", "choose(false, true)"),
+            7,
+            2,
+        ),
+        (
+            two_joins.replace("(hi, middle, on) => d9", "(hi, middle, on) => d8"),
+            19,
+            2,
+        ),
+        (two_joins, 23, 2),
+        (
+            probe_fifth_row.replace("(lo, right, on) => d5", "(lo, right, on) => d6"),
+            7,
+            2,
+        ),
+        (probe_fifth_row, 42, 2),
+        (SOURCE.replace("apply selected;", ""), 7, 1),
     ] {
         project.write("app/main.vast", &source);
         assert_eq!(
@@ -243,7 +273,7 @@ fn assembled_predicate_and_nominal_multi_axis_lookup_share_the_checked_module() 
             ])
             .output()
             .unwrap();
-        if expected == 42 {
+        if source == SOURCE {
             success(&pin);
         } else {
             expect_code(&pin, "E_FUNCTION_REVISION");
@@ -252,10 +282,14 @@ fn assembled_predicate_and_nominal_multi_axis_lookup_share_the_checked_module() 
         let result = preview(&project);
         success(&result);
         let ll = std::str::from_utf8(&result.stdout).unwrap();
-        assert_eq!(ll.matches("define internal i1 @").count(), 2);
+        assert_eq!(ll.matches("define internal i1 @").count(), linked_methods);
         assert!(ll.contains("switch i32 0 , label %miss"));
         assert_eq!(ll.matches("icmp ult i32").count(), 3);
         assert_eq!(ll.matches("mul i32").count(), 2);
+        if matches!(expected, 19 | 23) {
+            assert_eq!(ll.matches(" = phi i1 ").count(), 1);
+            assert_eq!(ll.matches(" = phi i32 ").count(), 1);
+        }
         #[cfg(feature = "llvm-native")]
         {
             let result = project

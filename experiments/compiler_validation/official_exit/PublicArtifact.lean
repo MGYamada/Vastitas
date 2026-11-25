@@ -6,9 +6,10 @@ open VastitasKernel Indexed MidIR LLVM VastitasQualification.ExitFixture Vastita
 set_option maxHeartbeats 8000000
 set_option maxRecDepth 30000
 
-theorem emitted (a receipt) (h : ResourceSource.Wire.check wire true = .ok (request a receipt)) :
-    Emission.check wire target true = .ok (.executable (actualArtifact a receipt) llvmText (returnedParse a receipt)) := by
-  exact Emission.check_literal h (actualArtifact a receipt) (actualExit a receipt)
+theorem emitted (a receipt) {requireExecutable : Bool}
+    (h : ResourceSource.Wire.check wire true = .ok (request a receipt)) :
+    Emission.check wire target requireExecutable = .ok (.executable (actualArtifact a receipt) llvmText (returnedParse a receipt)) := by
+  exact Emission.check_literal h (by rfl) (actualArtifact a receipt) (actualExit a receipt)
     (by rfl) (by rfl) (by rfl) llvmText (returnedParse a receipt)
 
 theorem observesArtifact : Observes wire target bytes value := by

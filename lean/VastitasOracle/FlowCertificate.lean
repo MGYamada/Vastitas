@@ -95,20 +95,10 @@ theorem published_function {s : Subject} (v : Valid s) {requireMain : Bool}
   obtain ⟨_, _, funcs, hf, _, _, _, _, endFlow⟩ := mapped
   rw [← p.graph, ← Option.some.inj endFlow] at emitted
   obtain ⟨exe, atExe, lowered⟩ := Option.bind_eq_some_iff.mp ((map_at hf i).trans emitted)
-  have converted := p.artifact.linked.executed
-  simp only [Module.execute, bind, Option.bind_eq_some_iff] at converted
-  obtain ⟨_, _, _, hfs, endExec⟩ := converted
-  rw [← Option.some.inj endExec] at atExe
-  obtain ⟨opt, atOpt, step⟩ := Option.bind_eq_some_iff.mp ((map_at hfs i).trans atExe)
-  have targetEq : exe.target = opt.target := by
-    simp only [Function.execute, bind, Option.bind_eq_some_iff] at step
-    obtain ⟨_, _, _, _, _, _, last⟩ := step
-    cases Option.some.inj last
-    rfl
-  obtain ⟨id, orig, key, target, original, found, same, origin, valid, signature, relocated⟩ :=
-    VastitasKernel.MidIR.PackageLink.aligned_target p.req _ _ p.artifact.linked.lowering i opt atOpt
+  obtain ⟨id, orig, key, target, opt, original, found, same, origin, valid, signature, atOpt, relocated, targetEq⟩ :=
+    PackageLink.executed_origin p.artifact.linked atExe
   exact ⟨id, orig, key, target, opt, exe, original, found, same, origin, valid, signature,
-    atOpt, relocated, Option.some.inj endExec ▸ atExe, targetEq, lowered,
+    atOpt, relocated, atExe, targetEq, lowered,
     (execute_identity _ _ p.artifact.linked.executed).2.symm.trans p.revision,
     p.revision, (corresponds v p).1⟩
 

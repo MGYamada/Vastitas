@@ -14,6 +14,22 @@ private def env : Environment :=
   [⟨owner "Bit", .finiteCarrier ["off", "on"]⟩, ⟨owner "Other", .finiteCarrier ["off", "on"]⟩]
 private def check := RegressionSupport.check "finite MidIR regression"
 
+#eval check "finite declaration replay compares rows, carrier order and nominal owners in final Core" (Id.run do
+  let tag (n : String) : Source.FiniteTag := ⟨n, {}⟩
+  let carrier : Source.Declaration := ⟨"Bit", .finiteCarrier [tag "off", tag "on"], true, {}⟩
+  let point : Source.Declaration := ⟨"point", .finiteTable [] ⟨["Bit"], {}⟩ [⟨[], tag "on", {}⟩], true, {}⟩
+  let module : Source.Module := ⟨{ (default : Namespace.Module) with path := [], isPublic := true }, [point, carrier], []⟩
+  let id := (owner "point").scope.package
+  let program : Source.Program := ⟨"main.vast", id.source, [⟨id, [], [module], none⟩], false, false, false⟩
+  let matchesCore := ResourceSource.Wire.finiteEntriesMatch program.indexed program.owned
+  let table (result : String) : Entry := ⟨owner "point", .finiteTable [] (owner "Bit") [([], result)]⟩
+  let bits : Entry := ⟨owner "Bit", .finiteCarrier ["off", "on"]⟩
+  return matchesCore [table "on", bits] && !matchesCore [table "off", bits] &&
+    !matchesCore [table "on", ⟨owner "Bit", .finiteCarrier ["on", "off"]⟩] &&
+    !matchesCore [⟨owner "unrelated", (table "on").declaration⟩, bits] && !matchesCore [bits] &&
+    !matchesCore [table "on", bits, ⟨owner "Extra", .finiteCarrier ["other"]⟩] &&
+    !ResourceSource.Wire.finiteEntriesMatch program.indexed [] [bits])
+
 #guard ExactFold.literalComparison .ne (.ascribe (.pure .nat) (.natural (2^128))) (.natural 0) == some true
 #guard ExactFold.literalComparison .eq (.natural (2^128)) (.natural (2^128)) == some true
 #guard (ExactFold.literalComparison .eq (.integer 0) (.natural 0)).isNone

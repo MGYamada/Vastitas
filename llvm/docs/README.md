@@ -1,6 +1,6 @@
 # Lean-verified LLVM IR corpus
 
-The corpus contains 37 complete LLVM assembly files from edition 2026 Vastitas source. Lean proves parser acceptance for eight files and equality with a canonical model printout for the other 29. Replay parses each of those 29 files and evaluates its executable models. The structured lookup and direct Kleisli operand each have macOS arm64 and x86-64 Linux files. The other samples target macOS arm64. [Files](../src/) · [Concrete proofs](../Corpus.lean)
+The corpus contains 38 complete LLVM assembly files from edition 2026 Vastitas source. Lean proves parser acceptance for eight files and equality with a canonical model printout for the other 30. Replay parses each of those 30 files and evaluates its executable models. The structured lookup and direct Kleisli operand each have macOS arm64 and x86-64 Linux files. The other samples target macOS arm64. [Files](../src/) · [Concrete proofs](../Corpus.lean)
 
 ## Modules
 
@@ -57,6 +57,14 @@ passes the public compiler and gives its own exit value, 42 or 7. Their LLVM
 modules differ only in the one-byte Boolean call argument. The handoff test
 supplies each module as the other's readback and requires rejection before an
 object is created. [Emission and readback theorem](../../lean-kernel/VastitasKernel/LLVM/Emission.lean) · [Native handoff regression](../check_exact_native.py)
+
+For an executable, `llvm-check` and `llvm-build` run the same source and
+Core checks and return the same model, target header and complete LLVM text.
+This also covers resource entries. A library with only a nested or dependency
+`main` has no executable entry. In Lean 4.35.0, `emitLLVM` links the runtime
+bitcode into the module, verifies the combined module and writes bitcode.
+Vastitas checks the complete printed assembly before the driver calls
+libLLVM. [Action and readback theorems](../../lean/VastitasOracle/Emission.lean) · [Lean module output](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1640-L1676)
 
 The table's nominal input and output types are checked before lowering to the foreign `i32` ABI. The general `correspondence` theorems connect the selected Core function and both MidIR phases to the parsed module for every in-domain ordinal. Their `foreign_miss` theorems cover out-of-domain inputs. For the empty carrier, the latter theorem covers all 32-bit words. [Unary function theorems](../../lean/VastitasOracle/UnaryFunction.lean) · [Static call theorems](../../lean/VastitasOracle/CallFunction.lean)
 
@@ -115,7 +123,13 @@ bytes. Direct Lean bitcode generation required a toolchain built with
 `-DLLVM=ON`.
 [Finite function regression](../../tests/finite_binders.rs) · [Pinned argument load](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L576-L581) · [Pinned return](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1176-L1178)
 
-In the structured lookup, three unsigned comparisons guard the row-major index `(row * 3 + column) * 2 + bit`. The nullary table switches on the literal zero. Lean 4.35.0's `emitCase` zero-extends one discriminant to `i64` before building its switch. Here the closed function takes three `i32` parameters and switches on their checked `i32` index. A Lean reference using constructor cases returned 42 with `lean --run`. Generating bitcode with `lean -b` stopped at the toolchain’s LLVM build check, so the comparison uses the pinned emitter source. [Structured lookup IR](../src/structured-lookup.ll) · [Pinned emitCase](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1104-L1127)
+In the structured lookup module, the helper for the three-axis table appears before `@f0`. Both calls to the selected `choose` method target `@f1`. The nullary table helper appears before the caller `@f2`, and the retained fallback is `@f3`. Lean proves the helper and body order for the entire finite module and relates the selected method to its Core specialization under the same revision. Each parsed body block has exactly the calls of its execution MidIR block, with the same callee, result register, operand order and ABI widths. Swapping the two live `i1` operands of the second `@f1` call still parses and changes the modeled exit from 42 to 7 on both targets. Replacing the first operand’s width with `i32` fails to parse. Lean 4.35.0’s `emitFullApp` looks up the callee by `FunId`, loads the arguments in order and emits a typed call for this nonempty argument list. [Vastitas block proof](../../lean/VastitasOracle/FiniteCalls.lean) · [Operand replay](../fixtures/StructuredCallOrder.lean) · [Finite module proof](../../lean/VastitasOracle/FiniteProgram.lean) · [Lean direct calls](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L755-L773)
+
+The helper `@t0_0_3` maps the tuple `(lo, right, on)` to zero-based index 5. Changing that row from `d5` to `d6` changes only the return in `%case5`. The original entry reads index 9 and still returns 42. Replay calls the helper on all twelve tuples and four out-of-range inputs on each target. A second source entry reads index 5. Apple Clang 21.0.0 compiled the 2,623-byte macOS modules for this entry. They returned 42 for the original row and 7 for its replacement. The proof identifies the declaring source, the SSA operands at the call, the helper in the published module, and the case for each nominal input. [Lookup proof](../../lean/VastitasOracle/FiniteProgram.lean) · [Source replay](../../tests/llvm_package_roots.rs)
+
+The two integer arms converge at `%b3`. Its `i32` phi takes `%v1_0` from `%b1` and `%v2_0` from `%b2`. Substituting the dominating `%v0_4` on the first edge changes the modeled exit from 42 to 9. Using the other arm’s register or duplicating a predecessor fails validation for both target files. A source variant first joins two Boolean method results, then joins the integers 19 and 23. Apple Clang 21.0.0 compiled the 2,709-byte host module for each table variant. They returned 23 and 19 respectively, matching the Lean controls. The general proof recovers every leading phi and its incoming operands from the block parameters and outgoing edges of either MidIR phase. Lean 4.35.0’s `emitJmp` checks jump arity and writes each argument to its join parameter’s slot before branching. [Finite join proof](../../lean/VastitasOracle/FiniteJoins.lean) · [Lean jump emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1050-L1060)
+
+In the structured lookup, three unsigned comparisons guard the row-major index `(row * 3 + column) * 2 + bit`. The nullary table switches on the literal zero. Lean 4.35.0's `emitCase` zero-extends one discriminant to `i64` before building its switch. Here the closed function takes three `i32` parameters and switches on their checked `i32` index. The Lean control computes the digit from constructor cases. It returned 42 for the selected method and 7 for the fallback, as did the two Vastitas modules compiled with Apple Clang 21.0.0 using its host target header. Generating bitcode with `lean -b` stopped at the toolchain’s LLVM build check, so the comparison uses the pinned emitter source. [Structured lookup IR](../src/structured-lookup.ll) · [Lean comparison](../../experiments/compiler_validation/llvm/StructuredLookupComparison.lean) · [Pinned emitCase](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1104-L1127)
 
 LLVM 23.1.4 assembled and verified the retained 2,623 bytes on macOS arm64. The 1,416-byte object linked and returned 42. A separate copy with test wrappers exercised all 12 valid coordinates, 68 out-of-range tuples, both Boolean methods on all four input pairs and the nullary result 9. The public llvm-sys build returned 42 with the original function revision. Changing the selected predicate or one table row gave exit 7 with its own revision. Both changes caused the build to reject the original revision before installing an executable. [Public package regressions](../../tests/llvm_package_roots.rs) · [Lean model regressions](../../lean-kernel/VastitasKernel/LLVM/FiniteModuleRegression.lean)
 
@@ -442,6 +456,12 @@ arguments. The entry passes the branch results to one explicit phi. An
 Lean 4.35.0 emits `switch` for tagged cases and stores join arguments on a
 jump. Its pinned binary reports no LLVM backend feature.
 [Lean tagged cases](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1090-L1137) · [Lean join arguments](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1050-L1060)
+
+For a checked finite entry, Lean resolves the declarations from the supplied
+`.vast` files, including unused tables. Their owners, tags, rows and instance
+fields agree in order with the finite entries in Core and both MidIR phases.
+The theorem follows the same execution MidIR to the LLVM model and its complete
+printed bytes. [Source and Core correspondence](../../lean/VastitasOracle/ResourceSource.lean) · [Finite entry and LLVM bytes](../../lean/VastitasOracle/FiniteProgram.lean)
 
 Two valid affine isomorphisms can exchange their forward and inverse maps.
 A Cartesian square can also select a second declaration of the same inverse

@@ -384,18 +384,38 @@ def check_file_sample(work, check, metric, size, count, reference):
     return official["integer_result"]
 
 
+def reject_oversized_file(work, path, command, args):
+    with path.open("r+b") as stream:
+        limit = stream.seek(0, os.SEEK_END)
+        require(limit == 16 * 1024**2, "expected a file at the protocol limit")
+        stream.write(b" ")
+        stream.flush()
+        try:
+            request = [*command, "--llvm-proof-input", "--target-triple", args.target_triple,
+                       "--data-layout", args.data_layout]
+            result = subprocess.run(request, cwd=work, capture_output=True, timeout=args.timeout)
+        finally:
+            stream.truncate(limit)
+    require(result.returncode != 0 and not result.stdout and b"E_LIMIT" in result.stderr,
+            f"{path.name}: expected E_LIMIT before publishing any bytes")
+
+
 def check_dependency_scale(work, args, check, sizes):
     args.manifest_path, manifest, unit = dependency_files(
         work, "pub fn main() -> Int { dep::units::helper(21) }\n", DEPENDENCY_UNIT, DEPENDENCY_MANIFEST)
     args.source = None
-    reference = subprocess.check_output(
-        [args.frontend, "check", "--manifest-path", args.manifest_path.name, "--llvm-preview",
-         "--target-triple", args.target_triple, "--data-layout", args.data_layout], cwd=work, timeout=args.timeout)
+    command = [args.frontend, "check", "--manifest-path", args.manifest_path.name]
+    reference = subprocess.check_output([*command, "--llvm-preview", "--target-triple", args.target_triple,
+                                         "--data-layout", args.data_layout], cwd=work, timeout=args.timeout)
     for size in sizes:
         write_padded_source(manifest, DEPENDENCY_MANIFEST.encode(), size, comment=b"#")
         write_padded_source(unit, DEPENDENCY_UNIT.encode(), size)
         result = check_file_sample(work, check, "dependency-file-bytes", size, 5, reference)
         require(result == "42", "expected 42 from the dependency helper")
+        if size == 16 * 1024**2:
+            for path in (manifest, unit):
+                reject_oversized_file(work, path, command, args)
+            print("dependency manifest and module size limits enforced", flush=True)
 
 
 def check_file_scale(work, args, check, counts, library_bytes, entry_bytes, aggregate_bytes, packaged):
@@ -445,12 +465,7 @@ def check_file_scale(work, args, check, counts, library_bytes, entry_bytes, aggr
                                      capture_output=True, timeout=args.timeout)
             require(receipt.returncode != 0 and not receipt.stdout and b"16 MiB receipt limit" in receipt.stderr,
                     "the standalone receipt must retain its size limit")
-            with source.open("ab") as stream:
-                stream.write(b" ")
-            over = subprocess.run([*cmd, "--llvm-proof-input", "--target-triple", args.target_triple,
-                                   "--data-layout", args.data_layout], cwd=work, capture_output=True, timeout=args.timeout)
-            require(over.returncode != 0 and not over.stdout and b"E_LIMIT" in over.stderr,
-                    "a source one byte over the file limit must fail before publication")
+            reject_oversized_file(work, source, cmd, args)
             print("standalone receipt and source size limits enforced", flush=True)
         if aggregate_bytes and size == 64 * 1024**2:
             extra = work / "extra.vast"

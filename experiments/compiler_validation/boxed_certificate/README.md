@@ -218,7 +218,8 @@ transition using the protocol decoder. It uses the proved byte length of the
 actual text to restore the row and enforce both size limits. The inputs suite
 swaps the two same-length file contents independently and checks that Lean
 rejects each substitution. The size sweep compares every LLVM byte with a
-public compilation of the same package before either file is padded.
+public compilation of the same package before either file is padded. Adding one
+byte to either dependency file at 16 MiB produces `E_LIMIT` and no proof input.
 
 On macOS arm64 both verifiers checked all 1,127 LLVM bytes and the same export
 at each size. The worker timeout was 120 seconds and the Lean allocator limit

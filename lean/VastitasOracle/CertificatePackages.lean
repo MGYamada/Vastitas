@@ -26,16 +26,16 @@ def flatLibraryRow (offset : Nat) (path text : String) : Json :=
 
 /-- Decode the fixed JSON fields once for every such library. Each application
 checks its own path bytes, offsets and cumulative size at the actual cursor. -/
-theorem flatLibraryStep (filename entryText path text : String) (count base offset used : Nat)
+theorem flatLibraryStep (filename entryText path text : String) (count base offset used size : Nat)
     (files : Array File) (entry : Option Nat)
+    (extent : text.utf8ByteSize = size)
     (notEntry : (offset == base) = false) (many : (count == 1) = false)
     (validPath : (path.isEmpty || path.toUTF8.data.contains 0) = false)
-    (fits : (decide (text.utf8ByteSize > 16 * 1024 * 1024) ||
-             decide (used + text.utf8ByteSize > 64 * 1024 * 1024)) = false) :
+    (fits : (decide (size > 16 * 1024 * 1024) || decide (used + size > 64 * 1024 * 1024)) = false) :
     (Table.mk filename flatPackageId.source base entryText count {}).step
         ⟨files, offset, used, entry, {}⟩ (flatLibraryRow offset path text) =
-    .ok ⟨files.push ⟨path.toUTF8, offset, text⟩, offset + text.utf8ByteSize + 1,
-         used + text.utf8ByteSize, entry, {}⟩ := by
+    .ok ⟨files.push ⟨path.toUTF8, offset, text⟩, offset + size + 1, used + size, entry, {}⟩ := by
+  subst size
   have keys : fields (flatLibraryRow offset path text) ["offset", "path", "text"] = .ok () := by rfl
   have off : (flatLibraryRow offset path text).getObjValAs? Nat "offset" = .ok offset := by rfl
   have label : field (flatLibraryRow offset path text) "path" = .ok (.str path) := by rfl

@@ -334,19 +334,25 @@ def physical_proof(wire, inputs, quote, physical):
     total = 0
     batches = []
     missing = "table.manifests"
+    extent_proofs = {}
     for i, (row, (label, offset, text)) in enumerate(zip(rows, inputs.files, strict=True)):
         lines.append(f"def expectedFiles{i+1} := expectedFiles{i}.push {physical[i]}")
         # Only the exact canonical wire shape can use the shared decoder proof.
         # Build the JSON from the captured wire and the output cursor from disk.
         flat_library = (flat and i != inputs.entry and set(row) == {"offset", "path", "text"}
                         and isinstance(row["path"], str))
+        size = len(text.encode("utf-8"))
         if flat_library:
+            if text not in extent_proofs:
+                extent_proofs[text] = f"fileExtent{i}"
+                lines.append(f"theorem fileExtent{i} : {quote(text)}.utf8ByteSize = {size} := by with_unfolding_all rfl")
+            wire_path = quote(row["path"])
             row_term = (f"VastitasOracle.CertificatePackages.flatLibraryRow {natural(row['offset'])} "
-                        f"{quote(row['path'])} {quote(row['text'])}")
+                        f"{wire_path} {quote(row['text'])}")
             proof = (f"VastitasOracle.CertificatePackages.flatLibraryStep table.filename table.entryText "
-                     f"{quote(label.decode('utf-8'))} {quote(text)} table.count table.base "
-                     f"{natural(offset)} {total} expectedFiles{i} cursor{i}.entry rfl rfl "
-                     "(by with_unfolding_all rfl) (by with_unfolding_all rfl)")
+                     f"{wire_path} {quote(text)} table.count table.base "
+                     f"{natural(offset)} {total} {size} expectedFiles{i} cursor{i}.entry {extent_proofs[text]} "
+                     "rfl rfl (by with_unfolding_all rfl) rfl")
         else:
             row_term = official.json_term(row, quote)
             proof = "by with_unfolding_all rfl"
@@ -357,7 +363,6 @@ def physical_proof(wire, inputs, quote, physical):
             missing = f"missing{i+1}"
         if i == inputs.entry:
             entry = f"some {i}"
-        size = len(text.encode("utf-8"))
         total += size
         lines.extend([
             f"def cursor{i+1} : PhysicalSources.Cursor := "

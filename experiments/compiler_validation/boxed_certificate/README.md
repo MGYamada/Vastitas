@@ -63,7 +63,8 @@ size. `--file-counts` accepts increasing counts through the physical decoder's
 batch imports its predecessor and proves its part of the ordered scan for any
 continuation. The reconstructed wire and the scan refer to the same JSON rows. For a flat
 library with a UTF-8 path, a shared theorem decodes the three JSON fields. The
-row proof checks that file’s path, offset and cumulative size.
+row proof checks that file’s path, offset and cumulative size. Equal source
+texts share one proof of their UTF-8 byte length.
 The expected files come from separate reads of the source files. With the default
 1,536 MiB Lean setting on macOS arm64, a 2,048-file run before sharing the flat-library decoder replayed the same
 44,442,052-byte export in both modes. Official took 232 seconds overall and Fast

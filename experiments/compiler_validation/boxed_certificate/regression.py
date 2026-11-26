@@ -255,8 +255,9 @@ def run(work, suite, frontend, memory, file_counts=()):
     def reject_obligation(label, data, inputs, diagnostic, *, authority_fails=False):
         altered = work / label
         altered.mkdir()
-        (altered / "Authority.lean").write_text(
-            verify.authority(revision, model, args.target_triple, args.data_layout, data, inputs))
+        [(name, declaration)] = verify.authority_modules(revision, model, args.target_triple, args.data_layout, data, inputs)
+        require(name == "Authority", "single-file mutation must use one authority module")
+        (altered / "Authority.lean").write_text(declaration)
         (altered / "Certificate.lean").write_text(verify.certificate())
         env = verify.environment(altered, prefix)
         result = run_proof_worker([*lean, "-o", "Authority.olean", "Authority.lean"], cwd=altered,
@@ -385,7 +386,12 @@ def check_physical_inputs(work, args, source, check):
     library = work / "helper.vast"
     library.write_text(helper)
     source.write_text("fn main() -> Int { helper(21) }")
-    args.lib = [library]
+    # Place the edited helper just across the production proof-batch boundary.
+    # Reuse the same CI checks for positive and stale flat-library revisions.
+    libraries = [work / f"empty{i}.vast" for i in range(verify.ROWS_PER_MODULE - 1)]
+    for empty in libraries:
+        empty.write_text("// no declarations\n")
+    args.lib = [*libraries, library]
     manifest = work / "Vastitas.toml"
     dep = work / "dep"
     dep.mkdir()
@@ -395,7 +401,7 @@ def check_physical_inputs(work, args, source, check):
     (dep / "main.vast").write_text("pub mod units;")
     (dep / "units.vast").write_text("pub " + helper)
     for label, changed_file, replacement, count in [
-            ("library", library, helper.replace("λ1", "λ2"), 2),
+            ("library", library, helper.replace("λ1", "λ2"), len(args.lib) + 1),
             ("manifest", dep_manifest, metadata + "# revision B", 5)]:
         if label == "manifest":
             manifest.write_text(metadata.replace('"dep"', '"app"') + '[dependencies]\ndep={path="dep"}\n')

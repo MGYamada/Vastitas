@@ -55,11 +55,15 @@ including the external checkers, whose memory use is outside Lean's allocator li
 The following qualification increases the number of physical inputs while keeping
 the four-function program and all 1,830 LLVM bytes fixed. Each size runs Official
 and Fast on the same export and reports its byte length, the largest worker RSS
-and the worker name. The runner releases each pair of exports before the next
+and the worker name, along with elapsed time for each mode. The runner releases each pair of exports before the next
 size. `--file-counts` accepts increasing counts through the physical decoder's
-8,192-file limit. Under the default Lean budget, both modes verified 512 files
-with a 39,860,934-byte export. A single authority elaboration ran out of memory
-at 2,048 files.
+8,192-file limit. Each Lean worker elaborates up to 128 row transitions. Every
+batch imports its predecessor and proves its part of the ordered scan for any
+continuation. The reconstructed wire and the scan refer to the same JSON rows.
+The expected files come from separate reads of the source files. With the default
+1,536 MiB Lean setting on macOS arm64, a 2,048-file run replayed the same
+44,442,052-byte export in both modes. Official took 232 seconds overall and Fast
+took 202 seconds. The largest measured worker used 1,456 MiB RSS.
 
 ```sh
 python3 experiments/compiler_validation/boxed_certificate/regression.py --file-counts 1 2 8 32
@@ -81,7 +85,7 @@ compatibility flag against the same header and package decoders as the public co
 Given a publication, both the straight-line and control-flow theorems identify
 these owners with those in its checked program. [Package graph proof](../../../lean/VastitasOracle/CertificatePackages.lean)
 
-The inputs suite calls the same integer helper through a flat library and through an external module in a dependency. The package has five physical inputs. Editing a comment in its dependency manifest changes the function revision and preserves all 1,127 LLVM bytes. The suite checks both verifier modes and rejects the earlier proof after that edit.
+The inputs suite calls the same integer helper through a flat library and through an external module in a dependency. The flat case places the edited helper in file 129, immediately after the first proof batch. The package has five physical inputs. Editing a comment in its dependency manifest changes the function revision and preserves all 1,127 LLVM bytes. The suite checks both verifier modes and rejects the earlier proof after that edit.
 
 The boxed publication theorem places each resolved implementation, classification and indexed family
 in Core and in both MidIR environments for the same revision and complete bytes.
@@ -103,8 +107,9 @@ equal manifold witness. Each of the eleven edits preserves the 2,311 LLVM bytes 
 The assembly suite replays the same certificate in both modes for a three-package program. Six physical files fix the owner of the family, the contribution selected by the borrow block, and the protected `Int + Int` operation. The 2,051 certified LLVM bytes contain the selected method and all four specializations of its unselected sibling. [Assembled program](../../../llvm/fixtures/borrowed-operator/main.vast) · [Checked LLVM](../../../llvm/src/borrowed-operator.ll)
 
 The physical layout proof checks each file at its incoming byte offset and tracks the
-remaining manifest names before composing the rows. On macOS arm64, Official and
-Fast replayed the same 5,884 declarations for the six-file example. The expected LLVM
+remaining manifest names before composing the rows. In the macOS arm64 comparison
+before batching, Official and Fast replayed the same 5,884 declarations for the
+six-file example. The expected LLVM
 lines use Lean string literals. On the same checkout, using balanced string appends
 for those lines took nanoda 9.5 seconds and 3,499 MiB peak RSS. Literal lines took
 3.0 seconds and 479 MiB for the full Fast worker. The result was 42 in both runs,

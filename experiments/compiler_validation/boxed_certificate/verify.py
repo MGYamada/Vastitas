@@ -272,10 +272,12 @@ def read_sources(wire, source, flat_names):
     for name, row in zip(names, rows, strict=True):
         path = source.parent / os.fsdecode(name)
         with os.fdopen(os.open(path, os.O_RDONLY | os.O_NONBLOCK), "rb") as stream:
-            require(stat.S_ISREG(os.fstat(stream.fileno()).st_mode), "expected regular compilation input")
+            info = os.fstat(stream.fileno())
+            require(stat.S_ISREG(info.st_mode), "expected regular compilation input")
             limit = min(16 * 1024**2, 64 * 1024**2 - total)
-            data = stream.read(limit + 1)
-        require(len(data) <= limit, "physical source byte limit exceeded")
+            require(info.st_size <= limit, "physical source byte limit exceeded")
+            data = stream.read(info.st_size + 1)
+        require(len(data) == info.st_size, "source size changed during certificate preparation")
         text = data.decode("utf-8")
         require(row["offset"] == offset, "physical source offset differs from current files")
         if offset == root["offset"]:
@@ -307,28 +309,37 @@ def string_literal(value):
     return f"({string_literal(value[:middle])} ++ {string_literal(value[middle:])})"
 
 
-def physical_proof(wire, inputs, quote):
-    """Prove the actual layout decoder's header, each transition and the final cursor."""
+# Elaboration retains the current module's declarations until the worker exits.
+# Keep file rows in bounded modules and compose their proofs in source order.
+ROWS_PER_MODULE = 128
+
+
+def physical_proof(wire, inputs, quote, physical):
+    """Construct an exact transition for each file and compose bounded runs."""
     statement = "theorem physicalInputs : PhysicalSources.layout wire = .ok sources := by"
     rows = wire["root_source"].get("files")
     if rows is None:
-        return statement + "\n  with_unfolding_all rfl"
+        return [], "", f"#[{', '.join(physical)}]", statement + "\n  with_unfolding_all rfl"
     owners = [p[0] for p in inputs.graph.packages] if inputs.graph.root != "vastitas:compat:flat" else []
     manifests = f"([{', '.join(map(quote, owners))}] : List String).foldl (fun s n => s.insert n) {{}}"
     table = (f"⟨{quote(inputs.graph.file)}, {quote(inputs.graph.root)}, {natural(inputs.files[inputs.entry][1])}, "
              f"{quote(inputs.files[inputs.entry][2])}, {len(rows)}, manifestNames⟩")
-    lines = [f"def manifestNames : PhysicalSources.ManifestSet := {manifests}",
+    lines = ["def expectedFiles0 : Array PhysicalSources.File := #[]",
+             f"def manifestNames : PhysicalSources.ManifestSet := {manifests}",
              f"def table : PhysicalSources.Table := {table}",
              "def cursor0 : PhysicalSources.Cursor := {missing := table.manifests}"]
     names = set(owners)
     entry = "none"
     total = 0
+    batches = []
+    missing = "table.manifests"
     for i, (row, (label, offset, text)) in enumerate(zip(rows, inputs.files, strict=True)):
+        lines.append(f"def expectedFiles{i+1} := expectedFiles{i}.push {physical[i]}")
         lines.append(f"def row{i} : Json := {official.json_term(row, quote)}")
-        missing = f"cursor{i}.missing"
         name = os.fsdecode(label)
         if name in names:
-            missing = f"({missing}.erase {quote(name)})"
+            lines.append(f"def missing{i+1} := {missing}.erase {quote(name)}")
+            missing = f"missing{i+1}"
         if i == inputs.entry:
             entry = f"some {i}"
         size = len(text.encode("utf-8"))
@@ -338,17 +349,48 @@ def physical_proof(wire, inputs, quote):
             f"⟨expectedFiles{i+1}, {offset+size+1}, {total}, {entry}, {missing}⟩",
             f"theorem rowStep{i} : table.step cursor{i} row{i} = .ok cursor{i+1} := by with_unfolding_all rfl",
         ])
-    row_names = ", ".join(f"row{i}" for i in range(len(rows)))
-    lines.extend([f"def rows := #[{row_names}]",
-                  "theorem prepared : PhysicalSources.prepare wire = .ok (.inr (table, rows)) := by with_unfolding_all rfl",
-                  statement, "  apply VastitasOracle.CertificatePackages.table_layout prepared (last := cursor"
-                  + str(len(rows)) + ")"])
-    chain = "".join(f"VastitasOracle.CertificatePackages.prepend_row rowStep{i} (" for i in range(len(rows)))
-    lines.extend(["  · exact " + chain + "by rfl" + ")" * len(rows), "  · rfl"])
-    return "\n".join(lines)
+        end = i + 1
+        if end % ROWS_PER_MODULE == 0 or end == len(rows):
+            start = len(batches) * ROWS_PER_MODULE
+            prefix = "".join(f"row{j} :: " for j in range(start, end))
+            steps = "".join(f"VastitasOracle.CertificatePackages.prepend_row rowStep{j} (" for j in range(start, end))
+            lines.extend([
+                f"def rowsFrom{start} (tail : List Json) := {prefix}tail",
+                f"theorem scanFrom{start} {{tail : List Json}} {{last : PhysicalSources.Cursor}}",
+                f"    (h : tail.foldlM table.step cursor{end} = .ok last) :",
+                f"    (rowsFrom{start} tail).foldlM table.step cursor{start} = .ok last :=",
+                "  " + steps + "h" + ")" * (end-start),
+            ])
+            batches.append("\n".join(lines))
+            lines = []
+    starts = range(0, len(rows), ROWS_PER_MODULE)
+    data = "".join(f"rowsFrom{start} (" for start in starts) + "[]" + ")" * len(starts)
+    scan = "".join(f"scanFrom{start} (" for start in starts) + "by rfl" + ")" * len(starts)
+    evidence = "\n".join([
+        "theorem prepared : PhysicalSources.prepare wire = .ok (.inr (table, rows)) := by with_unfolding_all rfl",
+        statement,
+        f"  apply VastitasOracle.CertificatePackages.table_layout prepared (last := cursor{len(rows)})",
+        f"  · exact {scan}",
+        "  · rfl",
+    ])
+    return batches, f"def rows : Array Json := ({data}).toArray", f"expectedFiles{len(rows)}", evidence
 
 
-def authority(revision, model, triple, layout, data, sources):
+def physical_wire(wire, quote):
+    # Reference the exact row definitions above in the captured JSON as well.
+    # Preserve every other field of both objects, including unfamiliar fields.
+    def object_with(fields, name, term):
+        pairs = [(official.lean_string(key), term if key == name else official.json_term(fields[key], quote))
+                 for key in sorted(fields)]
+        return "(Json.mkObj [" + ", ".join(f"({key}, {value})" for key, value in pairs) + "])"
+
+    if "files" not in wire["root_source"]:
+        return official.json_term(wire, quote)
+    root = object_with(wire["root_source"], "files", ".arr rows")
+    return object_with(wire, "root_source", root)
+
+
+def authority_modules(revision, model, triple, layout, data, sources):
     # Only closed data is interpolated. All identifiers and proof syntax are fixed.
     strings = {}
 
@@ -385,16 +427,6 @@ def authority(revision, model, triple, layout, data, sources):
         except UnicodeDecodeError:
             label = f"ByteArray.mk #{list(path)}"
         physical.append(f"⟨{label}, {natural(offset)}, {quote(text)}⟩")
-    # The expected snapshot comes from disk. Name its prefixes so each checked
-    # row proves a single push and the final cursor shares the complete array.
-    file_bindings = []
-    if "files" in revision["input"]["root_source"]:
-        file_bindings.append("def expectedFiles0 : Array PhysicalSources.File := #[]")
-        for i, file in enumerate(physical):
-            file_bindings.append(f"def expectedFiles{i+1} := expectedFiles{i}.push {file}")
-        expected_files = f"expectedFiles{len(physical)}"
-    else:
-        expected_files = f"#[{', '.join(physical)}]"
     namespace = "FlowCertificate" if flow else "BoxedCertificate"
     code_type = "ExactFlow" if flow else "ExactProgram"
     functions = []
@@ -406,23 +438,37 @@ def authority(revision, model, triple, layout, data, sources):
         args = ", ".join(KINDS[k] for k in f["params"])
         steps = ", ".join(map(instruction, f["ops"]))
         functions.append(f"⟨[{args}], {KINDS[f['result']]}, [{steps}], {natural(f['slot'])}⟩")
-    wire = official.json_term(revision["input"], quote)
+    wire = physical_wire(revision["input"], quote)
     triple_term, layout_term = quote(triple), quote(layout)
-    file_evidence = physical_proof(revision["input"], sources, quote)
+    batches, rows, expected_files, file_evidence = physical_proof(revision["input"], sources, quote, physical)
     bindings = "\n".join(f"def {name} : String := {string_literal(value)}" for value, name in strings.items())
-    file_definitions = "\n".join(file_bindings)
-    module = "FlowCertificate.Subject" if flow else namespace
-    return f"""import VastitasOracle.{module}
+    dependency = "VastitasOracle.FlowCertificate.Subject" if flow else "VastitasOracle.BoxedCertificate"
+
+    def module_source(dependency, body):
+        return f"""import {dependency}
 set_option Elab.async false
 set_option autoImplicit false
 set_option maxRecDepth 65536
 set_option maxHeartbeats 8000000
 namespace VastitasProof
 open Lean VastitasKernel VastitasKernel.LLVM VastitasOracle.{namespace}
-{bindings}
+{body}
+end VastitasProof
+"""
+
+    # Small packages need a single Lean invocation. At larger sizes each batch
+    # imports its predecessor, preserving every checked row in the final export.
+    parts = [bindings]
+    for index, batch in enumerate(batches):
+        parts.append(batch)
+        if len(batches) > 1:
+            name = f"PhysicalBatch{index}"
+            yield name, module_source(dependency, "\n".join(parts))
+            dependency = name
+            parts = []
+    parts.append(f"""{rows}
 def wire : Json := {wire}
 def revision : Json := Json.mkObj [{rev}]
-{file_definitions}
 def sources : PhysicalSources.Layout := ⟨{expected_files}, {natural(entry)}⟩
 def packages : VastitasOracle.CertificatePackages.Graph := {package_graph}
 def header : TargetHeader := ⟨⟨{triple_term}.toUTF8.data.toList, by decide⟩,
@@ -436,8 +482,8 @@ def subject : Subject := ⟨wire, revision, sources, packages, header, code,
 theorem packageOwners : VastitasOracle.CertificatePackages.read wire = .ok packages := by
   with_unfolding_all rfl
 def obligation : Prop := Valid subject
-end VastitasProof
-"""
+""")
+    yield "Authority", module_source(dependency, "\n".join(parts))
 
 
 def certificate(proof=PROOF, module="Authority"):
@@ -555,8 +601,9 @@ def verify(args, work, report):
     require(model["kind"] == graph and model["ir"].encode("utf-8") == data, "captured model and public LLVM bytes differ")
     report.update(bytes=len(data), llvm_sha256=official.digest(data), revision_sha256=official.digest(revision_path.read_bytes()),
                   functions=len(model["functions"]), integer_result=integer(model["value"]))
-    (work / "Authority.lean").write_text(authority(revision, model, args.target_triple, args.data_layout, data, sources))
-    phase("authority", [*lean, "-DwarningAsError=true", "-o", "Authority.olean", "Authority.lean"])
+    for module, source_text in authority_modules(revision, model, args.target_triple, args.data_layout, data, sources):
+        (work / (module + ".lean")).write_text(source_text)
+        phase(module.lower(), [*lean, "-DwarningAsError=true", "-o", module + ".olean", module + ".lean"])
     module = "Authority"
     proof = PROOF
     required_roots = [root.replace("BoxedCertificate", namespace) for root in ROOTS]

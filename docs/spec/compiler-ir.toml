@@ -1734,10 +1734,15 @@ issue = 282
 
 [property."compiler-ir.verification-modes".claim.boxed-stage]
 status = "proved-oracle"
-evidence = ["VastitasOracle.BoxedCertificate.corresponds"]
+evidence = [
+  "VastitasOracle.BoxedCertificate.corresponds",
+  "VastitasOracle.CertificatePackages.of_decoded",
+  "VastitasOracle.BoxedCertificate.published_packages",
+  "VastitasOracle.FlowCertificate.published_packages",
+]
 premises = ["The public emitter returns the checked boxed integer publication of this exact subject. The concrete execution-model certificate is valid."]
 assumes = ["rust-frontend"]
-note = "The wire decodes to the certified ordered physical paths, offsets, texts and entry. The certified full revision equals the artifact reconstructed from the independently checked program, including dispatch winners and operator sites. The certified Int agrees with the returned Core and both MidIR stages. The parser accepts all certified bytes as the published module. Closed stage proofs and the public emitter's dependent publication witness have distinct roles. The standalone driver checks the former per input."
+note = "The wire decodes to the certified ordered physical paths, offsets, texts and entry. Both boxed certificate forms identify the root, compatibility flag, package IDs and ordered dependency edges of the publicly decoded program. The certified full revision equals the artifact reconstructed from the independently checked program, including dispatch winners and operator sites. The certified Int agrees with the returned Core and both MidIR stages. The parser accepts all certified bytes as the published module. Closed stage proofs and the public emitter's dependent publication witness have distinct roles. The standalone driver checks the former per input."
 
 [property."compiler-ir.proof-binding"]
 title = "Proof binding authenticates statements and dependency closure"

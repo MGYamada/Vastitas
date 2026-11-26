@@ -46,11 +46,19 @@ including the external checkers, whose memory use is outside Lean's allocator li
 
 Official passes that snapshot to Lean 4.35.0’s `leanchecker --from-export`. It starts from an empty kernel environment and checks the reconstructed quotient primitives. Fast passes the same export to nanoda 0.4.19 and requires its exact declaration count. The qualification depends on the frontend, execution of the public Lean checker, the exporter and construction of the concrete subject from their outputs.
 
-The four functions in `boxed-program.ll` return −226854911280625642308916404954512140972 before the host projects this integer to status 84. Both workers accepted the same 5,613-declaration export for all 1,830 bytes. The regression also accepts an alternative proof of the same proposition and rejects a foreign theorem, an ill-typed proof, a one-byte change to an add operand and a substituted source text. [Retained LLVM module](../../../llvm/src/boxed-program.ll)
+The four functions in `boxed-program.ll` return −226854911280625642308916404954512140972 before the host projects this integer to status 84. Both workers accepted the same 5,857-declaration export for all 1,830 bytes. The regression also accepts an alternative proof of the same proposition and rejects a foreign theorem, an ill-typed proof, a one-byte change to an add operand, a substituted source text and a changed package version. [Retained LLVM module](../../../llvm/src/boxed-program.ll)
 
 The single-function program computes the integer quotient of 3²⁵⁶ by 7. Its intermediate squares exceed the constant folder’s work budget, so the compiled entry contains eight calls to the multiplication shim. Both workers check the same certificate for the full 403-bit result and all 1,977 bytes. [Vastitas source](../../../llvm/fixtures/SingletonPower.vast) · [LLVM module](../../../llvm/src/singleton-power.ll)
 
 For each compilation the driver reopens the physical files, compares their bytes with the captured input and recomputes their offsets. The proof identifies this ordered snapshot with the layout decoded from the wire. For packages the driver follows the TOML dependencies from the root manifest and checks the package names, versions, editions and root source paths. Lean replays each module declaration at its source tokens. From these declarations the driver looks up both supported file names for each external module and checks the spelling of each path component. It checks every file occurrence in depth-first declaration order, including two names that resolve to the same file. Directory lookup and symlink resolution depend on the host filesystem. [Physical input decoder](../../../lean-kernel/VastitasKernel/PhysicalSources.lean) · [Checked module spans](../../../lean-kernel/VastitasKernel/FiniteSourceFiles.lean)
+
+For each edition 2026 manifest the driver reconstructs the ordered dependencies from
+the preserved TOML text and resolves their paths on disk. It visits packages in
+dependency order and records each shared package once. Flat compilations use the
+reserved flat owner. The per-input Lean proof checks this graph and the wire's
+compatibility flag against the same header and package decoders as the public compiler.
+Given a publication, both the straight-line and control-flow theorems identify
+these owners with those in its checked program. [Package graph proof](../../../lean/VastitasOracle/CertificatePackages.lean)
 
 The inputs suite calls the same integer helper through a flat library and through an external module in a dependency. The package has five physical inputs. Editing a comment in its dependency manifest changes the function revision and preserves all 1,127 LLVM bytes. The suite checks both verifier modes and rejects the earlier proof after that edit.
 
@@ -72,6 +80,16 @@ equal manifold witness. Each of the eleven edits preserves the 2,311 LLVM bytes 
 23 and invalidates the certificate from before the edit. [Ordered calls](../../../llvm/fixtures/OrderedCalls.vast) · [Retained LLVM](../../../llvm/src/ordered-calls.ll)
 
 The assembly suite replays the same certificate in both modes for a three-package program. Six physical files fix the owner of the family, the contribution selected by the borrow block, and the protected `Int + Int` operation. The 2,051 certified LLVM bytes contain the selected method and all four specializations of its unselected sibling. [Assembled program](../../../llvm/fixtures/borrowed-operator/main.vast) · [Checked LLVM](../../../llvm/src/borrowed-operator.ll)
+
+The physical layout proof checks each file at its incoming byte offset and tracks the
+remaining manifest names before composing the rows. On macOS arm64, both workers checked
+the same 5,902-declaration export for the six-file example with the default 1,536 MiB Lean
+limit. Official reached 1,165 MiB peak RSS during authority elaboration.
+For `F` file rows and `P` packages, the generator emits one step proof per row and one
+header proof. The layout checker uses a balanced manifest set with logarithmic lookup in
+`P`. Each comparison checks the UTF-8 length first, then inspects at most the full label
+on a tie. Export size, kernel reduction costs and peak RSS at the 8,192-row input limit
+still require qualification.
 
 The selected-projection fixture retains both pair field functions and both scalar methods.
 The assembled contribution returns the second element, 19, while the default returns the first, 7.

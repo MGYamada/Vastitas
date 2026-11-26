@@ -1,11 +1,10 @@
 # Vastitas contributor guidance
 
-## Keep this file small
+## File limits
 
-`scripts/check_docs.py` requires identical AGENTS.md/CLAUDE.md, each within
-**100 lines / 6,000 UTF-8 bytes**. Only explicit user instruction may raise limits.
-Keep rules/links here, specs in docs, decisions in Issues, fixture results/history
-in Git. No release/publication histories.
+AGENTS.md/CLAUDE.md must match within **100 lines / 6,000 UTF-8 bytes**.
+Only explicit user instruction may raise limits. Rules/links here, specs in docs,
+decisions in Issues, fixture results/history in Git. Omit release/publication histories.
 
 ## Scope and evidence
 
@@ -33,7 +32,7 @@ in Git. No release/publication histories.
 - Rust frontend/CLI: `src/`. Lean checks the [protocol](docs/protocol.md)
   independently; update both sides/tests together. Generate only from exact checked IR.
 - `lean-kernel/` is independent of `lean/` and mathlib; executables use the runtime.
-  `lean/` is proof-only; its sole Lake dependency is the actual local kernel.
+  `lean/` is proof-only; it depends only on the local kernel.
   Pin Lean toolchains together; keep lockfiles. Normal compilation needs no mathlib/OpenBLAS.
 - No `sorry`, `admit` or custom unproved axioms. Follow [proof boundaries](docs/verification.md)
   and [stdlib admission](docs/adr/0001-mathematics-first-stdlib.md). State assumptions;
@@ -63,14 +62,15 @@ in Git. No release/publication histories.
 - [Mathlib bridge](docs/daleckii-krein.md) stays outside compiler/oracle dependencies.
   For changes run its build, `Audit.lean`, `scripts/replay_lean.sh` and boundary tests.
 
-## Read relevant contracts before editing
+## Before editing
 
-- [Book contents](docs/SUMMARY.md) list the active specifications, proof boundaries,
-  reference models and maintenance procedures. Track decisions in current Issues.
-  Write book changes by the [style guide](docs/development/documentation.md#style-guide).
+Read the [book contracts](docs/SUMMARY.md) and [style guide](docs/development/documentation.md#style-guide).
 
 ## Validation
 
+- All verification must scale end to end. Bound worst-case time, peak RAM and temporary disk
+  by input/output size. Test increasing sizes and supported limits under fixed budgets.
+  Separate measurements from proved bounds. Preserve every check across batches and streams.
 - Check free RAM and active jobs. Run Lean proofs and checks serially by default.
 - Run `python3 scripts/check_docs.py`. Book changes also run `mdbook build`
   and `python3 scripts/check_book.py`. Add meaningful behavior regressions.
@@ -89,4 +89,4 @@ in Git. No release/publication histories.
   Checked GEMM/lowering/FFI: `python3 scripts/check_gemm_checked.py --prefix <prefix>`.
   Use pinned sequential LP64 OpenBLAS 0.3.34; Linux also uses `--valgrind`
   with a supported CPU target. Report native tests separately from proofs.
-- Report actual commands/results and blockers; do not claim unrun checks passed.
+- Report commands run, results and blockers.

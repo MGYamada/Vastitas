@@ -1,3 +1,4 @@
+import VastitasOracle.CertificatePackages
 import VastitasOracle.ExactProgram
 import VastitasOracle.IndexedReverseCore
 import VastitasKernel.LLVM.Emission
@@ -14,6 +15,7 @@ structure Subject where
   wire : Lean.Json
   revision : Lean.Json
   sources : PhysicalSources.Layout
+  packages : CertificatePackages.Graph
   header : TargetHeader
   code : ExactProgram.Code
   bytes : List UInt8
@@ -23,6 +25,7 @@ structure Subject where
 structure Valid (s : Subject) : Prop where
   input : s.revision.getObjVal? "input" = .ok s.wire
   physical : PhysicalSources.layout s.wire = .ok s.sources
+  owners : CertificatePackages.read s.wire = .ok s.packages
   target : s.code.header = s.header
   typed : s.code.valid = true
   evaluated : s.code.entryValue = some s.value
@@ -70,6 +73,12 @@ theorem published_manifest_bindings {s : Subject} (valid : Valid s) {requireMain
   have same := Except.ok.inj (physical.symm.trans valid.physical)
   exact same ▸ bindings pkg member
 
+/-- The closed certificate and the public checker recover the same package
+identities, root and ordered dependency targets before method selection. -/
+theorem published_packages {s : Subject} (v : Valid s) {requireMain : Bool} (p : Publication s requireMain) :
+    CertificatePackages.ofProgram p.req.input = s.packages :=
+  Except.ok.inj ((CertificatePackages.of_decoded p.req.decoded).symm.trans v.owners)
+
 /-- Capture all fields in one execution of the real public emitter. The typed
 publication equation stays available to the composition theorem. -/
 def capture (wire : Lean.Json) (header : TargetHeader) (requireMain : Bool) :
@@ -77,7 +86,7 @@ def capture (wire : Lean.Json) (header : TargetHeader) (requireMain : Bool) :
   match h : Emission.check wire header requireMain with
   | .ok (.exactProgram (main := m) (req := req) a text parsed) =>
     (PhysicalSources.layout wire).toOption.map fun sources =>
-      let s : Subject := ⟨wire, a.linked.exe.revision, sources, header, a.model, text.toUTF8.data.toList, a.value⟩
+      let s : Subject := ⟨wire, a.linked.exe.revision, sources, CertificatePackages.ofProgram req.input, header, a.model, text.toUTF8.data.toList, a.value⟩
       ⟨s, ⟨m, req, a, text, parsed, h, rfl, rfl⟩⟩
   | _ => none
 

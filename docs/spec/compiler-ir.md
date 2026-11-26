@@ -1337,11 +1337,13 @@ Claims:
   - Issue: [#282](https://github.com/MGYamada/Vastitas/issues/282)
 - `boxed-stage`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
-    - [`VastitasOracle.BoxedCertificate`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BoxedCertificate.lean): `VastitasOracle.BoxedCertificate.corresponds`
+    - [`VastitasOracle.BoxedCertificate`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BoxedCertificate.lean): `VastitasOracle.BoxedCertificate.corresponds`, `VastitasOracle.BoxedCertificate.published_packages`
+    - [`VastitasOracle.CertificatePackages`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/CertificatePackages.lean): `VastitasOracle.CertificatePackages.of_decoded`
+    - [`VastitasOracle.FlowCertificate`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/FlowCertificate.lean): `VastitasOracle.FlowCertificate.published_packages`
   - Premises:
     - The public emitter returns the checked boxed integer publication of this exact subject. The concrete execution-model certificate is valid.
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
-  - Note: The wire decodes to the certified ordered physical paths, offsets, texts and entry. The certified full revision equals the artifact reconstructed from the independently checked program, including dispatch winners and operator sites. The certified Int agrees with the returned Core and both MidIR stages. The parser accepts all certified bytes as the published module. Closed stage proofs and the public emitter's dependent publication witness have distinct roles. The standalone driver checks the former per input.
+  - Note: The wire decodes to the certified ordered physical paths, offsets, texts and entry. Both boxed certificate forms identify the root, compatibility flag, package IDs and ordered dependency edges of the publicly decoded program. The certified full revision equals the artifact reconstructed from the independently checked program, including dispatch winners and operator sites. The certified Int agrees with the returned Core and both MidIR stages. The parser accepts all certified bytes as the published module. Closed stage proofs and the public emitter's dependent publication witness have distinct roles. The standalone driver checks the former per input.
 
 <a id="compiler-ir.proof-binding"></a>
 

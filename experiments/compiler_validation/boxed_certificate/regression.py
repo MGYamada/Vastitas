@@ -212,24 +212,30 @@ def run(work, suite, frontend, memory):
     model = json.loads((producer / "capture.stdout").read_bytes())
     sources = verify.read_sources(revision["input"], source, [source.name])
 
-    def reject_obligation(label, data, inputs, diagnostic):
+    def reject_obligation(label, data, inputs, diagnostic, *, authority_fails=False):
         altered = work / label
         altered.mkdir()
         (altered / "Authority.lean").write_text(
             verify.authority(revision, model, args.target_triple, args.data_layout, data, inputs))
         (altered / "Certificate.lean").write_text(verify.certificate())
         env = verify.environment(altered, prefix)
-        run_proof_worker([*lean, "-o", "Authority.olean", "Authority.lean"], cwd=altered,
-                       env=env, timeout=args.timeout, check=True)
-        result = run_proof_worker([*lean, "-DwarningAsError=true", "Certificate.lean"], cwd=altered,
-                                env=env, timeout=args.timeout, capture_output=True, text=True)
+        result = run_proof_worker([*lean, "-o", "Authority.olean", "Authority.lean"], cwd=altered,
+                                  env=env, timeout=args.timeout, capture_output=True, text=True)
+        if not authority_fails:
+            result.check_returncode()
+            result = run_proof_worker([*lean, "-DwarningAsError=true", "Certificate.lean"], cwd=altered,
+                                      env=env, timeout=args.timeout, capture_output=True, text=True)
         require(result.returncode != 0 and diagnostic in result.stdout, f"{label} must fail its proof")
         print(f"{label} rejected by Lean", flush=True)
 
     reject_obligation("one-changed-LLVM-byte", changed, sources, "printedLines")
-    [(path, offset, source_text)], entry = sources
+    [(path, offset, source_text)] = sources.files
     reject_obligation("substituted-physical-source", preview,
-                      ([(path, offset, source_text + " ")], entry), "PhysicalSources.layout")
+                      sources._replace(files=[(path, offset, source_text + " ")]), "PhysicalSources.layout", authority_fails=True)
+    owner, name, version, dependencies = sources.graph.packages[0]
+    changed_graph = sources.graph._replace(packages=[(owner, name, version + "1", dependencies)])
+    reject_obligation("substituted-package-version", preview, sources._replace(graph=changed_graph),
+                      "CertificatePackages.read", authority_fails=True)
     # Appending a source comment preserves every LLVM byte while changing the revision.
     with source.open("ab") as out:
         out.write(b"\n// different source revision\n")
@@ -267,7 +273,7 @@ def check_external_inputs(work, frontend):
     (base / "alias.vast").symlink_to(leaf)
     output = subprocess.check_output([frontend, "check", "--manifest-path", manifest, "--print-function-revision"])
     wire = json.loads(output)["input"]
-    files, _ = verify.read_sources(wire, manifest, None)
+    files = verify.read_sources(wire, manifest, None).files
     require([Path(p.decode()).relative_to(root).as_posix() for p, _, _ in files] ==
             ["Vastitas.toml", "src/main.vast", "src/space/child/mod.vast", "src/space/child/leaf.vast",
              "src/other.vast", "src/space/child/leaf.vast"], "incorrect physical module visit order")
@@ -408,6 +414,26 @@ pub indexed primitive chosen = descriptor(Y);
         candidate.unlink()
 
 
+def check_package_substitutions(wire, manifest):
+    # Keep all six physical files and the compiled module unchanged.
+    root = wire["packages"][-1]
+    require(len(root["dependencies"]) == 2, "expected two direct dependencies")
+    for label, mutate, diagnostic in [
+        ("dependency order", lambda ps: ps[-1]["dependencies"].reverse(), "manifest and wire dependencies"),
+        ("dependency target", lambda ps: ps[-1]["dependencies"][0].update(target=ps[-1]["dependencies"][1]["target"]),
+         "manifest and wire dependencies"),
+        ("package order", lambda ps: ps.reverse(), "manifest dependency order"),
+    ]:
+        altered = deepcopy(wire)
+        mutate(altered["packages"])
+        try:
+            verify.read_sources(altered, manifest, None)
+        except ValueError as error:
+            require(diagnostic in str(error), str(error))
+        else:
+            raise ValueError(f"accepted a substituted {label}")
+
+
 def check_borrowed_operator(work, args, check):
     args.source = None
     args.manifest_path = verify.ROOT / "llvm/fixtures/borrowed-operator/Vastitas.toml"
@@ -419,6 +445,7 @@ def check_borrowed_operator(work, args, check):
     retained = verify.ROOT / "llvm/src/borrowed-operator.ll"
     require((compiled / "preview.ll").read_bytes() == retained.read_bytes(), "different assembled module")
     revision = json.loads((compiled / "revision.json").read_bytes())
+    check_package_substitutions(revision["input"], args.manifest_path.resolve())
     pure = revision["pure"]
     call, = pure["dispatch_calls"]
     family, = (f for f in revision["families"] if f["id"] == call["id"])

@@ -510,13 +510,8 @@ def module (j : Json) : Except String Module := do
 
 def package (j : Json) : Except String Package := do
   let modules ← (← array j "modules").mapM module
-  -- Reuse the exact package metadata decoder, with no resource body projected
-  -- into a pure function. Unknown metadata fields remain rejected.
-  let stripped ← (← array j "modules").mapM fun m => do
-    without (← observedModule m).1 "resource_functions"
-  let metadata := (← without j "modules").setObjVal! "modules" (toJson stripped)
-  let pkg ← Indexed.Wire.package metadata
-  return ⟨pkg.id, pkg.dependencies, modules, pkg.geometryCompat⟩
+  let metadata ← Indexed.Wire.packageMetadata j
+  return ⟨metadata.id, metadata.dependencies, modules, metadata.geometryCompat⟩
 
 /-- Whether `packages`, with `root`, is the request that `packages::flat_request`
 writes for a flat unit: one package with the identity `flatPackageId`, which is
@@ -555,17 +550,22 @@ private def profileConflict (packages : List Package) : Except String Unit := do
   if let some pkg := packages.find? (·.geometryCompat.isSome) then
     throw s!"the field 'legacy_geometry' supplies the compatibility profile, so the package '{pkg.id.name}' cannot have a 'geometry_compat' export"
 
-/-- Decode the fields of the current wire epoch before checking package identities,
-the optional compatibility profile and the physical sources in `program`. -/
-def decodeFields (j : Json) : Except String Program := do
+/-- The public request header before any package body is decoded. -/
+structure RequestFields where
+  file : String
+  root : String
+  legacyGeometry : Bool
+  packages : List Json
+
+def requestFields (j : Json) : Except String RequestFields := do
   fields j ["version", "file", "root", "root_source", "packages", "legacy_geometry", "expected_function_revision"]
   let version ← j.getObjValAs? Nat "version"
   if version != currentProtocol then throw s!"expected protocol {currentProtocol}"
-  let file ← str j "file"
-  let root ← str j "root"
-  let geometry ← legacyGeometry j
-  let packages ← (← array j "packages").mapM package
-  return {file, root, packages, legacyGeometry := geometry}
+  return ⟨← str j "file", ← str j "root", ← legacyGeometry j, ← array j "packages"⟩
+
+def decodeFields (j : Json) : Except String Program := do
+  let h ← requestFields j
+  return {file := h.file, root := h.root, packages := ← h.packages.mapM package, legacyGeometry := h.legacyGeometry}
 
 def operatorNames (raw : Program) : Except String (List String) := do
   if raw.legacyGeometry then profileConflict raw.packages

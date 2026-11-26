@@ -32,6 +32,12 @@ private def pathBytes (j : Json) : Except String ByteArray := do
     return path
   | _ => throw "expected a physical input path"
 
+/-- A nonempty, NUL-free string label decodes to its exact UTF-8 path. -/
+theorem pathBytes_string {path : String} (valid : (path.isEmpty || path.toUTF8.data.contains 0) = false) :
+    pathBytes (.str path) = .ok path.toUTF8 := by
+  simp only [pathBytes, valid]
+  rfl
+
 /-- Check byte lengths before comparing labels. Common directory prefixes are
 expensive to normalize in independent kernel replay. Only equal-length,
 distinct paths need a lexicographic comparison. -/

@@ -320,7 +320,8 @@ def physical_proof(wire, inputs, quote, physical):
     rows = wire["root_source"].get("files")
     if rows is None:
         return [], "", f"#[{', '.join(physical)}]", statement + "\n  with_unfolding_all rfl"
-    owners = [p[0] for p in inputs.graph.packages] if inputs.graph.root != "vastitas:compat:flat" else []
+    flat = inputs.graph.root == "vastitas:compat:flat"
+    owners = [] if flat else [p[0] for p in inputs.graph.packages]
     manifests = f"([{', '.join(map(quote, owners))}] : List String).foldl (fun s n => s.insert n) {{}}"
     table = (f"⟨{quote(inputs.graph.file)}, {quote(inputs.graph.root)}, {natural(inputs.files[inputs.entry][1])}, "
              f"{quote(inputs.files[inputs.entry][2])}, {len(rows)}, manifestNames⟩")
@@ -335,7 +336,21 @@ def physical_proof(wire, inputs, quote, physical):
     missing = "table.manifests"
     for i, (row, (label, offset, text)) in enumerate(zip(rows, inputs.files, strict=True)):
         lines.append(f"def expectedFiles{i+1} := expectedFiles{i}.push {physical[i]}")
-        lines.append(f"def row{i} : Json := {official.json_term(row, quote)}")
+        # Only the exact canonical wire shape can use the shared decoder proof.
+        # Build the JSON from the captured wire and the output cursor from disk.
+        flat_library = (flat and i != inputs.entry and set(row) == {"offset", "path", "text"}
+                        and isinstance(row["path"], str))
+        if flat_library:
+            row_term = (f"VastitasOracle.CertificatePackages.flatLibraryRow {natural(row['offset'])} "
+                        f"{quote(row['path'])} {quote(row['text'])}")
+            proof = (f"VastitasOracle.CertificatePackages.flatLibraryStep table.filename table.entryText "
+                     f"{quote(label.decode('utf-8'))} {quote(text)} table.count table.base "
+                     f"{natural(offset)} {total} expectedFiles{i} cursor{i}.entry rfl rfl "
+                     "(by with_unfolding_all rfl) (by with_unfolding_all rfl)")
+        else:
+            row_term = official.json_term(row, quote)
+            proof = "by with_unfolding_all rfl"
+        lines.append(f"def row{i} : Json := {row_term}")
         name = os.fsdecode(label)
         if name in names:
             lines.append(f"def missing{i+1} := {missing}.erase {quote(name)}")
@@ -347,7 +362,7 @@ def physical_proof(wire, inputs, quote, physical):
         lines.extend([
             f"def cursor{i+1} : PhysicalSources.Cursor := "
             f"⟨expectedFiles{i+1}, {offset+size+1}, {total}, {entry}, {missing}⟩",
-            f"theorem rowStep{i} : table.step cursor{i} row{i} = .ok cursor{i+1} := by with_unfolding_all rfl",
+            f"theorem rowStep{i} : table.step cursor{i} row{i} = .ok cursor{i+1} := {proof}",
         ])
         end = i + 1
         if end % ROWS_PER_MODULE == 0 or end == len(rows):
@@ -553,6 +568,19 @@ def snapshot(candidate, authority_path, destination):
     return {"bytes": total, "sha256": digest.hexdigest()}
 
 
+def private_file_bytes(work):
+    """Logical bytes in regular files at this checkpoint, counting hard links once."""
+    seen = set()
+    total = 0
+    for path in work.iterdir():
+        info = path.lstat()
+        identity = (info.st_dev, info.st_ino)
+        if stat.S_ISREG(info.st_mode) and identity not in seen:
+            seen.add(identity)
+            total += info.st_size
+    return total
+
+
 def environment(work, prefix):
     search = [work, ROOT / "lean/.lake/build/lib/lean", ROOT / "lean-kernel/.lake/build/lib/lean", prefix / "lib/lean"]
     return official.proof_environment(prefix, *search)
@@ -629,6 +657,7 @@ def verify(args, work, report):
         phase("export_proof", [prefix / "bin/leanexport", "Certificate", "--", *roots, THEOREM], supplied)
     sealed = work / "sealed.ndjson"
     report["certificate"] = snapshot(supplied, baseline, sealed)
+    report["private_file_bytes_at_seal"] = private_file_bytes(work)
     # Later stages read only the private, sealed file. Free the worker's copies
     # before the external checker needs memory and swap.
     baseline.unlink()

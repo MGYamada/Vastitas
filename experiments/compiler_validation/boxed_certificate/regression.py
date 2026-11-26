@@ -73,18 +73,20 @@ def check_snapshot(work):
         sealed.unlink()
         verify.snapshot(candidate, authority, sealed)
         require(sealed.samefile(authority), "sealed export duplicates the private authority on disk")
+        require(verify.private_file_bytes(Path(tmp)) == 2 * (len(prefix) + len(suffix)),
+                "private disk accounting counted the sealed hard link twice")
         authority.unlink()
         candidate.write_bytes(b"later")
         require(sealed.read_bytes() == prefix + suffix, "sealed proof depends on the candidate")
 
 
-def run(work, suite, frontend, memory, file_counts=()):
+def run(work, suite, frontend, memory, file_counts=(), timeout=120):
     # Both modes consume the same public path, bytes, target and function revision.
     source = work / "main.vast"
     source.write_bytes((verify.ROOT / "llvm/fixtures/BoxedProgram.vast").read_bytes())
     target = json.loads(verify.official.TARGET_REPORT.read_bytes())["target"]
     args = Namespace(source=source, lib=[], manifest_path=None, frontend=frontend,
-                     mode="official", candidate=None, save_candidate=None, timeout=120, memory=memory,
+                     mode="official", candidate=None, save_candidate=None, timeout=timeout, memory=memory,
                      target_triple=target["triple"], data_layout=target["layout"])
 
     def check(label, mode, *, candidate=None, rejection=None, keep_authority=False, keep_snapshot=False):
@@ -314,9 +316,13 @@ def check_file_scale(work, args, check, counts):
                     "file count or retained boxed module differs")
             phases = [*report["phases"], *report["authority_closure"]["export_measurements"]]
             largest = max(phases, key=lambda phase: phase["peak_rss_bytes"])
+            worker = "official_export" if name == "official" else "nanoda"
+            replay = next(p for p in report["phases"] if p["phase"] == worker)
             print(f"{name} files={count} took {report['wall_seconds']:.1f}s, "
+                  f"{worker} replay took {replay['wall_seconds']:.1f}s at {replay['peak_rss_bytes'] / 2**20:.1f} MiB, "
                   f"{largest['phase']} peaked at {largest['peak_rss_bytes'] / 2**20:.1f} MiB, "
-                  f"{report['certificate']['bytes']} certificate bytes", flush=True)
+                  f"{report['certificate']['bytes']} certificate bytes, "
+                  f"{report['private_file_bytes_at_seal']} private bytes at seal", flush=True)
             shutil.rmtree(directory)
 
 
@@ -378,6 +384,32 @@ def check_external_inputs(work, frontend):
     print("nested external modules, repeated source paths and file substitutions checked", flush=True)
 
 
+def check_final_library_row(directory, args):
+    revision = json.loads((directory / "revision.json").read_bytes())
+    captured = json.loads((directory / "capture.stdout").read_bytes())
+    data = (directory / "preview.ll").read_bytes()
+    names = [args.source.name, *(lib.name for lib in args.lib)]
+    inputs = verify.read_sources(revision["input"], args.source, names)
+    files = inputs.files.copy()
+    _, offset, text = files[-1]
+    files[-1] = (b"other.vast", offset, text)
+    # Retain the genuine preceding batch. Change only the independently supplied
+    # path in the last batch while preserving its valid wire row and byte count.
+    modules = verify.authority_modules(revision, captured, args.target_triple, args.data_layout,
+                                       data, inputs._replace(files=files))
+    [(first, _), (last, changed), _] = modules
+    require((directory / (first + ".olean")).is_file() and last == "PhysicalBatch1", "expected two batches")
+    altered = directory / "ChangedLastBatch.lean"
+    altered.write_text(changed)
+    prefix = fast.pinned_lean()
+    rejected = run_proof_worker([*verify.lean_command(prefix, args.memory), altered.name], cwd=directory,
+                                env=verify.environment(directory, prefix), timeout=args.timeout,
+                                capture_output=True, text=True)
+    require(rejected.returncode != 0 and "flatLibraryStep" in rejected.stdout,
+            "Lean must reject the substituted path in the final file proof")
+    print("last-batch library path substitution rejected by Lean", flush=True)
+
+
 def check_physical_inputs(work, args, source, check):
     """Compile the same helper through each loader and replay a stale proof."""
     check_external_inputs(work, args.frontend)
@@ -412,6 +444,8 @@ def check_physical_inputs(work, args, source, check):
         peer, _ = check(label + "-fast", "fast", candidate=image)
         require(baseline["physical_inputs"] == count and baseline["certificate"] == peer["certificate"]
                 and baseline["integer_result"] == "42", f"{label} source closure differs")
+        if label == "library":
+            check_final_library_row(work / label, args)
         if label == "manifest":
             wire = json.loads((work / label / "revision.json").read_bytes())["input"]
             app = next(p for p in wire["packages"] if p["source"] == wire["root"])
@@ -565,11 +599,14 @@ if __name__ == "__main__":
                            help=f"qualify increasing physical input counts (1 to {verify.MAX_PHYSICAL_INPUTS}) in both modes")
     selection.add_argument("--suite", choices=[*suites, "host"], help="run one suite (default: all full suites)")
     parser.add_argument("--frontend", type=Path, default=verify.ROOT / "target/debug/vastitas")
+    parser.add_argument("--timeout", type=int, default=120, metavar="SECONDS", help="wall time limit per worker")
     verify.add_memory_argument(parser)
     args = parser.parse_args()
+    if args.timeout <= 0:
+        parser.error("positive timeout required")
     if args.file_counts and (args.file_counts != sorted(set(args.file_counts)) or
                              args.file_counts[0] < 1 or args.file_counts[-1] > verify.MAX_PHYSICAL_INPUTS):
         parser.error(f"--file-counts must increase strictly within 1 to {verify.MAX_PHYSICAL_INPUTS}")
     for suite in ([args.suite or "file-scale"] if args.suite or args.file_counts else suites):
         with tempfile.TemporaryDirectory(prefix=f"vastitas-{suite}-regression-") as tmp:
-            run(Path(tmp), suite, args.frontend.resolve(), args.memory, args.file_counts)
+            run(Path(tmp), suite, args.frontend.resolve(), args.memory, args.file_counts, args.timeout)

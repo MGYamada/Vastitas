@@ -17,6 +17,34 @@ def edges (ds : List Namespace.Dependency) := ds.map fun d => (d.alias,d.target)
 def ofProgram (p : Program) : Graph :=
   ⟨p.file,p.root,p.legacyGeometry,p.packages.map fun pkg => (pkg.id,edges pkg.dependencies)⟩
 
+section
+open Lean PhysicalSources Namespace JsonDecode
+
+/-- Protocol-10 representation of a non-entry flat library with a UTF-8 path. -/
+def flatLibraryRow (offset : Nat) (path text : String) : Json :=
+  Json.mkObj [("offset",toJson (Int.ofNat offset)),("path",.str path),("text",.str text)]
+
+/-- Decode the fixed JSON fields once for every such library. Each application
+checks its own path bytes, offsets and cumulative size at the actual cursor. -/
+theorem flatLibraryStep (filename entryText path text : String) (count base offset used : Nat)
+    (files : Array File) (entry : Option Nat)
+    (notEntry : (offset == base) = false) (many : (count == 1) = false)
+    (validPath : (path.isEmpty || path.toUTF8.data.contains 0) = false)
+    (fits : (decide (text.utf8ByteSize > 16 * 1024 * 1024) ||
+             decide (used + text.utf8ByteSize > 64 * 1024 * 1024)) = false) :
+    (Table.mk filename flatPackageId.source base entryText count {}).step
+        ⟨files, offset, used, entry, {}⟩ (flatLibraryRow offset path text) =
+    .ok ⟨files.push ⟨path.toUTF8, offset, text⟩, offset + text.utf8ByteSize + 1,
+         used + text.utf8ByteSize, entry, {}⟩ := by
+  have keys : fields (flatLibraryRow offset path text) ["offset", "path", "text"] = .ok () := by rfl
+  have off : (flatLibraryRow offset path text).getObjValAs? Nat "offset" = .ok offset := by rfl
+  have label : field (flatLibraryRow offset path text) "path" = .ok (.str path) := by rfl
+  have body : str (flatLibraryRow offset path text) "text" = .ok text := by rfl
+  simp [Table.step, keys, off, label, body, pathBytes_string validPath, Json.getStr?, Except.toOption,
+    notEntry, many, fits, bind, Except.bind, pure, Except.pure]
+
+end
+
 /-- Compose independently checked file rows in their original order. -/
 theorem prepend_row {t : PhysicalSources.Table} {s next last : PhysicalSources.Cursor}
     {row : Lean.Json} {tail : List Lean.Json} (first : t.step s row = .ok next)

@@ -55,15 +55,21 @@ including the external checkers, whose memory use is outside Lean's allocator li
 The following qualification increases the number of physical inputs while keeping
 the four-function program and all 1,830 LLVM bytes fixed. Each size runs Official
 and Fast on the same export and reports its byte length, the largest worker RSS
-and the worker name, along with elapsed time for each mode. The runner releases each pair of exports before the next
+and the worker name, along with elapsed time for each mode. The driver also
+counts the logical regular-file bytes in its private working directory just
+after sealing, counting hard links once. The runner releases each pair of exports before the next
 size. `--file-counts` accepts increasing counts through the physical decoder's
 8,192-file limit. Each Lean worker elaborates up to 128 row transitions. Every
 batch imports its predecessor and proves its part of the ordered scan for any
-continuation. The reconstructed wire and the scan refer to the same JSON rows.
+continuation. The reconstructed wire and the scan refer to the same JSON rows. For a flat
+library with a UTF-8 path, a shared theorem decodes the three JSON fields. The
+row proof checks that file’s path, offset and cumulative size.
 The expected files come from separate reads of the source files. With the default
-1,536 MiB Lean setting on macOS arm64, a 2,048-file run replayed the same
+1,536 MiB Lean setting on macOS arm64, a 2,048-file run before sharing the flat-library decoder replayed the same
 44,442,052-byte export in both modes. Official took 232 seconds overall and Fast
-took 202 seconds. The largest measured worker used 1,456 MiB RSS.
+took 202 seconds. Sharing the fixed-field decoder then reduced the two elapsed
+times to 153 and 134 seconds. Its complete export grew to 49,682,377 bytes, and
+the largest measured worker used 1,465 MiB RSS.
 
 ```sh
 python3 experiments/compiler_validation/boxed_certificate/regression.py --file-counts 1 2 8 32

@@ -74,6 +74,7 @@ jobs:
           python3 -m unittest discover -s experiments/iterator_prefix -p 'test_*.py'
       - name: Compiler qualification runner boundary tests
         run: |
+          python3 -m unittest discover -s experiments/compiler_validation/official_exit -p 'test_*.py'
           python3 -m unittest discover -s experiments/compiler_validation/reduction -p 'test_*.py'
           python3 -m unittest discover -s experiments/compiler_validation/llvm -p 'test_*.py'
       - name: Allocation, diagnostic and lifetime verifier tests
@@ -274,6 +275,7 @@ jobs:
             python3 scripts/check_gemm_native.py --prefix "$RUNNER_TEMP/vastitas-openblas"
           fi
       - name: Standalone C baseline output, costs and failure cleanup
+        if: runner.os == 'Linux' || github.event_name != 'pull_request'
         run: |
           if [ "$RUNNER_OS" = Linux ]; then
             python3 scripts/check_plain_c_baselines.py --prefix "$RUNNER_TEMP/vastitas-openblas" --output "$RUNNER_TEMP/plain-c-baselines" --valgrind
@@ -281,7 +283,7 @@ jobs:
             python3 scripts/check_plain_c_baselines.py --prefix "$RUNNER_TEMP/vastitas-openblas" --output "$RUNNER_TEMP/plain-c-baselines" --no-leak-sanitizer
           fi
       - name: Retain standalone C validation (no performance acceptance)
-        if: always()
+        if: always() && (runner.os == 'Linux' || github.event_name != 'pull_request')
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: plain-c-baselines-${{ matrix.os }}-${{ github.event_name }}
@@ -358,6 +360,7 @@ jobs:
           cargo test --locked --test examples --test numerical_source --test tensor_source --test tree_source \
             --test cached_packing --test diagonal_metrics --test runtime_shape_source --test indexed_definition_source -- --ignored
       - name: Current public numerical harness entries and native results
+        if: runner.os == 'Linux' || github.event_name != 'pull_request'
         run: |
           if [ "$RUNNER_OS" = Linux ]; then
             python3 scripts/check_numerical_harness.py --prefix "$RUNNER_TEMP/vastitas-openblas" --cc cc

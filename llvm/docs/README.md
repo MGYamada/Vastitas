@@ -550,13 +550,14 @@ to the same unbounded integer. Lean 4.35.0 uses an `i8` Boolean ABI in
 The native regression compares the two full integer results with a compiled
 Lean control. [Lean Boolean conversion](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L485-L488) · [Lean control](../fixtures/ComparisonMethodControl.lean) · [Word comparison proof](../../lean/VastitasOracle/ExactFlow.lean)
 
-On macOS arm64, Lean 4.35.0 and nanoda 0.4.19 checked the same export for
-the selected comparison. It covers two physical files, three retained
-functions, the integer result 42 and all 2,382 LLVM bytes. Lean's external
-kernel replay took 4.96 seconds and peaked at 551 MiB RSS. Nanoda checked
-5,936 declarations in 11.24 seconds and peaked at 3,378 MiB RSS. These
-measurements cover the verifier processes. Certificate generation and native
-execution have separate costs. [Certificate replay](../../experiments/compiler_validation/boxed_certificate/README.md)
+On macOS arm64, Lean 4.35.0 and nanoda 0.4.19 replayed the same 6,087
+declarations for the selected comparison. The certificate covers two physical
+files, three functions, the integer result 42 and all 2,382 LLVM bytes. Official
+replay took 4.6 seconds at 349 MiB peak RSS and nanoda took 2.7 seconds at
+399 MiB. The independent Lean source control returned 42 for the selected
+operand order and 7 for the reversed order. At the join the Vastitas module
+uses a two-incoming `phi ptr`. Lean 4.35.0’s `emitJmp` writes the incoming
+values to parameter slots before branching. [Certificate replay](../../experiments/compiler_validation/boxed_certificate/README.md) · [Lean join emission](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L1050-L1060)
 
 Lean 4.35.0's external-call emitter builds the function type and call from
 the ordered, retained parameters. In the generated C control, greater-than

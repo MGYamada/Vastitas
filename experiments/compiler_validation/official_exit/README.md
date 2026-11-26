@@ -307,6 +307,13 @@ diagnostics, under the reviewed three-axiom policy. The ordinary audit uses
 the declared 48 MiB POSIX main-thread stack and a per-process time bound.
 An inherited-stack audit is reproducible with `--stack-kib 0`.
 
+The name index stores each exported component and its parent once. Its storage
+is proportional to the number of name records and their component bytes.
+The scanner expands the paths needed for an unresolved root or its diagnostic.
+The Python regression checks depths 256, 2,048 and 8,192 under a fixed 16 MiB
+traced-heap budget and checks numeric, string and dotted components separately.
+[Name index regressions](test_fast_check.py)
+
 [RevisionBinding.lean](RevisionBinding.lean) proves that the complete function
 revision of the returned resource record has exactly the tokens in
 [ExpectedRevision.lean](ExpectedRevision.lean). Object and array arities delimit

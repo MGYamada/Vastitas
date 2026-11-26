@@ -30,6 +30,8 @@ POLICY = {
 }
 CHUNK = 1024 * 1024
 MAX_EXPORT = 1024 * CHUNK
+MAX_MUTUAL_ROOTS = 2048
+MAX_MUTUAL_BYTES = 65536
 
 
 def require(condition, message):
@@ -41,6 +43,12 @@ def namestr(parts):
     return ".".join(str(x) for x in parts)
 
 
+def mutual_root(parts):
+    require(all(type(part) is int or "»" not in part for part in parts),
+            "unsupported escape in a mutual declaration name")
+    return ".".join(str(part) if type(part) is int else "«" + part + "»" for part in parts)
+
+
 def unique_fields(pairs):
     obj = dict(pairs)
     require(len(obj) == len(pairs), "duplicate JSON field")
@@ -49,8 +57,12 @@ def unique_fields(pairs):
 
 def inspect_closure(path, theorem, pending=None, *, expected_kind="thm", proof_suffix=None):
     """Audit the reference index and declaration graph independently of nanoda."""
-    names = [()]
-    name_components = set()
+    # The export already encodes structured names as a prefix tree. Retain
+    # one edge per record, including the distinction between string and number.
+    names = [None]
+    name_indices = {}
+    goal_parts = proof_suffix[1] if proof_suffix else ()
+    goal_name = None
     levels = 1  # Level.zero is implicit.
     exprs = records = 0
     declared = {}
@@ -76,6 +88,21 @@ def inspect_closure(path, theorem, pending=None, *, expected_kind="thm", proof_s
     def name(n):
         return index(n, len(names))
 
+    def name_id(parts):
+        ident = 0
+        for part in parts:
+            ident = name_indices.get((ident, part))
+            if ident is None:
+                break
+        return ident
+
+    def parts_of(ident):
+        parts = []
+        while ident:
+            ident, part = names[ident]
+            parts.append(part)
+        return reversed(parts)
+
     def fields(node, *keys):
         require(isinstance(node, dict) and set(node) == set(keys), "unknown or ambiguous fields")
 
@@ -91,7 +118,7 @@ def inspect_closure(path, theorem, pending=None, *, expected_kind="thm", proof_s
                     and type(hints["regular"]) is int and hints["regular"] >= 0, "invalid reducibility hints")
         ident = name(node["name"])
         if proof_suffix and records > proof_suffix[0]:
-            require(kind == "thm" and names[ident] == expected and not suffix_checked
+            require(kind == "thm" and ident == name_id(expected) and not suffix_checked
                     and node["type"] in goal_types and node["levelParams"] == []
                     and node["all"] in ([], [ident]), "unexpected declaration or proof subject after authority")
             suffix_checked = True
@@ -113,9 +140,9 @@ def inspect_closure(path, theorem, pending=None, *, expected_kind="thm", proof_s
             referenced.add(name(rule["ctor"]))
             index(rule["rhs"], exprs)
         if kind == "axiom":
-            require(names[ident] in [tuple(item.split(".")) for item in AXIOMS],
-                    "nonstandard or ambiguously named axiom")
-            axioms.append(namestr(names[ident]))
+            axiom = next((item for item in AXIOMS if name_id(item.split(".")) == ident), None)
+            require(axiom is not None, "nonstandard or ambiguously named axiom")
+            axioms.append(axiom)
 
     with path.open("rb") as stream:
         require(stream.read(STANDARD.stat().st_size) == STANDARD.read_bytes(), "standard axiom closure mismatch")
@@ -140,9 +167,12 @@ def inspect_closure(path, theorem, pending=None, *, expected_kind="thm", proof_s
                 require(type(part) is str if kind == "str" else type(part) is int and part >= 0,
                         "invalid name component")
                 parent = name(val["pre"])
-                require((parent, part) not in name_components, "duplicate structured name")
-                name_components.add((parent, part))
-                names.append(names[parent] + (part,))
+                edge = (parent, part)
+                require(edge not in name_indices, "duplicate structured name")
+                name_indices[edge] = len(names)
+                names.append(edge)
+                if goal_parts and goal_name is None and part == goal_parts[-1]:
+                    goal_name = name_id(goal_parts)
             elif "il" in node:
                 fields(node, "il", kind)
                 require(type(node["il"]) is int and node["il"] == levels, "duplicate or skipped universe index")
@@ -163,7 +193,7 @@ def inspect_closure(path, theorem, pending=None, *, expected_kind="thm", proof_s
                 if kind == "const":
                     fields(val, "name", "us")
                     referenced.add(name(val["name"]))
-                    if proof_suffix and names[val["name"]] == proof_suffix[1] and val["us"] == []:
+                    if proof_suffix and val["name"] == goal_name and val["us"] == []:
                         goal_types.add(exprs)
                     for n in val["us"]:
                         index(n, levels)
@@ -213,12 +243,18 @@ def inspect_closure(path, theorem, pending=None, *, expected_kind="thm", proof_s
     missing = referenced - declared.keys()
     if pending is None:
         require(not missing, f"missing {len(missing)} transitive declarations, including " +
-                ", ".join(namestr(names[i]) for i in sorted(missing)[:3]))
+                ", ".join(namestr(parts_of(i)) for i in sorted(missing)[:3]))
     else:
-        pending.extend(names[i] for i in sorted(missing))
-    require(literal_dependencies.issubset(names[i] for i in declared), "missing literal type")
+        require(len(missing) <= MAX_MUTUAL_ROOTS, "unsupported size of mutual closure")
+        root_bytes = 0
+        for i in sorted(missing):
+            parts = tuple(parts_of(i))
+            root_bytes += len(mutual_root(parts).encode()) + 1
+            require(root_bytes < MAX_MUTUAL_BYTES, "unsupported size of mutual closure")
+            pending.append(parts)
+    require(all(name_id(parts) in declared for parts in literal_dependencies), "missing literal type")
     require(sorted(axioms) == sorted(AXIOMS), "missing or duplicated standard axiom")
-    require(any(names[i] == expected and kind == expected_kind for i, kind in declared.items()), "missing required declaration")
+    require(declared.get(name_id(expected)) == expected_kind, "missing required declaration")
     require(not proof_suffix or suffix_checked, "missing proof of the current obligation")
     return {"records": records, "expressions": exprs, "declarations": len(declared),
             "standard_axioms": sorted(axioms), "closed_references": len(referenced)}
@@ -320,13 +356,10 @@ def export_roots(work, env, prefix, image, module, roots, target, kind, profile,
             return {**stats, "additional_roots": len(additional), "export_passes": attempt + 1,
                     "bytes": image.stat().st_size, "export_measurements": phases}, [*roots, *additional]
         for parts in missing:
-            require(all(not isinstance(part, str) or "»" not in part for part in parts),
-                    "unsupported escape in a mutual declaration name")
-            # Preserve numeric and string components, including dots inside strings.
-            root = ".".join(str(x) if type(x) is int else "«" + x + "»" for x in parts)
+            root = mutual_root(parts)
             require(root not in additional, "pinned exporter did not emit a requested declaration")
             additional.append(root)
-        require(len(additional) <= 2048 and sum(len(x.encode()) + 1 for x in additional) < 65536,
+        require(len(additional) <= MAX_MUTUAL_ROOTS and sum(len(x.encode()) + 1 for x in additional) < MAX_MUTUAL_BYTES,
                 "unsupported size of mutual closure")
     raise ValueError("mutual closure exceeds qualification bound")
 

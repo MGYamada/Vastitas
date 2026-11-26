@@ -123,6 +123,13 @@ previously exhausted the conversion recursion budget in two places. The
 header and first-row theorems reuse the entry's checked extent. Both modes
 check all 1,830 LLVM bytes. The inputs suite changes the first wire path and
 the last physical library path across two proof batches. Lean rejects each.
+A joint run at the 8,192-file limit appends a comment containing 4,096 copies
+of `0123456789abcdef` to the four-function entry. The 120-second per-worker
+timeout and 1,536 MiB Lean allocator budget apply to both modes. Official and
+Fast accept the same 76,730,387-byte export with 38,990 declarations and the
+retained 1,830 LLVM bytes. End-to-end times are 276.4 and 248.2 seconds.
+The external checkers take 65.1 and 39.3 seconds. Peak child RSS is 1,514
+and 1,512 MiB respectively.
 
 The single-entry byte sweep uses a repeated multibyte pattern and keeps the
 four compiled functions fixed. A 15 MiB file produces a compact tree because

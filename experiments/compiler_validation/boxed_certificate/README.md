@@ -52,28 +52,33 @@ Use `--memory MiB` to select another budget. A failed elaboration stops that cas
 The CI runners use 6,144 MiB for the full suites. Each measured phase reports its peak RSS separately,
 including the external checkers, whose memory use is outside Lean's allocator limit.
 
-The following qualification increases the number of physical inputs while keeping
-the four-function program and all 1,830 LLVM bytes fixed. Each size runs Official
-and Fast on the same export and reports its byte length, the largest worker RSS
-and the worker name, along with elapsed time for each mode. The driver also
-counts the logical regular-file bytes in its private working directory just
-after sealing, counting hard links once. The runner releases each pair of exports before the next
-size. `--file-counts` accepts increasing counts through the physical decoder's
-8,192-file limit. Each Lean worker elaborates up to 128 row transitions. Every
-batch imports its predecessor and proves its part of the ordered scan for any
-continuation. The reconstructed wire and the scan refer to the same JSON rows. For a flat
-library with a UTF-8 path, a shared theorem decodes the three JSON fields. The
-row proof checks that file’s path, offset and cumulative size. Equal source
-texts share one proof of their UTF-8 byte length.
-The expected files come from separate reads of the source files. With the default
-1,536 MiB Lean setting on macOS arm64, a 2,048-file run before sharing the flat-library decoder replayed the same
-44,442,052-byte export in both modes. Official took 232 seconds overall and Fast
-took 202 seconds. Sharing the fixed-field decoder then reduced the two elapsed
-times to 153 and 134 seconds. Its complete export grew to 49,682,377 bytes, and
-the largest measured worker used 1,465 MiB RSS.
+The file-count qualification varies the number of physical inputs to the same
+four-function program. Each mode starts from the public compiler, reads the
+source files, and compares all 1,830 LLVM bytes with the retained module. Fast
+replays the complete export produced by Official. Each Lean worker elaborates
+up to 128 file transitions. Its theorem composes the batch with any remaining
+rows in order. The wire and scan share the captured JSON rows. The expected
+files come from disk. Each flat library with a UTF-8 path uses the shared
+three-field decoder theorem and supplies its own path, offset and size checks.
+Identical contents share a proof of UTF-8 length.
+
+This macOS arm64 run used the same 1,536 MiB Lean allocator limit and 360-second
+per-worker timeout for all three sizes, including the decoder's 8,192-file limit.
+Each pair of measurements gives Official first and Fast second. Wall time
+includes frontend checking, proof preparation and export auditing. The replay
+column measures only leanchecker or nanoda. Peak RSS is the largest measured
+child process. Private file bytes count unique regular files immediately after
+sealing, including the generated proof when present. The runner removes each
+case before starting the next size.
+
+| Files | Certificate bytes | Wall time (s) | Replay (s) | Largest worker RSS (MiB) | Private files at seal (MiB) |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 129 | 41,887,934 | 20.2 / 14.6 | 5.1 / 3.3 | 1,451 / 1,443 | 83.2 / 43.2 |
+| 2,048 | 49,870,657 | 79.0 / 68.0 | 18.7 / 11.0 | 1,457 / 1,457 | 121.2 / 73.6 |
+| 8,192 | 76,296,351 | 274.8 / 244.1 | 65.1 / 40.1 | 1,507 / 1,511 | 244.6 / 171.8 |
 
 ```sh
-python3 experiments/compiler_validation/boxed_certificate/regression.py --file-counts 1 2 8 32
+python3 experiments/compiler_validation/boxed_certificate/regression.py --file-counts 129 2048 8192 --timeout 360
 ```
 
 Official passes that snapshot to Lean 4.35.0’s `leanchecker --from-export`. It starts from an empty kernel environment and checks the reconstructed quotient primitives. Fast passes the same export to nanoda 0.4.19 and requires its exact declaration count. The qualification depends on the frontend, execution of the public Lean checker, the exporter and construction of the concrete subject from their outputs.
@@ -113,21 +118,19 @@ equal manifold witness. Each of the eleven edits preserves the 2,311 LLVM bytes 
 
 The assembly suite replays the same certificate in both modes for a three-package program. Six physical files fix the owner of the family, the contribution selected by the borrow block, and the protected `Int + Int` operation. The 2,051 certified LLVM bytes contain the selected method and all four specializations of its unselected sibling. [Assembled program](../../../llvm/fixtures/borrowed-operator/main.vast) · [Checked LLVM](../../../llvm/src/borrowed-operator.ll)
 
-The physical layout proof checks each file at its incoming byte offset and tracks the
-remaining manifest names before composing the rows. In the macOS arm64 comparison
-before batching, Official and Fast replayed the same 5,884 declarations for the
-six-file example. The expected LLVM
-lines use Lean string literals. On the same checkout, using balanced string appends
-for those lines took nanoda 9.5 seconds and 3,499 MiB peak RSS. Literal lines took
-3.0 seconds and 479 MiB for the full Fast worker. The result was 42 in both runs,
-with the same 2,051 LLVM bytes. The assembly regression checks a 1,536 MiB RSS
-budget for this nanoda worker.
+The physical layout proof checks each file at its incoming byte offset and tracks
+the remaining manifest names before composing the rows. On the same macOS arm64
+host, nanoda replay of the six-file program took 9.5 seconds and 3,499 MiB peak
+RSS before this change. With literal LLVM lines and shared file prefixes it took
+3.1 seconds and 479 MiB. Both verifiers replayed 5,889 declarations for the
+current certificate and obtained 42 and the same 2,051 LLVM bytes. The assembly
+regression checks a 1,536 MiB RSS budget for this nanoda worker.
 
 For `F` file rows and `P` packages, the generator emits one step proof per row and one
 header proof. The layout checker uses a balanced manifest set with logarithmic lookup in
 `P`. Each comparison checks the UTF-8 length first, then inspects at most the full label
-on a tie. Export size, kernel reduction costs and peak RSS at the 8,192-row input limit
-still require qualification.
+on a tie. The measurements at the file-count limit use short flat libraries.
+The source-byte limit and large manifest graphs have separate costs.
 
 The selected-projection fixture retains both pair field functions and both scalar methods.
 The assembled contribution returns the second element, 19, while the default returns the first, 7.

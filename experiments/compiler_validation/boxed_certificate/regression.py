@@ -4,10 +4,12 @@ from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 import filecmp
 import json
+import shutil
 import subprocess
 from pathlib import Path
 import sys
 import tempfile
+import time
 
 import verify
 from verify import fast, require
@@ -44,7 +46,39 @@ def check_method_selection(work, source, check, label, fixture, apply, functions
     (work / f"{label}-default" / "sealed.ndjson").unlink()
 
 
-def run(work, suite, frontend, memory):
+def check_snapshot(work):
+    """Exercise a prefix boundary inside a chunk and an existing destination."""
+    with tempfile.TemporaryDirectory(dir=work) as tmp:
+        authority, candidate, sealed = (Path(tmp) / n for n in ("authority", "candidate", "sealed"))
+        prefix = b"a" * (fast.CHUNK + 1)
+        suffix = b"proof" * (fast.CHUNK // 5 + 1)
+        authority.write_bytes(prefix)
+        candidate.write_bytes(prefix[:-1] + b"b" + suffix)
+        try:
+            verify.snapshot(candidate, authority, sealed)
+        except ValueError as error:
+            require("declaration environment differs" in str(error), str(error))
+        else:
+            raise ValueError("accepted a changed final prefix byte")
+        require(authority.read_bytes() == prefix and not sealed.exists(), "changed authority after rejection")
+        candidate.write_bytes(prefix + suffix)
+        sealed.write_bytes(b"previous")
+        try:
+            verify.snapshot(candidate, authority, sealed)
+        except FileExistsError:
+            pass
+        else:
+            raise ValueError("overwrote an existing snapshot")
+        require(authority.read_bytes() == prefix and sealed.read_bytes() == b"previous", "failed snapshot changed files")
+        sealed.unlink()
+        verify.snapshot(candidate, authority, sealed)
+        require(sealed.samefile(authority), "sealed export duplicates the private authority on disk")
+        authority.unlink()
+        candidate.write_bytes(b"later")
+        require(sealed.read_bytes() == prefix + suffix, "sealed proof depends on the candidate")
+
+
+def run(work, suite, frontend, memory, file_counts=()):
     # Both modes consume the same public path, bytes, target and function revision.
     source = work / "main.vast"
     source.write_bytes((verify.ROOT / "llvm/fixtures/BoxedProgram.vast").read_bytes())
@@ -58,8 +92,10 @@ def run(work, suite, frontend, memory):
         private.mkdir()
         args.mode, args.candidate = mode, candidate
         report = {"phases": []}
+        started = time.monotonic()
         try:
             roots = verify.verify(args, private, report)
+            report["wall_seconds"] = time.monotonic() - started
         except ValueError as e:
             if rejection is None or rejection not in str(e):
                 print(f"{label} ({mode}) failed: {e}", flush=True)
@@ -85,6 +121,9 @@ def run(work, suite, frontend, memory):
               f"{report['exported_declarations']} exported declarations)", flush=True)
         return report, roots
 
+    if file_counts:
+        check_file_scale(work, args, check, file_counts)
+        return
     if suite == "inputs":
         check_physical_inputs(work, args, source, check)
         return
@@ -142,6 +181,7 @@ def run(work, suite, frontend, memory):
         check_borrowed_operator(work, args, check)
         return
 
+    check_snapshot(work)
     generated, roots = check("fast", "fast", keep_authority=True)
     official, _ = check("official", "official", candidate=work / "fast/sealed.ndjson", keep_snapshot=True)
     for key in ("bytes", "llvm_sha256", "revision_sha256", "integer_result"):
@@ -253,6 +293,30 @@ def run(work, suite, frontend, memory):
             "the single-function runtime certificate must cover the full quotient in both modes")
     require((single_dir / "preview.ll").read_bytes() == (verify.ROOT / "llvm/src/singleton-power.ll").read_bytes(),
             "single-function certificate differs from the retained LLVM module")
+
+
+def check_file_scale(work, args, check, counts):
+    """Vary only the physical input count and replay each export in both kernels."""
+    retained = (verify.ROOT / "llvm/src/boxed-program.ll").read_bytes()
+    for count in counts:
+        while len(args.lib) + 1 < count:
+            path = work / f"library{len(args.lib):04}.vast"
+            path.write_text("// library with no declarations\n")
+            args.lib.append(path)
+        label = f"files-{count}"
+        official, _ = check(label, "official")
+        generated = work / label
+        peer, _ = check(label + "-fast", "fast", candidate=generated / "sealed.ndjson")
+        require(official["certificate"] == peer["certificate"], "verifiers read different exports")
+        for name, report, directory in [("official", official, generated), ("fast", peer, work / (label + "-fast"))]:
+            require(report["physical_inputs"] == count and (directory / "preview.ll").read_bytes() == retained,
+                    "file count or retained boxed module differs")
+            phases = [*report["phases"], *report["authority_closure"]["export_measurements"]]
+            largest = max(phases, key=lambda phase: phase["peak_rss_bytes"])
+            print(f"{name} files={count} took {report['wall_seconds']:.1f}s, "
+                  f"{largest['phase']} peaked at {largest['peak_rss_bytes'] / 2**20:.1f} MiB, "
+                  f"{report['certificate']['bytes']} certificate bytes", flush=True)
+            shutil.rmtree(directory)
 
 
 def check_external_inputs(work, frontend):
@@ -442,6 +506,10 @@ def check_borrowed_operator(work, args, check):
     peer, _ = check("borrowed-operator-fast", "fast", candidate=compiled / "sealed.ndjson")
     require(official["certificate"] == peer["certificate"] and official["physical_inputs"] == 6
             and official["integer_result"] == "42", "wrong assembled package certificate")
+    nanoda, = (phase for phase in peer["phases"] if phase["phase"] == "nanoda")
+    peak_mib = nanoda["peak_rss_bytes"] / 2**20
+    require(peak_mib <= 1536, f"borrowed-operator nanoda peak {peak_mib:.1f} MiB exceeds 1,536 MiB")
+    print(f"borrowed-operator nanoda peak {peak_mib:.1f} MiB", flush=True)
     retained = verify.ROOT / "llvm/src/borrowed-operator.ll"
     require((compiled / "preview.ll").read_bytes() == retained.read_bytes(), "different assembled module")
     revision = json.loads((compiled / "revision.json").read_bytes())
@@ -486,10 +554,16 @@ def check_borrowed_operator(work, args, check):
 if __name__ == "__main__":
     parser = ArgumentParser(description=__doc__)
     suites = ["boxed", "inputs", "assembly"]
-    parser.add_argument("--suite", choices=[*suites, "host"], help="run one suite (default: all full suites)")
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument("--file-counts", type=int, nargs="+", metavar="N",
+                           help=f"qualify increasing physical input counts (1 to {verify.MAX_PHYSICAL_INPUTS}) in both modes")
+    selection.add_argument("--suite", choices=[*suites, "host"], help="run one suite (default: all full suites)")
     parser.add_argument("--frontend", type=Path, default=verify.ROOT / "target/debug/vastitas")
     verify.add_memory_argument(parser)
     args = parser.parse_args()
-    for suite in ([args.suite] if args.suite else suites):
+    if args.file_counts and (args.file_counts != sorted(set(args.file_counts)) or
+                             args.file_counts[0] < 1 or args.file_counts[-1] > verify.MAX_PHYSICAL_INPUTS):
+        parser.error(f"--file-counts must increase strictly within 1 to {verify.MAX_PHYSICAL_INPUTS}")
+    for suite in ([args.suite or "file-scale"] if args.suite or args.file_counts else suites):
         with tempfile.TemporaryDirectory(prefix=f"vastitas-{suite}-regression-") as tmp:
-            run(Path(tmp), suite, args.frontend.resolve(), args.memory)
+            run(Path(tmp), suite, args.frontend.resolve(), args.memory, args.file_counts)

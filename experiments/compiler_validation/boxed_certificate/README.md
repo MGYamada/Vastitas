@@ -39,14 +39,35 @@ python3 experiments/compiler_validation/boxed_certificate/verify.py \
 
 Using the same inputs, replace `--save-candidate` with `--candidate` to check an existing export in either mode. Both verifiers regenerate the statement and declaration prefix from the current input and check the exact standard axioms and transitive references. A supplied proof may use any supported proof term in this environment. The verifier reads the input once and passes a private snapshot to its worker.
 
+To seal an export of `E` bytes, the driver compares the entire supplied prefix
+with its private authority file in 1 MiB chunks. It appends the remaining proof to
+the private file, then publishes a second name for that inode. This pass takes
+linear time in `E` and a constant number of chunk buffers. During sealing, private
+export data occupies at most `E` bytes for a supplied candidate and `2E` for one
+generated in the same invocation. These bounds cover export contents during this
+pass. The Lean modules, logs and filesystem metadata have separate costs.
+
 The driver and regression suite pass a 1,536 MiB memory limit to Lean during capture and elaboration.
 Use `--memory MiB` to select another budget. A failed elaboration stops that case.
 The CI runners use 6,144 MiB for the full suites. Each measured phase reports its peak RSS separately,
 including the external checkers, whose memory use is outside Lean's allocator limit.
 
+The following qualification increases the number of physical inputs while keeping
+the four-function program and all 1,830 LLVM bytes fixed. Each size runs Official
+and Fast on the same export and reports its byte length, the largest worker RSS
+and the worker name. The runner releases each pair of exports before the next
+size. `--file-counts` accepts increasing counts through the physical decoder's
+8,192-file limit. Under the default Lean budget, both modes verified 512 files
+with a 39,860,934-byte export. A single authority elaboration ran out of memory
+at 2,048 files.
+
+```sh
+python3 experiments/compiler_validation/boxed_certificate/regression.py --file-counts 1 2 8 32
+```
+
 Official passes that snapshot to Lean 4.35.0’s `leanchecker --from-export`. It starts from an empty kernel environment and checks the reconstructed quotient primitives. Fast passes the same export to nanoda 0.4.19 and requires its exact declaration count. The qualification depends on the frontend, execution of the public Lean checker, the exporter and construction of the concrete subject from their outputs.
 
-The four functions in `boxed-program.ll` return −226854911280625642308916404954512140972 before the host projects this integer to status 84. Both workers accepted the same 5,857-declaration export for all 1,830 bytes. The regression also accepts an alternative proof of the same proposition and rejects a foreign theorem, an ill-typed proof, a one-byte change to an add operand, a substituted source text and a changed package version. [Retained LLVM module](../../../llvm/src/boxed-program.ll)
+The four functions in `boxed-program.ll` return −226854911280625642308916404954512140972 before the host projects this integer to status 84. Both workers accepted the same 5,840-declaration export for all 1,830 bytes. The regression also accepts an alternative proof of the same proposition and rejects a foreign theorem, an ill-typed proof, a one-byte change to an add operand, a substituted source text and a changed package version. [Retained LLVM module](../../../llvm/src/boxed-program.ll)
 
 The single-function program computes the integer quotient of 3²⁵⁶ by 7. Its intermediate squares exceed the constant folder’s work budget, so the compiled entry contains eight calls to the multiplication shim. Both workers check the same certificate for the full 403-bit result and all 1,977 bytes. [Vastitas source](../../../llvm/fixtures/SingletonPower.vast) · [LLVM module](../../../llvm/src/singleton-power.ll)
 
@@ -82,9 +103,14 @@ equal manifold witness. Each of the eleven edits preserves the 2,311 LLVM bytes 
 The assembly suite replays the same certificate in both modes for a three-package program. Six physical files fix the owner of the family, the contribution selected by the borrow block, and the protected `Int + Int` operation. The 2,051 certified LLVM bytes contain the selected method and all four specializations of its unselected sibling. [Assembled program](../../../llvm/fixtures/borrowed-operator/main.vast) · [Checked LLVM](../../../llvm/src/borrowed-operator.ll)
 
 The physical layout proof checks each file at its incoming byte offset and tracks the
-remaining manifest names before composing the rows. On macOS arm64, both workers checked
-the same 5,902-declaration export for the six-file example with the default 1,536 MiB Lean
-limit. Official reached 1,165 MiB peak RSS during authority elaboration.
+remaining manifest names before composing the rows. On macOS arm64, Official and
+Fast replayed the same 5,884 declarations for the six-file example. The expected LLVM
+lines use Lean string literals. On the same checkout, using balanced string appends
+for those lines took nanoda 9.5 seconds and 3,499 MiB peak RSS. Literal lines took
+3.0 seconds and 479 MiB for the full Fast worker. The result was 42 in both runs,
+with the same 2,051 LLVM bytes. The assembly regression checks a 1,536 MiB RSS
+budget for this nanoda worker.
+
 For `F` file rows and `P` packages, the generator emits one step proof per row and one
 header proof. The layout checker uses a balanced manifest set with logarithmic lookup in
 `P`. Each comparison checks the UTF-8 length first, then inspects at most the full label

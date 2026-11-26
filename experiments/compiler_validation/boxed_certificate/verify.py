@@ -22,6 +22,7 @@ import fast_check as fast
 from fast_check import official, require
 
 ROOT = official.ROOT
+MAX_PHYSICAL_INPUTS = 8192
 GOAL = "VastitasProof.obligation"
 THEOREM = "VastitasProof.checked"
 ROOTS = [*fast.AXIOMS, "Eq.refl", "id", "VastitasOracle.BoxedCertificate.Valid.mk",
@@ -259,7 +260,7 @@ def read_sources(wire, source, flat_names):
     """Build the expected layout from disk, independently of the modeled graph."""
     root = wire["root_source"]
     rows = root.get("files", [{"path": wire["file"], "offset": 0}])
-    require(0 < len(rows) <= 8192, "invalid physical input count")
+    require(0 < len(rows) <= MAX_PHYSICAL_INPUTS, "invalid physical input count")
     names = [os.fsencode(row["path"]) if isinstance(row["path"], str) else bytes(row["path"]) for row in rows]
     if flat_names is not None:
         require(names == list(map(os.fsencode, flat_names)), "physical inputs differ from command arguments")
@@ -306,7 +307,7 @@ def string_literal(value):
     return f"({string_literal(value[:middle])} ++ {string_literal(value[middle:])})"
 
 
-def physical_proof(wire, inputs, files, quote):
+def physical_proof(wire, inputs, quote):
     """Prove the actual layout decoder's header, each transition and the final cursor."""
     statement = "theorem physicalInputs : PhysicalSources.layout wire = .ok sources := by"
     rows = wire["root_source"].get("files")
@@ -322,7 +323,7 @@ def physical_proof(wire, inputs, files, quote):
     names = set(owners)
     entry = "none"
     total = 0
-    for i, (row, (label, offset, text), expected) in enumerate(zip(rows, inputs.files, files, strict=True)):
+    for i, (row, (label, offset, text)) in enumerate(zip(rows, inputs.files, strict=True)):
         lines.append(f"def row{i} : Json := {official.json_term(row, quote)}")
         missing = f"cursor{i}.missing"
         name = os.fsdecode(label)
@@ -334,7 +335,7 @@ def physical_proof(wire, inputs, files, quote):
         total += size
         lines.extend([
             f"def cursor{i+1} : PhysicalSources.Cursor := "
-            f"⟨cursor{i}.files.push {expected}, {offset+size+1}, {total}, {entry}, {missing}⟩",
+            f"⟨expectedFiles{i+1}, {offset+size+1}, {total}, {entry}, {missing}⟩",
             f"theorem rowStep{i} : table.step cursor{i} row{i} = .ok cursor{i+1} := by with_unfolding_all rfl",
         ])
     row_names = ", ".join(f"row{i}" for i in range(len(rows)))
@@ -364,10 +365,9 @@ def authority(revision, model, triple, layout, data, sources):
     body = header_lines[2].decode("utf-8").split("\n")
     require(len(body) >= 3 and body[0] == body[-1] == "", "noncanonical body delimiters")
     flow = model.get("kind") == "flow"
-    # Match the literal lines embedded by the corpus. Source strings shared
-    # between the revision and physical layout still use the balanced bindings.
-    quote_line = official.lean_string if flow else quote
-    lines = ", ".join(map(quote_line, body[1:-1]))
+    # Keep LLVM lines as literal strings for direct comparison in the export
+    # checker. Source text still uses shared bindings and balanced appends.
+    lines = ", ".join(map(official.lean_string, body[1:-1]))
     fields = [(quote(k), 'wire' if k == 'input' else official.json_term(revision[k], quote)) for k in sorted(revision)]
     rev = ", ".join(f"({k}, {v})" for k, v in fields)
     files, entry, graph = sources
@@ -385,6 +385,16 @@ def authority(revision, model, triple, layout, data, sources):
         except UnicodeDecodeError:
             label = f"ByteArray.mk #{list(path)}"
         physical.append(f"⟨{label}, {natural(offset)}, {quote(text)}⟩")
+    # The expected snapshot comes from disk. Name its prefixes so each checked
+    # row proves a single push and the final cursor shares the complete array.
+    file_bindings = []
+    if "files" in revision["input"]["root_source"]:
+        file_bindings.append("def expectedFiles0 : Array PhysicalSources.File := #[]")
+        for i, file in enumerate(physical):
+            file_bindings.append(f"def expectedFiles{i+1} := expectedFiles{i}.push {file}")
+        expected_files = f"expectedFiles{len(physical)}"
+    else:
+        expected_files = f"#[{', '.join(physical)}]"
     namespace = "FlowCertificate" if flow else "BoxedCertificate"
     code_type = "ExactFlow" if flow else "ExactProgram"
     functions = []
@@ -398,10 +408,12 @@ def authority(revision, model, triple, layout, data, sources):
         functions.append(f"⟨[{args}], {KINDS[f['result']]}, [{steps}], {natural(f['slot'])}⟩")
     wire = official.json_term(revision["input"], quote)
     triple_term, layout_term = quote(triple), quote(layout)
-    file_evidence = physical_proof(revision["input"], sources, physical, quote)
+    file_evidence = physical_proof(revision["input"], sources, quote)
     bindings = "\n".join(f"def {name} : String := {string_literal(value)}" for value, name in strings.items())
+    file_definitions = "\n".join(file_bindings)
     module = "FlowCertificate.Subject" if flow else namespace
     return f"""import VastitasOracle.{module}
+set_option Elab.async false
 set_option autoImplicit false
 set_option maxRecDepth 65536
 set_option maxHeartbeats 8000000
@@ -410,7 +422,8 @@ open Lean VastitasKernel VastitasKernel.LLVM VastitasOracle.{namespace}
 {bindings}
 def wire : Json := {wire}
 def revision : Json := Json.mkObj [{rev}]
-def sources : PhysicalSources.Layout := ⟨#[{', '.join(physical)}], {natural(entry)}⟩
+{file_definitions}
+def sources : PhysicalSources.Layout := ⟨{expected_files}, {natural(entry)}⟩
 def packages : VastitasOracle.CertificatePackages.Graph := {package_graph}
 def header : TargetHeader := ⟨⟨{triple_term}.toUTF8.data.toList, by decide⟩,
   ⟨{layout_term}.toUTF8.data.toList, by decide⟩⟩
@@ -467,22 +480,30 @@ end VastitasProof
 
 
 def snapshot(candidate, authority_path, destination):
-    """Authenticate the whole authority prefix, then seal the supplied proof for both checks."""
+    """Compare the private authority in full, then extend it with the candidate's proof."""
     digest = hashlib.sha256()
-    with os.fdopen(os.open(candidate, os.O_RDONLY | os.O_NONBLOCK), "rb") as src, authority_path.open("rb") as prefix, destination.open("xb") as out:
+    with os.fdopen(os.open(candidate, os.O_RDONLY | os.O_NONBLOCK), "rb") as src, authority_path.open("r+b", buffering=0) as image:
         info = os.fstat(src.fileno())
-        require(stat.S_ISREG(info.st_mode) and prefix.seek(0, os.SEEK_END) < info.st_size <= fast.MAX_EXPORT,
+        prefix_size = os.fstat(image.fileno()).st_size
+        require(stat.S_ISREG(info.st_mode) and prefix_size < info.st_size <= fast.MAX_EXPORT,
                 "expected bounded regular certificate with a proof suffix")
-        prefix.seek(0)
-        total = 0
-        while block := src.read(fast.CHUNK):
-            expected = prefix.read(len(block))
-            require(block.startswith(expected), "declaration environment differs from current input")
-            total += len(block)
-            require(total <= info.st_size, "certificate grew during snapshot")
-            digest.update(block)
-            out.write(block)
-        require(total == info.st_size and not prefix.read(1), "truncated certificate")
+        while expected := image.read(fast.CHUNK):
+            require(src.read(len(expected)) == expected, "declaration environment differs from current input")
+            digest.update(expected)
+        total = prefix_size
+        try:
+            while block := src.read(fast.CHUNK):
+                total += len(block)
+                require(total <= info.st_size, "certificate grew during snapshot")
+                digest.update(block)
+                require(image.write(block) == len(block), "incomplete private certificate write")
+            require(total == info.st_size, "truncated certificate")
+            # Both names are in the verifier's private directory. The caller
+            # drops the authority name before launching the independent checker.
+            os.link(authority_path, destination)
+        except BaseException:
+            image.truncate(prefix_size)
+            raise
     return {"bytes": total, "sha256": digest.hexdigest()}
 
 

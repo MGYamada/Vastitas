@@ -20,16 +20,17 @@ def ofProgram (p : Program) : Graph :=
 section
 open Lean PhysicalSources Namespace JsonDecode
 
-private theorem flatRootFile (wire source : Json) (text : String) (size : Nat)
+private theorem sizedRootFile (wire source : Json) (root text : String) (base size : Nat)
     (src : field wire "root_source" = .ok source)
     (keys : fields source ["offset", "text", "files"] = .ok ())
-    (off : source.getObjValAs? Nat "offset" = .ok 0) (body : str source "text" = .ok text)
-    (root : str wire "root" = .ok flatPackageId.source)
-    (extent : text.utf8ByteSize = size) (bound : size ≤ 16 * 1024 * 1024) :
-    AssemblySource.rootFile wire = .ok ⟨0, text⟩ := by
-  have aggregate : size ≤ 64 * 1024 * 1024 + 8191 := by omega
-  simp [AssemblySource.rootFile, src, root, keys, off, body, bind, Except.bind,
-    extent, Nat.not_lt_of_ge bound, Nat.not_lt_of_ge aggregate, pure, Except.pure]
+    (off : source.getObjValAs? Nat "offset" = .ok base) (body : str source "text" = .ok text)
+    (owner : str wire "root" = .ok root)
+    (protectedOffset : ((root == flatPackageId.source) && (base != 0)) = false)
+    (extent : text.utf8ByteSize = size) (bound : size ≤ 16 * 1024 * 1024)
+    (total : base + size ≤ 64 * 1024 * 1024 + 8191) :
+    AssemblySource.rootFile wire = .ok ⟨base, text⟩ := by
+  simp [AssemblySource.rootFile, src, owner, keys, off, body, protectedOffset, extent,
+    Nat.not_lt_of_ge bound, Nat.not_lt_of_ge total, bind, Except.bind, pure, Except.pure]
 
 def flatSingleSource (text : String) : Json :=
   Json.mkObj [("offset", toJson (0 : Int)), ("text", .str text)]
@@ -42,7 +43,8 @@ theorem flatSingleLayout (wire : Json) (filename text : String) (size : Nat)
     (valid : (filename.isEmpty || filename.toUTF8.data.contains 0) = false)
     (extent : text.utf8ByteSize = size) (bound : size ≤ 16 * 1024 * 1024) :
     PhysicalSources.layout wire = .ok ⟨#[⟨filename.toUTF8, 0, text⟩], 0⟩ := by
-  have entry := flatRootFile wire _ text size source (by rfl) (by rfl) (by rfl) root extent bound
+  have entry := sizedRootFile wire _ flatPackageId.source text 0 size source
+    (by rfl) (by rfl) (by rfl) root (by decide) extent bound (by omega)
   have missing : ((flatSingleSource text).getObjVal? "files").isOk = false := by rfl
   cases raw : (flatSingleSource text).getObjVal? "files" with
   | error why =>
@@ -52,8 +54,10 @@ theorem flatSingleLayout (wire : Json) (filename text : String) (size : Nat)
     rw [raw] at missing
     contradiction
 
-def flatTableSource (text : String) (rows : Array Json) : Json :=
-  Json.mkObj [("files", .arr rows), ("offset", toJson (0 : Int)), ("text", .str text)]
+def tableSource (base : Nat) (text : String) (rows : Array Json) : Json :=
+  Json.mkObj [("files", .arr rows), ("offset", toJson (Int.ofNat base)), ("text", .str text)]
+
+def flatTableSource (text : String) (rows : Array Json) : Json := tableSource 0 text rows
 
 /-- Decode the header of a flat table without reducing the entire entry text. -/
 theorem flatTableHeader (wire : Json) (filename text : String) (rows : Array Json) (count size : Nat)
@@ -63,7 +67,8 @@ theorem flatTableHeader (wire : Json) (filename text : String) (rows : Array Jso
     (len : rows.size = count) (positive : 0 < count) (limit : count ≤ 8192) :
     PhysicalSources.prepare wire =
       .ok (.inr (⟨filename, flatPackageId.source, 0, text, count, {}⟩, rows)) := by
-  have entry := flatRootFile wire _ text size source (by rfl) (by rfl) (by rfl) root extent bound
+  have entry := sizedRootFile wire _ flatPackageId.source text 0 size source
+    (by rfl) (by rfl) (by rfl) root (by decide) extent bound (by omega)
   have files : (flatTableSource text rows).getObjVal? "files" = .ok (.arr rows) := by rfl
   have nonempty : rows ≠ #[] := by
     intro h
@@ -72,8 +77,10 @@ theorem flatTableHeader (wire : Json) (filename text : String) (rows : Array Jso
   simp [PhysicalSources.prepare, source, entry, file, root, files, Json.getArr?, nonempty, limit, len,
     bind, Except.bind, pure, Except.pure]
 
-def flatEntryRow (path : String) : Json :=
-  Json.mkObj [("offset", toJson (0 : Int)), ("path", .str path)]
+def entryRow (base : Nat) (path : String) : Json :=
+  Json.mkObj [("offset", toJson (Int.ofNat base)), ("path", .str path)]
+
+def flatEntryRow (path : String) : Json := entryRow 0 path
 
 /-- Consume the first row of a flat table at the protected entry offset. -/
 theorem flatEntryStep (filename text : String) (count size : Nat)
@@ -113,6 +120,42 @@ theorem flatLibraryStep (filename entryText path text : String) (count base offs
   have body : str (flatLibraryRow offset path text) "text" = .ok text := by rfl
   simp [Table.step, keys, off, label, body, pathBytes_string validPath, Json.getStr?, Except.toOption,
     notEntry, many, fits, bind, Except.bind, pure, Except.pure]
+
+/-- Decode the packaged entry after its root manifest using its checked byte extent. -/
+theorem packageEntryStep (root path text : String) (count base used size : Nat)
+    (files : Array File) (previous : Option Nat) (owners missing : ManifestSet)
+    (extent : text.utf8ByteSize = size)
+    (pkg : (root == flatPackageId.source) = false)
+    (ordinary : owners.contains path = false)
+    (many : (count == 1) = false) (afterRoot : files.isEmpty = false)
+    (validPath : (path.isEmpty || path.toUTF8.data.contains 0) = false)
+    (fits : (decide (size > 16 * 1024 * 1024) || decide (used + size > 64 * 1024 * 1024)) = false) :
+    (Table.mk root root base text count owners).step
+      ⟨files, base, used, previous, missing⟩ (entryRow base path) =
+    .ok ⟨files.push ⟨path.toUTF8, base, text⟩, base + size + 1, used + size, some files.size, missing⟩ := by
+  have keys : fields (entryRow base path) ["offset", "path", "text"] = .ok () := by rfl
+  have off : (entryRow base path).getObjValAs? Nat "offset" = .ok base := by rfl
+  have label : field (entryRow base path) "path" = .ok (.str path) := by rfl
+  have miss : ((entryRow base path).getObjVal? "text").isOk = false := by rfl
+  simp [Table.step, keys, off, label, pathBytes_string validPath, miss, ordinary, many,
+    afterRoot, pkg, extent, fits, Json.getStr?, Except.toOption, bind, Except.bind, pure, Except.pure]
+
+/-- Keep the package graph and span checks bound to the exact length of this entry. -/
+theorem packageTableHeader (wire : Json) (root text : String) (base size : Nat) (rows : Array Json)
+    (manifests : ManifestSet)
+    (src : field wire "root_source" = .ok (tableSource base text rows))
+    (file : str wire "file" = .ok root)
+    (owner : str wire "root" = .ok root) (pkg : (root == flatPackageId.source) = false)
+    (extent : text.utf8ByteSize = size) (bound : size ≤ 16 * 1024 * 1024)
+    (total : base + size ≤ 64 * 1024 * 1024 + 8191)
+    (count : rows.isEmpty = false) (limit : rows.size ≤ 8192)
+    (scanned : readManifests wire root base size = .ok manifests) :
+    PhysicalSources.prepare wire = .ok (.inr (⟨root, root, base, text, rows.size, manifests⟩, rows)) := by
+  have header := sizedRootFile wire (tableSource base text rows) root text base size src
+    (by rfl) (by rfl) (by rfl) owner (by simp [pkg]) extent bound total
+  have fr : (tableSource base text rows).getObjVal? "files" = .ok (.arr rows) := by rfl
+  simp [PhysicalSources.prepare, src, header, file, owner, pkg, fr, Json.getArr?, count,
+    Nat.not_lt_of_ge limit, extent, scanned, bind, Except.bind, pure, Except.pure]
 
 end
 

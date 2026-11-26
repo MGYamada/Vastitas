@@ -142,7 +142,32 @@ number of distinct chunks as well as the total source size.
 python3 experiments/compiler_validation/boxed_certificate/regression.py --entry-bytes 1048576 4194304 15728640
 ```
 
-At exactly 16 MiB the public source check and complete LLVM preview succeed. The
+The packaged entry sweep uses the selected integer comparison in an edition 2026
+manifest and a repeated UTF-8 comment in its root module. The header uses the
+proved byte length to check every root module span. The file row checks the
+same length, entry offset, path, accumulated bytes and manifest ownership.
+The inputs regression moves the root module end one byte past the physical
+entry and requires Lean to reject the span. Both modes returned 42 and checked
+all 2,382 corpus bytes at each size on macOS arm64 under the same 120-second
+worker timeout and 1,536 MiB Lean allocator limit.
+
+| Entry bytes | Declarations | Wall time (s), Official / Fast | Replay (s), Official / Fast | Largest worker RSS (MiB), Official / Fast |
+| ---: | ---: | ---: | ---: | ---: |
+| 4,096 | 6,204 | 20.0 / 15.0 | 4.7 / 2.8 | 1,364 / 1,364 |
+| 65,536 | 6,287 | 19.0 / 15.4 | 4.4 / 2.8 | 1,372 / 1,360 |
+| 1,048,576 | 6,368 | 20.8 / 17.1 | 4.4 / 2.7 | 1,368 / 1,368 |
+| 15,728,640 | 6,450 | 42.6 / 40.6 | 4.4 / 2.8 | 1,373 / 1,365 |
+
+The 15 MiB entry yielded a 39,488,821-byte proof export. Private files at
+sealing occupied 215,206,428 bytes for Official and 175,710,536 for Fast.
+Repeated chunks share proof terms. Heterogeneous package graphs and the
+64 MiB aggregate budget still need separate qualification.
+
+```sh
+python3 experiments/compiler_validation/boxed_certificate/regression.py --package-entry-bytes 4096 65536 1048576 15728640
+```
+
+At exactly 16 MiB both the flat and packaged source checks and their complete LLVM previews succeed. The
 stage driver stops before proof generation because the function revision also
 includes the envelope and has its own 16 MiB transport limit. The loader rejects
 an additional source byte. The release still needs an input-bound proof path

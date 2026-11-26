@@ -309,8 +309,7 @@ def string_literal(value):
     return f"({string_literal(value[:middle])} ++ {string_literal(value[middle:])})"
 
 
-# The proof of a flat library's UTF-8 extent must not reduce a whole large
-# string in one kernel conversion. Close each chunk and join checked sizes.
+# Prove large UTF-8 extents a chunk at a time, joining their checked sizes.
 INLINE_TEXT_CHARS = 1024
 TEXT_CHARS_PER_LEAF = 128
 TEXT_NODES_PER_MODULE = 128
@@ -428,6 +427,14 @@ def physical_proof(wire, inputs, quote, physical, sized_texts):
             row_term = f"VastitasOracle.CertificatePackages.flatEntryRow {quote(row['path'])}"
             proof = (f"VastitasOracle.CertificatePackages.flatEntryStep table.filename table.entryText "
                      f"table.count {size} {entry_extent}.property rfl (by with_unfolding_all rfl) (by decide)")
+        elif (not flat and i == inputs.entry and entry_extent and set(row) == {"offset", "path"}
+              and isinstance(row["path"], str)):
+            wire_path = quote(row["path"])
+            row_term = f"VastitasOracle.CertificatePackages.entryRow {natural(row['offset'])} {wire_path}"
+            proof = (f"VastitasOracle.CertificatePackages.packageEntryStep table.root {wire_path} table.entryText "
+                     f"table.count table.base {total} {size} expectedFiles{i} cursor{i}.entry "
+                     f"table.manifests cursor{i}.missing {entry_extent}.property "
+                     "rfl (by with_unfolding_all rfl) (by decide) rfl (by with_unfolding_all rfl) (by decide)")
         elif flat_library:
             if text not in extent_proofs:
                 extent_proofs[text] = f"fileExtent{i}"
@@ -479,6 +486,11 @@ def physical_proof(wire, inputs, quote, physical, sized_texts):
         prepare = (f"VastitasOracle.CertificatePackages.flatTableHeader wire table.filename table.entryText "
                    f"rows table.count {size} rfl rfl rfl {entry_extent}.property (by decide) rfl "
                    "(by decide) (by decide)")
+    elif entry_extent:
+        size = len(entry_text.encode("utf-8"))
+        prepare = (f"VastitasOracle.CertificatePackages.packageTableHeader wire table.root table.entryText "
+                   f"table.base {size} rows table.manifests rfl rfl rfl rfl {entry_extent}.property "
+                   "(by decide) (by decide) (by decide) (by decide) (by with_unfolding_all rfl)")
     evidence = "\n".join([
         f"theorem prepared : PhysicalSources.prepare wire = .ok (.inr (table, rows)) := {prepare}",
         statement,
@@ -554,10 +566,9 @@ def authority_modules(revision, model, triple, layout, data, sources):
     wire = physical_wire(revision["input"], quote)
     triple_term, layout_term = quote(triple), quote(layout)
     sized_texts = {}
-    if graph.root == "vastitas:compat:flat":
-        for _, _, text in files:
-            if len(text) > INLINE_TEXT_CHARS:
-                sized_texts[text] = f"{strings[text]}Sized"
+    for index, (_, _, text) in enumerate(files):
+        if len(text) > INLINE_TEXT_CHARS and (index == entry or graph.root == "vastitas:compat:flat"):
+            sized_texts[text] = f"{strings[text]}Sized"
     batches, rows, expected_files, file_evidence = physical_proof(revision["input"], sources, quote, physical, sized_texts)
     bindings = "\n".join(
         f"def {name} : String := " + (sized_texts[value] + ".val" if value in sized_texts else string_literal(value))

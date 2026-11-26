@@ -81,7 +81,7 @@ def check_snapshot(work):
         require(sealed.read_bytes() == prefix + suffix, "sealed proof depends on the candidate")
 
 
-def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), entry_bytes=(), timeout=120):
+def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), entry_bytes=(), packaged=False, timeout=120):
     # Both modes consume the same public path, bytes, target and function revision.
     source = work / "main.vast"
     source.write_bytes((verify.ROOT / "llvm/fixtures/BoxedProgram.vast").read_bytes())
@@ -125,7 +125,7 @@ def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), entr
         return report, roots
 
     if file_counts or library_bytes or entry_bytes:
-        check_file_scale(work, args, check, file_counts, library_bytes, entry_bytes)
+        check_file_scale(work, args, check, file_counts, library_bytes, entry_bytes, packaged)
         return
     if suite == "inputs":
         check_physical_inputs(work, args, source, check)
@@ -306,21 +306,29 @@ def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), entr
             "changing the last source chunk must preserve the module and invalidate its certificate")
 
 
-def check_file_scale(work, args, check, counts, library_bytes, entry_bytes):
+def check_file_scale(work, args, check, counts, library_bytes, entry_bytes, packaged):
     """Vary one physical input dimension and replay each export in both kernels."""
-    retained = (verify.ROOT / "llvm/src/boxed-program.ll").read_bytes()
-    program = args.source.read_bytes()
+    source = args.source
+    if packaged:
+        args.source = None
+        args.manifest_path = work / "Vastitas.toml"
+        args.manifest_path.write_text('[package]\nname="boxed_pairs"\nversion="0.1.0"\nedition="2026"\nroot="main.vast"\n')
+        program = (verify.ROOT / "llvm/fixtures/ComparisonMethod.vast").read_bytes()
+        retained = (verify.ROOT / "llvm/src/assembled-comparison.ll").read_bytes()
+    else:
+        program = source.read_bytes()
+        retained = (verify.ROOT / "llvm/src/boxed-program.ll").read_bytes()
     for size in counts or library_bytes or entry_bytes:
         if entry_bytes:
-            metric, count = "entry-bytes", 1
+            metric, count = ("package-entry-bytes", 2) if packaged else ("entry-bytes", 1)
             pattern = "λ界🪐0123456789abcdef".encode()
             copies, tail = divmod(size - len(program) - 3, len(pattern))
-            with args.source.open("wb") as stream:
+            with source.open("wb") as stream:
                 stream.write(program)
                 stream.write(b"//")
                 stream.write(pattern * copies)
                 stream.write(b"x" * tail + b"\n")
-            require(args.source.stat().st_size == size, "qualification entry byte count differs")
+            require(source.stat().st_size == size, "qualification entry byte count differs")
         elif library_bytes:
             metric, count = "bytes", 2
             library = work / "library.vast"
@@ -333,11 +341,13 @@ def check_file_scale(work, args, check, counts, library_bytes, entry_bytes):
         else:
             metric, count = "files", size
         label = f"{metric}-{size}"
-        while len(args.lib) + 1 < count:
+        while counts and len(args.lib) + 1 < count:
             path = work / f"library{len(args.lib):04}.vast"
             path.write_text("// library with no declarations\n")
             args.lib.append(path)
         official, _ = check(label, "official")
+        if packaged:
+            require(official["integer_result"] == "42", "expected the selected comparison method")
         generated = work / label
         peer, _ = check(label + "-fast", "fast", candidate=generated / "sealed.ndjson")
         require(official["certificate"] == peer["certificate"], "verifiers read different exports")
@@ -414,6 +424,17 @@ def check_external_inputs(work, frontend):
     print("nested external modules, repeated source paths and file substitutions checked", flush=True)
 
 
+def reject_lean_control(directory, args, filename, contents, control, *diagnostics):
+    prefix = fast.pinned_lean()
+    (directory / filename).write_text(contents)
+    result = run_proof_worker([*verify.lean_command(prefix, args.memory), filename], cwd=directory,
+                              env=verify.environment(directory, prefix), timeout=args.timeout,
+                              capture_output=True, text=True)
+    require(result.returncode != 0 and all(term in result.stdout for term in diagnostics),
+            f"{control}: expected Lean rejection at {', '.join(diagnostics)}")
+    print(f"{control} rejected by Lean", flush=True)
+
+
 def check_final_library_row(directory, args):
     revision = json.loads((directory / "revision.json").read_bytes())
     captured = json.loads((directory / "capture.stdout").read_bytes())
@@ -429,21 +450,9 @@ def check_final_library_row(directory, args):
                                        data, inputs._replace(files=files))
     [(first, _), (last, changed)] = [(n, body) for n, body in modules if n.startswith("PhysicalBatch")]
     require((directory / (first + ".olean")).is_file() and last == "PhysicalBatch1", "expected two batches")
-    prefix = fast.pinned_lean()
-
-    def reject(filename, contents, control, *diagnostics):
-        altered = directory / filename
-        altered.write_text(contents)
-        result = run_proof_worker([*verify.lean_command(prefix, args.memory), filename], cwd=directory,
-                                  env=verify.environment(directory, prefix), timeout=args.timeout,
-                                  capture_output=True, text=True)
-        require(result.returncode != 0 and all(term in result.stdout for term in diagnostics),
-                f"{control}: expected Lean rejection at {', '.join(diagnostics)}")
-        print(f"{control} rejected by Lean", flush=True)
-
-    reject("ChangedLastBatch.lean", changed, "last-batch library path substitution", "flatLibraryStep")
+    reject_lean_control(directory, args, "ChangedLastBatch.lean", changed, "last-batch library path substitution", "flatLibraryStep")
     # Lambda and mu have the same UTF-8 width. The literal must spell its witness.
-    reject("ChangedLiteral.lean", """import PhysicalText0
+    reject_lean_control(directory, args, "ChangedLiteral.lean", """import PhysicalText0
 open VastitasProof
 example : {s : String // s.utf8ByteSize = 2} := sizedLiteral "λ" ['μ'] rfl
 """, "same-width literal substitution", "rfl", "String.ofList")
@@ -452,7 +461,23 @@ example : {s : String // s.utf8ByteSize = 2} := sizedLiteral "λ" ['μ'] rfl
     wrong["input"]["root_source"]["files"][0]["path"] = "other-entry.vast"
     modules = verify.authority_modules(wrong, captured, args.target_triple, args.data_layout, data, inputs)
     entry = next(body for n, body in modules if n == first)
-    reject("ChangedEntryRow.lean", entry, "protected entry row path substitution", "flatEntryStep")
+    reject_lean_control(directory, args, "ChangedEntryRow.lean", entry, "protected entry row path substitution", "flatEntryStep")
+
+
+def check_manifest_entry_span(directory, args):
+    revision = json.loads((directory / "revision.json").read_bytes())
+    wire = revision["input"]
+    inputs = verify.read_sources(wire, args.manifest_path.resolve(strict=True), None)
+    _, offset, text = inputs.files[inputs.entry]
+    owner = next(package for package in wire["packages"] if package["source"] == wire["root"])
+    root_module = next(module for module in owner["modules"] if not module["path"])
+    root_module["span"]["end"] = offset + len(text.encode("utf-8")) + 1
+    model = json.loads((directory / "capture.stdout").read_bytes())
+    modules = verify.authority_modules(revision, model, args.target_triple, args.data_layout,
+                                       (directory / "preview.ll").read_bytes(), inputs)
+    changed = next(body for name, body in modules if name == "Authority")
+    reject_lean_control(directory, args, "ChangedPackageSpan.lean", changed,
+                        "root module one byte beyond the physical entry", "readManifests")
 
 
 def check_physical_inputs(work, args, source, check):
@@ -483,7 +508,7 @@ def check_physical_inputs(work, args, source, check):
             ("manifest", dep_manifest, metadata + "# revision B", 5)]:
         if label == "manifest":
             manifest.write_text(metadata.replace('"dep"', '"app"') + '[dependencies]\ndep={path="dep"}\n')
-            source.write_text("pub fn main() -> Int { dep::units::helper(21) }")
+            source.write_text("pub fn main() -> Int { dep::units::helper(21) } //" + "λ界🪐 abc" * 180 + "\n")
             args.manifest_path, args.source, args.lib = manifest, None, []
         baseline, _ = check(label, "official")
         image = work / label / "sealed.ndjson"
@@ -493,6 +518,7 @@ def check_physical_inputs(work, args, source, check):
         if label == "library":
             check_final_library_row(work / label, args)
         if label == "manifest":
+            check_manifest_entry_span(work / label, args)
             wire = json.loads((work / label / "revision.json").read_bytes())["input"]
             app = next(p for p in wire["packages"] if p["source"] == wire["root"])
             app["dependencies"].clear()
@@ -647,6 +673,8 @@ if __name__ == "__main__":
                            help="qualify increasing UTF-8 byte sizes of one flat library in both modes")
     selection.add_argument("--entry-bytes", type=int, nargs="+", metavar="N",
                            help="qualify increasing sizes of a single entry with a repeated UTF-8 comment")
+    selection.add_argument("--package-entry-bytes", type=int, nargs="+", metavar="N",
+                           help="qualify the assembled comparison package at increasing entry sizes")
     selection.add_argument("--suite", choices=[*suites, "host"], help="run one suite (default: all full suites)")
     parser.add_argument("--frontend", type=Path, default=verify.ROOT / "target/debug/vastitas")
     parser.add_argument("--timeout", type=int, default=120, metavar="SECONDS", help="wall time limit per worker")
@@ -660,14 +688,17 @@ if __name__ == "__main__":
     if args.library_bytes and (args.library_bytes != sorted(set(args.library_bytes)) or
                                args.library_bytes[0] < 16 or args.library_bytes[-1] > 16 * 1024**2):
         parser.error("--library-bytes must increase strictly between 16 bytes and 16 MiB")
-    if args.entry_bytes:
-        minimum = (verify.ROOT / "llvm/fixtures/BoxedProgram.vast").stat().st_size + 3
-        if (args.entry_bytes != sorted(set(args.entry_bytes)) or
-                args.entry_bytes[0] < minimum or args.entry_bytes[-1] > 16 * 1024**2):
-            parser.error(f"--entry-bytes must increase strictly between {minimum} bytes and 16 MiB")
-    scale = args.file_counts or args.library_bytes or args.entry_bytes
+    entry_bytes = args.entry_bytes or args.package_entry_bytes
+    if entry_bytes:
+        fixture = "ComparisonMethod" if args.package_entry_bytes else "BoxedProgram"
+        minimum = (verify.ROOT / f"llvm/fixtures/{fixture}.vast").stat().st_size + 3
+        if (entry_bytes != sorted(set(entry_bytes)) or
+                entry_bytes[0] < minimum or entry_bytes[-1] > 16 * 1024**2):
+            parser.error(f"entry sizes must increase strictly between {minimum} bytes and 16 MiB")
+    scale = args.file_counts or args.library_bytes or entry_bytes
     selected = [args.suite or "file-scale"] if args.suite or scale else suites
     for suite in selected:
         with tempfile.TemporaryDirectory(prefix=f"vastitas-{suite}-regression-") as tmp:
             run(Path(tmp), suite, args.frontend.resolve(), args.memory, file_counts=args.file_counts,
-                library_bytes=args.library_bytes, entry_bytes=args.entry_bytes, timeout=args.timeout)
+                library_bytes=args.library_bytes, entry_bytes=entry_bytes, packaged=bool(args.package_entry_bytes),
+                timeout=args.timeout)

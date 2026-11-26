@@ -79,6 +79,20 @@ structure Cursor where
   entry : Option Nat := none
   missing : ManifestSet
 
+/-- Check every package owner and root module span against the physical entry. -/
+def readManifests (json : Json) (root : String) (base size : Nat) : Except String ManifestSet := do
+  let mut manifests : ManifestSet := {}
+  for package in ← array json "packages" do
+    let owner ← str package "source"
+    manifests := manifests.insert owner
+    if owner == root then
+      for m in ← array package "modules" do
+        if (← array m "path").isEmpty then
+          let s ← decodeSpan m
+          unless base ≤ s.start && s.start ≤ s.end && s.end ≤ base + size do
+            throw "root module is outside the physical entry"
+  return manifests
+
 /-- Validate the request header and the root module spans once. -/
 def prepare (json : Json) : Except String (Layout ⊕ (Table × Array Json)) := do
   let source ← field json "root_source"
@@ -95,17 +109,7 @@ def prepare (json : Json) : Except String (Layout ⊕ (Table × Array Json)) := 
     return .inl ⟨#[⟨← pathBytes (.str filename), 0, entryText⟩], 0⟩
   let rows ← raw.getArr?
   if rows.isEmpty || rows.size > 8192 then throw "invalid physical input count"
-  let mut manifests : ManifestSet := {}
-  if manifest then
-    for package in ← array json "packages" do
-      let owner ← str package "source"
-      manifests := manifests.insert owner
-      if owner == root then
-        for m in ← array package "modules" do
-          if (← array m "path").isEmpty then
-            let s ← decodeSpan m
-            unless base ≤ s.start && s.start ≤ s.end && s.end ≤ base + entryText.utf8ByteSize do
-              throw "root module is outside the physical entry"
+  let manifests ← if manifest then readManifests json root base entryText.utf8ByteSize else pure {}
   return .inr (⟨filename, root, base, entryText, rows.size, manifests⟩, rows)
 
 /-- Consume one physical file. The incoming cursor fixes its cumulative byte

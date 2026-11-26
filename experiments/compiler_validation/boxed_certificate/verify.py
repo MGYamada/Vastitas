@@ -309,12 +309,83 @@ def string_literal(value):
     return f"({string_literal(value[:middle])} ++ {string_literal(value[middle:])})"
 
 
+# The proof of a flat library's UTF-8 extent must not reduce a whole large
+# string in one kernel conversion. Close each chunk and join checked sizes.
+INLINE_TEXT_CHARS = 1024
+TEXT_CHARS_PER_LEAF = 128
+TEXT_NODES_PER_MODULE = 128
+
+
+def char_literal(c):
+    escaped = "\\'" if c == "'" else official.lean_string(c)[1:-1]
+    return "'" + escaped + "'"
+
+
+def sized_text_batches(texts):
+    """Yield topologically ordered definitions. Reuse equal leaves and joins."""
+    leaves, joins = {}, {}
+    lines = ["""def sizedLiteral (s : String) (cs : List Char) (spelling : s = String.ofList cs) :
+    {t : String // t.utf8ByteSize = (cs.map Char.utf8Size).sum} := ⟨s, by
+  subst s
+  induction cs with
+  | nil => rfl
+  | cons c cs ih =>
+    rw [← List.singleton_append, String.ofList_append, String.utf8ByteSize_append,
+      ← String.singleton_eq_ofList, String.utf8ByteSize_singleton, ih]
+    rfl⟩
+
+def appendSizedText {m n : Nat}
+    (a : {s : String // s.utf8ByteSize = m}) (b : {s : String // s.utf8ByteSize = n}) :
+    {s : String // s.utf8ByteSize = m + n} :=
+  ⟨a.val ++ b.val, by rw [String.utf8ByteSize_append, a.property, b.property]⟩"""]
+
+    def define(size, term):
+        name = f"part{len(leaves) + len(joins)}"
+        lines.append(f"def {name} : {{s : String // s.utf8ByteSize = {size}}} := {term}")
+        return name, size
+
+    for value, name in texts.items():
+        level = []
+        for offset in range(0, len(value), TEXT_CHARS_PER_LEAF):
+            chunk = value[offset:offset + TEXT_CHARS_PER_LEAF]
+            if chunk not in leaves:
+                # Both kernels check that the literal expands to precisely these scalars.
+                codepoints = ", ".join(map(char_literal, chunk))
+                term = f"sizedLiteral {official.lean_string(chunk)} [{codepoints}] rfl"
+                leaves[chunk] = define(len(chunk.encode("utf-8")), term)
+            level.append(leaves[chunk])
+            if len(lines) >= TEXT_NODES_PER_MODULE:
+                yield "\n".join(lines)
+                lines.clear()
+        while len(level) > 1:
+            parents = []
+            for i in range(0, len(level) - 1, 2):
+                (left, a), (right, b) = level[i:i + 2]
+                key = left, right
+                if key not in joins:
+                    joins[key] = define(a + b, f"appendSizedText {left} {right}")
+                parents.append(joins[key])
+                if len(lines) >= TEXT_NODES_PER_MODULE:
+                    yield "\n".join(lines)
+                    lines.clear()
+            if len(level) % 2:
+                parents.append(level[-1])
+            level = parents
+        [(root, _)] = level
+        lines.append(f"def {name} := {root}")
+        if len(lines) >= TEXT_NODES_PER_MODULE:
+            yield "\n".join(lines)
+            lines.clear()
+    if texts and lines:
+        yield "\n".join(lines)
+
+
 # Elaboration retains the current module's declarations until the worker exits.
 # Keep file rows in bounded modules and compose their proofs in source order.
 ROWS_PER_MODULE = 128
 
 
-def physical_proof(wire, inputs, quote, physical):
+def physical_proof(wire, inputs, quote, physical, sized_texts):
     """Construct an exact transition for each file and compose bounded runs."""
     statement = "theorem physicalInputs : PhysicalSources.layout wire = .ok sources := by"
     rows = wire["root_source"].get("files")
@@ -345,7 +416,8 @@ def physical_proof(wire, inputs, quote, physical):
         if flat_library:
             if text not in extent_proofs:
                 extent_proofs[text] = f"fileExtent{i}"
-                lines.append(f"theorem fileExtent{i} : {quote(text)}.utf8ByteSize = {size} := by with_unfolding_all rfl")
+                extent = (sized_texts[text] + ".property" if text in sized_texts else "by with_unfolding_all rfl")
+                lines.append(f"theorem fileExtent{i} : {quote(text)}.utf8ByteSize = {size} := {extent}")
             wire_path = quote(row["path"])
             row_term = (f"VastitasOracle.CertificatePackages.flatLibraryRow {natural(row['offset'])} "
                         f"{wire_path} {quote(row['text'])}")
@@ -460,8 +532,15 @@ def authority_modules(revision, model, triple, layout, data, sources):
         functions.append(f"⟨[{args}], {KINDS[f['result']]}, [{steps}], {natural(f['slot'])}⟩")
     wire = physical_wire(revision["input"], quote)
     triple_term, layout_term = quote(triple), quote(layout)
-    batches, rows, expected_files, file_evidence = physical_proof(revision["input"], sources, quote, physical)
-    bindings = "\n".join(f"def {name} : String := {string_literal(value)}" for value, name in strings.items())
+    sized_texts = {}
+    if graph.root == "vastitas:compat:flat":
+        for i, (_, _, text) in enumerate(files):
+            if i != entry and len(text) > INLINE_TEXT_CHARS:
+                sized_texts[text] = f"{strings[text]}Sized"
+    batches, rows, expected_files, file_evidence = physical_proof(revision["input"], sources, quote, physical, sized_texts)
+    bindings = "\n".join(
+        f"def {name} : String := " + (sized_texts[value] + ".val" if value in sized_texts else string_literal(value))
+        for value, name in strings.items())
     dependency = "VastitasOracle.FlowCertificate.Subject" if flow else "VastitasOracle.BoxedCertificate"
 
     def module_source(dependency, body):
@@ -478,6 +557,10 @@ end VastitasProof
 
     # Small packages need a single Lean invocation. At larger sizes each batch
     # imports its predecessor, preserving every checked row in the final export.
+    for index, batch in enumerate(sized_text_batches(sized_texts)):
+        name = f"PhysicalText{index}"
+        yield name, module_source(dependency, batch)
+        dependency = name
     parts = [bindings]
     for index, batch in enumerate(batches):
         parts.append(batch)

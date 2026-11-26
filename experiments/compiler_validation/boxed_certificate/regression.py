@@ -4,6 +4,7 @@ from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 import filecmp
 import json
+import random
 import shutil
 import subprocess
 from pathlib import Path
@@ -80,7 +81,7 @@ def check_snapshot(work):
         require(sealed.read_bytes() == prefix + suffix, "sealed proof depends on the candidate")
 
 
-def run(work, suite, frontend, memory, file_counts=(), timeout=120):
+def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), timeout=120):
     # Both modes consume the same public path, bytes, target and function revision.
     source = work / "main.vast"
     source.write_bytes((verify.ROOT / "llvm/fixtures/BoxedProgram.vast").read_bytes())
@@ -123,8 +124,8 @@ def run(work, suite, frontend, memory, file_counts=(), timeout=120):
               f"{report['exported_declarations']} exported declarations)", flush=True)
         return report, roots
 
-    if file_counts:
-        check_file_scale(work, args, check, file_counts)
+    if file_counts or library_bytes:
+        check_file_scale(work, args, check, file_counts, library_bytes)
         return
     if suite == "inputs":
         check_physical_inputs(work, args, source, check)
@@ -298,15 +299,26 @@ def run(work, suite, frontend, memory, file_counts=(), timeout=120):
             "single-function certificate differs from the retained LLVM module")
 
 
-def check_file_scale(work, args, check, counts):
-    """Vary only the physical input count and replay each export in both kernels."""
+def check_file_scale(work, args, check, counts, library_bytes):
+    """Vary one physical input dimension and replay each export in both kernels."""
     retained = (verify.ROOT / "llvm/src/boxed-program.ll").read_bytes()
-    for count in counts:
+    for size in counts or library_bytes:
+        if library_bytes:
+            metric, count = "bytes", 2
+            library = work / "library.vast"
+            # Fixed seed, distinct chunks, one to four UTF-8 bytes per scalar.
+            prefix = "//λ界🪐".encode()
+            body = random.Random(1226).randbytes((size + 1) // 2).hex().encode()
+            library.write_bytes(prefix + body[:size - len(prefix) - 1] + b"\n")
+            require(library.stat().st_size == size, "qualification library byte count differs")
+            args.lib = [library]
+        else:
+            metric, count = "files", size
+        label = f"{metric}-{size}"
         while len(args.lib) + 1 < count:
             path = work / f"library{len(args.lib):04}.vast"
             path.write_text("// library with no declarations\n")
             args.lib.append(path)
-        label = f"files-{count}"
         official, _ = check(label, "official")
         generated = work / label
         peer, _ = check(label + "-fast", "fast", candidate=generated / "sealed.ndjson")
@@ -318,7 +330,7 @@ def check_file_scale(work, args, check, counts):
             largest = max(phases, key=lambda phase: phase["peak_rss_bytes"])
             worker = "official_export" if name == "official" else "nanoda"
             replay = next(p for p in report["phases"] if p["phase"] == worker)
-            print(f"{name} files={count} took {report['wall_seconds']:.1f}s, "
+            print(f"{name} {metric}={size} took {report['wall_seconds']:.1f}s, "
                   f"{worker} replay took {replay['wall_seconds']:.1f}s at {replay['peak_rss_bytes'] / 2**20:.1f} MiB, "
                   f"{largest['phase']} peaked at {largest['peak_rss_bytes'] / 2**20:.1f} MiB, "
                   f"{report['certificate']['bytes']} certificate bytes, "
@@ -397,7 +409,7 @@ def check_final_library_row(directory, args):
     # path in the last batch while preserving its valid wire row and byte count.
     modules = verify.authority_modules(revision, captured, args.target_triple, args.data_layout,
                                        data, inputs._replace(files=files))
-    [(first, _), (last, changed), _] = modules
+    [(first, _), (last, changed)] = [(n, body) for n, body in modules if n.startswith("PhysicalBatch")]
     require((directory / (first + ".olean")).is_file() and last == "PhysicalBatch1", "expected two batches")
     altered = directory / "ChangedLastBatch.lean"
     altered.write_text(changed)
@@ -409,6 +421,19 @@ def check_final_library_row(directory, args):
             "Lean must reject the substituted path in the final file proof")
     print("last-batch library path substitution rejected by Lean", flush=True)
 
+    # Lambda and mu have the same UTF-8 width. A length witness must bind the
+    # supplied list of Unicode scalars to the literal that enters the wire.
+    altered = directory / "ChangedLiteral.lean"
+    altered.write_text('import PhysicalText0\nopen VastitasProof\n'
+                       'example : {s : String // s.utf8ByteSize = 2} := '
+                       """sizedLiteral "λ" ['μ'] rfl\n""")
+    rejected = run_proof_worker([*verify.lean_command(prefix, args.memory), altered.name], cwd=directory,
+                                env=verify.environment(directory, prefix), timeout=args.timeout,
+                                capture_output=True, text=True)
+    require(rejected.returncode != 0 and "rfl" in rejected.stdout and "String.ofList" in rejected.stdout,
+            "Lean must reject a different Unicode scalar of the same UTF-8 width")
+    print("same-width literal substitution rejected by Lean", flush=True)
+
 
 def check_physical_inputs(work, args, source, check):
     """Compile the same helper through each loader and replay a stale proof."""
@@ -416,7 +441,8 @@ def check_physical_inputs(work, args, source, check):
     # The same long source text passes through both the wire and the physical layout.
     helper = 'fn helper(x: Int) -> Int { x + x } // "λ1" 🪐 e\u0301 \\end\r\n'
     library = work / "helper.vast"
-    library.write_text(helper)
+    flat_helper = helper + "// " + "quoted 🪐 e\u0301 " * 160 + "end λ1\r\n"
+    library.write_text(flat_helper)
     source.write_text("fn main() -> Int { helper(21) }")
     # Place the edited helper just across the production proof-batch boundary.
     # Reuse the same CI checks for positive and stale flat-library revisions.
@@ -433,7 +459,7 @@ def check_physical_inputs(work, args, source, check):
     (dep / "main.vast").write_text("pub mod units;")
     (dep / "units.vast").write_text("pub " + helper)
     for label, changed_file, replacement, count in [
-            ("library", library, helper.replace("λ1", "λ2"), len(args.lib) + 1),
+            ("library", library, flat_helper.replace("end λ1", "end λ2"), len(args.lib) + 1),
             ("manifest", dep_manifest, metadata + "# revision B", 5)]:
         if label == "manifest":
             manifest.write_text(metadata.replace('"dep"', '"app"') + '[dependencies]\ndep={path="dep"}\n')
@@ -597,6 +623,8 @@ if __name__ == "__main__":
     selection = parser.add_mutually_exclusive_group()
     selection.add_argument("--file-counts", type=int, nargs="+", metavar="N",
                            help=f"qualify increasing physical input counts (1 to {verify.MAX_PHYSICAL_INPUTS}) in both modes")
+    selection.add_argument("--library-bytes", type=int, nargs="+", metavar="N",
+                           help="qualify increasing UTF-8 byte sizes of one flat library in both modes")
     selection.add_argument("--suite", choices=[*suites, "host"], help="run one suite (default: all full suites)")
     parser.add_argument("--frontend", type=Path, default=verify.ROOT / "target/debug/vastitas")
     parser.add_argument("--timeout", type=int, default=120, metavar="SECONDS", help="wall time limit per worker")
@@ -607,6 +635,11 @@ if __name__ == "__main__":
     if args.file_counts and (args.file_counts != sorted(set(args.file_counts)) or
                              args.file_counts[0] < 1 or args.file_counts[-1] > verify.MAX_PHYSICAL_INPUTS):
         parser.error(f"--file-counts must increase strictly within 1 to {verify.MAX_PHYSICAL_INPUTS}")
-    for suite in ([args.suite or "file-scale"] if args.suite or args.file_counts else suites):
+    if args.library_bytes and (args.library_bytes != sorted(set(args.library_bytes)) or
+                               args.library_bytes[0] < 16 or args.library_bytes[-1] > 16 * 1024**2):
+        parser.error("--library-bytes must increase strictly between 16 bytes and 16 MiB")
+    selected = [args.suite or "file-scale"] if args.suite or args.file_counts or args.library_bytes else suites
+    for suite in selected:
         with tempfile.TemporaryDirectory(prefix=f"vastitas-{suite}-regression-") as tmp:
-            run(Path(tmp), suite, args.frontend.resolve(), args.memory, args.file_counts, args.timeout)
+            run(Path(tmp), suite, args.frontend.resolve(), args.memory, file_counts=args.file_counts,
+                library_bytes=args.library_bytes, timeout=args.timeout)

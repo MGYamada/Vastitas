@@ -81,6 +81,30 @@ case before starting the next size.
 python3 experiments/compiler_validation/boxed_certificate/regression.py --file-counts 129 2048 8192 --timeout 360
 ```
 
+The byte-size qualification holds the program and file count fixed. It adds a flat
+library with a multibyte UTF-8 comment and a seeded sequence of hexadecimal digits.
+Libraries longer than 1,024 Unicode scalars use leaves of up to 128 scalars.
+Lean checks that each literal spells its list of characters and proves its byte
+length from their UTF-8 widths. A balanced tree adds the checked lengths. A
+worker emits up to 128 tree nodes per module. Equal leaves and equal
+pairs share definitions. Constructing the tree takes a linear number of leaf
+and join visits. These measurements cover two physical files on macOS arm64
+with a 120-second timeout per worker and a 1,536 MiB Lean allocator budget.
+
+| Library bytes | Exported declarations | Wall time (s), Official / Fast | Replay (s), Official / Fast | Largest worker RSS (MiB), Official / Fast |
+| ---: | ---: | ---: | ---: | ---: |
+| 4,096 | 6,132 | 16.3 / 12.9 | 4.1 / 2.7 | 1,438 / 1,430 |
+| 16,384 | 6,324 | 21.1 / 21.9 | 4.4 / 3.0 | 1,447 / 1,443 |
+| 65,536 | 7,092 | 38.0 / 32.8 | 5.8 / 3.8 | 1,448 / 1,444 |
+
+Both modes check the same export and all 1,830 retained LLVM bytes at each size.
+The 16 MiB per-file and 64 MiB aggregate limits and large manifest graphs still
+need byte-size qualification.
+
+```sh
+python3 experiments/compiler_validation/boxed_certificate/regression.py --library-bytes 4096 16384 65536
+```
+
 Official passes that snapshot to Lean 4.35.0’s `leanchecker --from-export`. It starts from an empty kernel environment and checks the reconstructed quotient primitives. Fast passes the same export to nanoda 0.4.19 and requires its exact declaration count. The qualification depends on the frontend, execution of the public Lean checker, the exporter and construction of the concrete subject from their outputs.
 
 The four functions in `boxed-program.ll` return −226854911280625642308916404954512140972 before the host projects this integer to status 84. Both workers accepted the same 5,840-declaration export for all 1,830 bytes. The regression also accepts an alternative proof of the same proposition and rejects a foreign theorem, an ill-typed proof, a one-byte change to an add operand, a substituted source text and a changed package version. [Retained LLVM module](../../../llvm/src/boxed-program.ll)

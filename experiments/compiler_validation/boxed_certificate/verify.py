@@ -731,23 +731,31 @@ def verify(args, work, report):
     libraries = [os.path.relpath(lib.absolute(), source.parent) for lib in args.lib]
     for library in libraries:
         cmd.extend(["--lib", library])
-    revision_path = work / "revision.json"
-    phase("revision", [*cmd, "--print-function-revision"], revision_path, run_from=source.parent)
-    revision = json.loads(revision_path.read_bytes(), object_pairs_hook=fast.unique_fields)
+    proof_input = work / "proof-input.json"
+    phase("preview", [*cmd, "--llvm-proof-input", "--target-triple", args.target_triple,
+                      "--data-layout", args.data_layout], proof_input, run_from=source.parent)
+    with proof_input.open(encoding="utf-8") as stream:
+        publication = json.load(stream, object_pairs_hook=fast.unique_fields)
+    revision, llvm = publication["revision"], publication["llvm"]
     require(revision["input"]["version"] == 10, "expected wire 10")
     sources = read_sources(revision["input"], source, None if args.manifest_path else [source.name, *libraries])
     report["physical_inputs"] = len(sources.files)
-    preview = work / "preview.ll"
-    phase("preview", [*cmd, "--llvm-preview", "--expect-function-revision", revision_path,
-                      "--target-triple", args.target_triple, "--data-layout", args.data_layout], preview,
-          run_from=source.parent)
-    data = preview.read_bytes()
-    graph = "flow" if b"\n; flow -> " in data else "program"
+    kinds = {"boxed-control-flow": "flow", "boxed-exact-program": "program"}
+    require(llvm["kind"] in kinds and llvm["triple"] == args.target_triple and llvm["layout"] == args.data_layout
+            and llvm["verification_endpoint"] == "modeled-llvm-bytes" and llvm["verifier"] == "compiled-lean-checker"
+            and llvm["official_kernel_checked"] is False and llvm["native_generated"] is False,
+            "expected the compiled checker's boxed LLVM publication for this target")
+    graph = kinds[llvm["kind"]]
+    data = llvm["ir"].encode("utf-8")
+    (work / "preview.ll").write_bytes(data)
     namespace = "FlowCertificate" if graph == "flow" else "BoxedCertificate"
-    model = json.loads(phase("capture", [*lean, "--run", HERE / "Capture.lean", revision_path,
+    model = json.loads(phase("capture", [*lean, "--run", HERE / "Capture.lean", proof_input,
                                          args.target_triple, args.data_layout, graph]), object_pairs_hook=fast.unique_fields)
     require(model["kind"] == graph and model["ir"].encode("utf-8") == data, "captured model and public LLVM bytes differ")
-    report.update(bytes=len(data), llvm_sha256=official.digest(data), revision_sha256=official.digest(revision_path.read_bytes()),
+    digest = hashlib.sha256()
+    for piece in json.JSONEncoder(ensure_ascii=False, sort_keys=True, separators=(",", ":")).iterencode(revision):
+        digest.update(piece.encode("utf-8"))
+    report.update(bytes=len(data), llvm_sha256=official.digest(data), revision_sha256=digest.hexdigest(),
                   functions=len(model["functions"]), integer_result=integer(model["value"]))
     for module, source_text in authority_modules(revision, model, args.target_triple, args.data_layout, data, sources):
         (work / (module + ".lean")).write_text(source_text)

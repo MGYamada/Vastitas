@@ -1,6 +1,6 @@
 # Live boxed-program certificates
 
-The driver checks a closed proof about one public boxed integer program with static calls and forward control flow. The proof subject contains the complete protocol-10 input and function revision, target header, typed instruction graph, mathematical integer result and all emitted LLVM bytes. The frontend replays the saved revision before returning its preview. A second execution of the Lean emitter recovers the graph from the linked artifact and compares its revision and bytes with that preview. [Capture](Capture.lean)
+The driver checks a closed proof about one public boxed integer program with static calls and forward control flow. The proof subject contains the complete protocol-10 input and function revision, target header, typed instruction graph, mathematical integer result and all emitted LLVM bytes. One invocation of `check --llvm-proof-input` returns the full function revision and LLVM report from the same emission. An independent execution of the Lean emitter recovers the graph and revision from the original request. The driver compares the complete revision and LLVM text before constructing the proof. [Capture](Capture.lean)
 
 For a conditional, the certificate checks the typed graph, the chosen edge, the full
 integer at the join and the complete printed module. Its subject imports the printer,
@@ -99,8 +99,7 @@ with a 120-second timeout per worker and a 1,536 MiB Lean allocator budget.
 | 262,144 | 10,164 | 107.1 / 101.4 | 11.1 / 8.2 | 1,470 / 1,467 |
 
 Both modes check the same export and all 1,830 retained LLVM bytes at each size.
-The 16 MiB per-file and 64 MiB aggregate limits and large manifest graphs still
-need byte-size qualification.
+The single-entry sweep below also exercises the 16 MiB file limit with repeated text. Distinct library chunks, large manifest graphs and the 64 MiB aggregate require separate measurements.
 
 ```sh
 python3 experiments/compiler_validation/boxed_certificate/regression.py --library-bytes 4096 16384 65536 262144
@@ -139,7 +138,7 @@ was 1,446 and 1,443 MiB. The checker work for this pattern depends on the
 number of distinct chunks as well as the total source size.
 
 ```sh
-python3 experiments/compiler_validation/boxed_certificate/regression.py --entry-bytes 1048576 4194304 15728640
+python3 experiments/compiler_validation/boxed_certificate/regression.py --entry-bytes 1048576 4194304 15728640 16777216
 ```
 
 The packaged entry sweep uses the selected integer comparison in an edition 2026
@@ -157,6 +156,7 @@ worker timeout and 1,536 MiB Lean allocator limit.
 | 65,536 | 6,287 | 19.0 / 15.4 | 4.4 / 2.8 | 1,372 / 1,360 |
 | 1,048,576 | 6,368 | 20.8 / 17.1 | 4.4 / 2.7 | 1,368 / 1,368 |
 | 15,728,640 | 6,450 | 42.6 / 40.6 | 4.4 / 2.8 | 1,373 / 1,365 |
+| 16,777,216 | 6,452 | 40.5 / 36.9 | 4.3 / 2.7 | 1,368 / 1,364 |
 
 The 15 MiB entry yielded a 39,488,821-byte proof export. Private files at
 sealing occupied 215,206,428 bytes for Official and 175,710,536 for Fast.
@@ -164,14 +164,16 @@ Repeated chunks share proof terms. Heterogeneous package graphs and the
 64 MiB aggregate budget still need separate qualification.
 
 ```sh
-python3 experiments/compiler_validation/boxed_certificate/regression.py --package-entry-bytes 4096 65536 1048576 15728640
+python3 experiments/compiler_validation/boxed_certificate/regression.py --package-entry-bytes 4096 65536 1048576 15728640 16777216
 ```
 
-At exactly 16 MiB both the flat and packaged source checks and their complete LLVM previews succeed. The
-stage driver stops before proof generation because the function revision also
-includes the envelope and has its own 16 MiB transport limit. The loader rejects
-an additional source byte. The release still needs an input-bound proof path
-for the full byte budgets. [Function revision transport](../../../docs/guide/cli.md)
+At exactly 16 MiB the flat entry yielded 6,338 declarations and all 1,830
+corpus bytes in both modes. Official took 37.2 s and Fast took 32.0 s. The
+packaged entry yielded the 39,488,670-byte export measured above. The public
+proof input includes the original wire once, alongside the remaining revision
+fields from the same artifact. A change to a revision field fails independent
+capture. The standalone receipt retains its 16 MiB transport limit. The loader
+rejects an entry one byte over its file limit. [CLI reference](../../../docs/guide/cli.md)
 
 Official passes that snapshot to Lean 4.35.0’s `leanchecker --from-export`. It starts from an empty kernel environment and checks the reconstructed quotient primitives. Fast passes the same export to nanoda 0.4.19 and requires its exact declaration count. The qualification depends on the frontend, execution of the public Lean checker, the exporter and construction of the concrete subject from their outputs.
 

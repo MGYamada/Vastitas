@@ -85,3 +85,35 @@ pub(super) fn print(receipt: Option<&str>) -> Result<(), String> {
     writeln!(std::io::stdout().lock(), "{raw}")
         .map_err(|err| format!("E_OUTPUT: cannot write function revision: {err}"))
 }
+
+/// The Lean artifact carries the revision of this emission. Its input projection
+/// equals the wire sent on stdin. Stream that original buffer once and keep
+/// nested revision values opaque, as for ordinary revision printing.
+pub(super) fn print_proof_input(
+    request: &[u8],
+    llvm: &Value,
+    fields: Option<&str>,
+) -> Result<(), String> {
+    let fields: std::collections::BTreeMap<&str, &RawValue> =
+        serde_json::from_str(fields.ok_or("E_PROTOCOL: missing LLVM revision fields")?)
+            .map_err(|_| "E_PROTOCOL: invalid LLVM revision fields")?;
+    if fields.contains_key("input") || !fields.contains_key("schema") {
+        return Err("E_PROTOCOL: invalid factored LLVM revision".into());
+    }
+    let mut out = std::io::BufWriter::new(std::io::stdout().lock());
+    let write = || -> std::io::Result<()> {
+        out.write_all(br#"{"llvm":"#)?;
+        serde_json::to_writer(&mut out, llvm)?;
+        out.write_all(br#","revision":{"input":"#)?;
+        out.write_all(request)?;
+        for (key, value) in fields {
+            out.write_all(b",")?;
+            serde_json::to_writer(&mut out, key)?;
+            out.write_all(b":")?;
+            out.write_all(value.get().as_bytes())?;
+        }
+        out.write_all(b"}}\n")?;
+        out.flush()
+    };
+    write().map_err(|err| format!("E_OUTPUT: cannot write LLVM proof input: {err}"))
+}

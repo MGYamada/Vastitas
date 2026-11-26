@@ -419,6 +419,9 @@ jobs:
       - name: Check library and manifest revisions in both modes
         if: ${{ runner.os == 'Linux' && !cancelled() && steps.build_tools.outcome == 'success' }}
         run: python3 experiments/compiler_validation/boxed_certificate/regression.py --suite inputs --memory 6144 2>&1 | tee "$RUNNER_TEMP/proof-inputs.log"
+      - name: Replay the 16 MiB packaged entry in both modes
+        if: ${{ runner.os == 'Linux' && !cancelled() && steps.build_tools.outcome == 'success' }}
+        run: python3 experiments/compiler_validation/boxed_certificate/regression.py --package-entry-bytes 16777216 --memory 6144 2>&1 | tee "$RUNNER_TEMP/proof-entry-limit.log"
       - name: Retain compiler proof qualification results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -430,6 +433,7 @@ jobs:
             ${{ runner.temp }}/proof-boxed.log
             ${{ runner.temp }}/proof-inputs.log
             ${{ runner.temp }}/proof-assembly.log
+            ${{ runner.temp }}/proof-entry-limit.log
           if-no-files-found: warn
 
   oracle:

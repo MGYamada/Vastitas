@@ -21,4 +21,20 @@ theorem executable_actions {wire : Lean.Json} {p : ResourceSource.Program}
     LLVM.Emission.check wire header false = LLVM.Emission.check wire header true :=
   LLVM.Emission.check_build_entry decoded entry header
 
+/-- The original request supplies the input field of every published revision. -/
+theorem revision_input {json : Lean.Json} {header : TargetHeader} (o : LLVM.Emission.Output json header) :
+    o.revision.getObjVal? "input" = .ok (ResourceSource.Wire.revisionInput json) := by
+  have field {p : ResourceSource.Program} {main} {rev : Lean.Json} (c : ResourceSource.Checked p main)
+      (same : rev = ResourceSource.FunctionRevision.artifact (ResourceSource.Wire.revisionInput json) c) :
+      rev.getObjVal? "input" = .ok (ResourceSource.Wire.revisionInput json) := by
+    rw [same]
+    by_cases h : c.lowered.realizationSites.isEmpty = true <;>
+      simp [ResourceSource.FunctionRevision.artifact, h] <;> rfl
+  cases o with
+  | storage a _ _ => exact field _ a.revisionFrom
+  | exactProgram a _ _ | exactFlow a _ _ | finite a _ _ =>
+    exact field _ ((MidIR.execute_identity _ _ a.linked.executed).2.trans a.linked.revision)
+  | exactLibrary a _ _ | lookup a _ _ | binary a _ _ | forwarding a _ _
+  | executable a _ _ | folded a _ _ | dispatch a _ _ => exact field _ a.revision
+
 end VastitasOracle.Emission

@@ -41,8 +41,9 @@ private def flowFunction (f : ExactFlow.Func) := Json.mkObj [
 /-- Return independent witness data from the actual linked program. The
 driver compares its entire revision and bytes with the public CLI capture. -/
 def main (args : List String) : IO Unit := do
-  let [file,triple,layout,kind] := args | throw (IO.userError "expected revision file, triple, data layout and graph kind")
-  let rev ← IO.ofExcept (Json.parse (← IO.FS.readFile file))
+  let [file,triple,layout,kind] := args | throw (IO.userError "expected proof input, triple, data layout and graph kind")
+  let publication ← IO.ofExcept (Json.parse (← IO.FS.readFile file))
+  let rev ← IO.ofExcept (publication.getObjVal? "revision")
   let wire ← IO.ofExcept (rev.getObjVal? "input")
   let some t := checkTargetText .triple triple.toUTF8.data.toList | throw (IO.userError "invalid target")
   let some l := checkTargetText .dataLayout layout.toUTF8.data.toList | throw (IO.userError "invalid layout")

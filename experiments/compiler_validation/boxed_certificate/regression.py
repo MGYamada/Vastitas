@@ -22,6 +22,11 @@ from proof_worker import run_proof_worker
 BOOL_COMPARISON = ("bool-comparison", "BoolComparison", "apply equality;", 4, 2**128 + 10, 2**128 + 7)
 
 
+def published_revision(directory):
+    with (directory / "proof-input.json").open(encoding="utf-8") as stream:
+        return json.load(stream, object_pairs_hook=fast.unique_fields)["revision"]
+
+
 def check_method_selection(work, source, check, label, fixture, apply, functions, selected_result, default_result):
     body = (verify.ROOT / f"llvm/fixtures/{fixture}.vast").read_text()
     require(body.count(apply) == 1, f"{label}: expected one selection")
@@ -208,6 +213,17 @@ def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), entr
     env = verify.environment(producer, prefix)
     lean = verify.lean_command(prefix, memory)
 
+    publication = json.loads((producer / "proof-input.json").read_bytes())
+    publication["revision"]["schema"] = "changed-schema"
+    changed = work / "changed-revision.json"
+    changed.write_text(json.dumps(publication))
+    result = run_proof_worker([*lean, "--run", verify.HERE / "Capture.lean", changed,
+                               args.target_triple, args.data_layout, "program"],
+                              cwd=producer, env=env, timeout=args.timeout, capture_output=True, text=True)
+    require(result.returncode != 0 and "different complete function revision" in result.stderr,
+            "an altered revision field must fail independent capture even with identical wire and LLVM")
+    print("changed revision schema rejected by Lean", flush=True)
+
     def export(label, text):
         (producer / "Certificate.lean").write_text(text)
         run_proof_worker([*lean, "-DwarningAsError=true", "-o", "Certificate.olean", "Certificate.lean"],
@@ -251,7 +267,7 @@ def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), entr
     old = b"call ptr @vastitas_int_add_v1(ptr %v1, ptr %v0)"
     require(preview.count(old) == 1, "expected one boxed addition")
     changed = preview.replace(old, old.replace(b"%v1", b"%v0"))
-    revision = json.loads((producer / "revision.json").read_bytes())
+    revision = published_revision(producer)
     model = json.loads((producer / "capture.stdout").read_bytes())
     sources = verify.read_sources(revision["input"], source, [source.name])
 
@@ -364,6 +380,19 @@ def check_file_scale(work, args, check, counts, library_bytes, entry_bytes, pack
                   f"{report['certificate']['bytes']} certificate bytes, "
                   f"{report['private_file_bytes_at_seal']} private bytes at seal", flush=True)
             shutil.rmtree(directory)
+        if entry_bytes and size == 16 * 1024**2:
+            cmd = [args.frontend, "check", *(["--manifest-path", args.manifest_path.name] if packaged else [source.name])]
+            receipt = subprocess.run([*cmd, "--print-function-revision"], cwd=work,
+                                     capture_output=True, timeout=args.timeout)
+            require(receipt.returncode != 0 and not receipt.stdout and b"16 MiB receipt limit" in receipt.stderr,
+                    "the standalone receipt must retain its size limit")
+            with source.open("ab") as stream:
+                stream.write(b" ")
+            over = subprocess.run([*cmd, "--llvm-proof-input", "--target-triple", args.target_triple,
+                                   "--data-layout", args.data_layout], cwd=work, capture_output=True, timeout=args.timeout)
+            require(over.returncode != 0 and not over.stdout and b"E_LIMIT" in over.stderr,
+                    "a source one byte over the file limit must fail before publication")
+            print("standalone receipt and source size limits enforced", flush=True)
 
 
 def check_external_inputs(work, frontend):
@@ -436,7 +465,7 @@ def reject_lean_control(directory, args, filename, contents, control, *diagnosti
 
 
 def check_final_library_row(directory, args):
-    revision = json.loads((directory / "revision.json").read_bytes())
+    revision = published_revision(directory)
     captured = json.loads((directory / "capture.stdout").read_bytes())
     data = (directory / "preview.ll").read_bytes()
     names = [args.source.name, *(lib.name for lib in args.lib)]
@@ -465,7 +494,7 @@ example : {s : String // s.utf8ByteSize = 2} := sizedLiteral "λ" ['μ'] rfl
 
 
 def check_manifest_entry_span(directory, args):
-    revision = json.loads((directory / "revision.json").read_bytes())
+    revision = published_revision(directory)
     wire = revision["input"]
     inputs = verify.read_sources(wire, args.manifest_path.resolve(strict=True), None)
     _, offset, text = inputs.files[inputs.entry]
@@ -519,7 +548,7 @@ def check_physical_inputs(work, args, source, check):
             check_final_library_row(work / label, args)
         if label == "manifest":
             check_manifest_entry_span(work / label, args)
-            wire = json.loads((work / label / "revision.json").read_bytes())["input"]
+            wire = published_revision(work / label)["input"]
             app = next(p for p in wire["packages"] if p["source"] == wire["root"])
             app["dependencies"].clear()
             try:
@@ -624,7 +653,7 @@ def check_borrowed_operator(work, args, check):
     print(f"borrowed-operator nanoda peak {peak_mib:.1f} MiB", flush=True)
     retained = verify.ROOT / "llvm/src/borrowed-operator.ll"
     require((compiled / "preview.ll").read_bytes() == retained.read_bytes(), "different assembled module")
-    revision = json.loads((compiled / "revision.json").read_bytes())
+    revision = published_revision(compiled)
     check_package_substitutions(revision["input"], args.manifest_path.resolve())
     pure = revision["pure"]
     call, = pure["dispatch_calls"]

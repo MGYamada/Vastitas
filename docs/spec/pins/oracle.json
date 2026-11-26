@@ -129,6 +129,7 @@
     {"name": "VastitasOracle.DispatchFunction.method_correspondence", "module": "VastitasOracle.DispatchFunction", "kind": "theorem", "statement": "sha256:954b68b070ae7f3d9e98294fd912a3e5b0e89a35384b7aaee4b2d949557f8c25"},
     {"name": "VastitasOracle.Emission.executable_actions", "module": "VastitasOracle.Emission", "kind": "theorem", "statement": "sha256:b8780f835d69ed608fedacc4b7f86d1b666b8f02b662ef1b3336ce77ec615f6b"},
     {"name": "VastitasOracle.Emission.executable_readback", "module": "VastitasOracle.Emission", "kind": "theorem", "statement": "sha256:a02272aa68b71039415309eacdce9087d80dc4f3d501c54fa8ed662b45bf6c30"},
+    {"name": "VastitasOracle.Emission.revision_input", "module": "VastitasOracle.Emission", "kind": "theorem", "statement": "sha256:aebdc8b886d19c3812221b9ef24e63fb9e975212f71cd07933c1710aff3c65a8"},
     {"name": "VastitasOracle.ExactAffine.chart_injective", "module": "VastitasOracle.ExactAffine", "kind": "theorem", "statement": "sha256:6b810f1b1b98a3c6989f3d2274db660b5c84f2bfd5d142aee336fd51b759b0f9"},
     {"name": "VastitasOracle.ExactAffine.isField", "module": "VastitasOracle.ExactAffine", "kind": "theorem", "statement": "sha256:4dc886f6d0e1dc2f304929f07b01b5d1aafac9bc34d419aee2b45b1f11f15ee1"},
     {"name": "VastitasOracle.ExactAffine.paired_selection", "module": "VastitasOracle.ExactAffine", "kind": "theorem", "statement": "sha256:eb1f4a5f1cd837e251f6f5eb76a5b5f29195086c9e91dae5575ae8456464ee56"},

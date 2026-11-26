@@ -8,22 +8,22 @@ open VastitasKernel
 
 private inductive Action where
   | check | emit | revision
-  | llvm (header : LLVM.TargetHeader) (requireExecutable : Bool)
+  | llvm (header : LLVM.TargetHeader) (requireExecutable proofInput : Bool)
 
 private def action : List String → Except Diagnostic Action
   | [] | ["check"] => .ok .check
   | ["emit"] => .ok .emit
   | ["function-revision"] => .ok .revision
   | [mode, triple, layout] => do
-    unless mode == "llvm-check" || mode == "llvm-build" do
+    unless mode == "llvm-check" || mode == "llvm-build" || mode == "llvm-proof-input" do
       throw {code := "E_ARGUMENT", message := "unknown kernel action"}
     let some t := LLVM.checkTargetText .triple triple.toUTF8.data.toList
       | throw {code := "E_ARGUMENT", message := "invalid LLVM target triple"}
     let some l := LLVM.checkTargetText .dataLayout layout.toUTF8.data.toList
       | throw {code := "E_ARGUMENT", message := "invalid LLVM data layout"}
-    return .llvm ⟨t,l⟩ (mode == "llvm-build")
+    return .llvm ⟨t,l⟩ (mode == "llvm-build") (mode == "llvm-proof-input")
   | _ => .error {code := "E_ARGUMENT", message :=
-      "usage: vastitas-kernel [check|emit|function-revision] or [llvm-check|llvm-build] TRIPLE LAYOUT"}
+      "usage: vastitas-kernel [check|emit|function-revision] or [llvm-check|llvm-build|llvm-proof-input] TRIPLE LAYOUT"}
 
 private def process (mode : Action) (input : String) : Lean.Json := Id.run do
   if let .error message := WireScan.scan input then
@@ -42,7 +42,9 @@ private def process (mode : Action) (input : String) : Lean.Json := Id.run do
       if (json.getObjVal? "expected_function_revision").isOk then
         response.setObjVal! "function_revision_matched" true else response
     match mode with
-    | .llvm header requireExecutable =>
+    | .llvm header requireExecutable proofInput =>
+      if proofInput && (json.getObjVal? "expected_function_revision").isOk then
+        return failureJson {code := "E_ARGUMENT", message := "proof input requires the original compilation request"}
       match LLVM.Emission.check json header requireExecutable with
       | .error d => return failureJson d
       | .ok artifact =>
@@ -52,7 +54,12 @@ private def process (mode : Action) (input : String) : Lean.Json := Id.run do
           ("layout", String.ofList (header.dataLayout.bytes.map fun b => Char.ofNat b.toNat)),
           ("verification_endpoint", "modeled-llvm-bytes"), ("verifier", "compiled-lean-checker"),
           ("official_kernel_checked", false), ("native_generated", false)]
-        return acknowledge ((successJson none).setObjVal! "llvm" evidence)
+        let response := (successJson none).setObjVal! "llvm" evidence
+        if proofInput then
+          let some fields := ResourceSource.FunctionRevision.derivedFields? artifact.revision
+            | return failureJson {code := "E_PROTOCOL", message := "invalid LLVM artifact revision"}
+          return response.setObjVal! "function_revision" fields
+        return acknowledge response
     | .emit =>
       match ResourceSource.Wire.emit json with
       | .error diagnostic => return failureJson diagnostic

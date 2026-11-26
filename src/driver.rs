@@ -22,7 +22,7 @@ static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
 const USAGE: &str = concat!(
     "vastitas ",
     env!("CARGO_PKG_VERSION"),
-    "\n\nUsage:\n  vastitas check INPUT.vast [--lib LIBRARY.vast]...\n  vastitas build INPUT.vast [--lib LIBRARY.vast]... -o OUTPUT\n  vastitas check --manifest-path Vastitas.toml\n  vastitas build --manifest-path Vastitas.toml -o OUTPUT [--openblas-prefix PREFIX] [--native-cc COMPILER]\n  vastitas audit-lean LEAN4EXPORT.ndjson\n\n--lib adds explicitly selected source libraries to the same checked compilation unit.\nManifest mode accepts local path packages and cannot be mixed with INPUT.vast or --lib.\nNumerical builds require pinned sequential LP64 OpenBLAS 0.3.34 via --openblas-prefix.\n--native-cc explicitly selects the compiler/linker for numerical builds (for example cc on Linux).\ncheck --print-function-revision prints checked JSON; check/build --expect-function-revision FILE rechecks it.\ncheck --llvm-preview --target-triple TRIPLE --data-layout LAYOUT writes the modeled LLVM bytes.\nbuild --llvm-preview -o OUTPUT uses the native target and requires the llvm-native feature.\nBuild the backend first: lake -d lean-kernel build vastitas-kernel\n"
+    "\n\nUsage:\n  vastitas check INPUT.vast [--lib LIBRARY.vast]...\n  vastitas build INPUT.vast [--lib LIBRARY.vast]... -o OUTPUT\n  vastitas check --manifest-path Vastitas.toml\n  vastitas build --manifest-path Vastitas.toml -o OUTPUT [--openblas-prefix PREFIX] [--native-cc COMPILER]\n  vastitas audit-lean LEAN4EXPORT.ndjson\n\n--lib adds explicitly selected source libraries to the same checked compilation unit.\nManifest mode accepts local path packages and cannot be mixed with INPUT.vast or --lib.\nNumerical builds require pinned sequential LP64 OpenBLAS 0.3.34 via --openblas-prefix.\n--native-cc explicitly selects the compiler/linker for numerical builds (for example cc on Linux).\ncheck --print-function-revision prints checked JSON; check/build --expect-function-revision FILE rechecks it.\ncheck --llvm-preview --target-triple TRIPLE --data-layout LAYOUT writes the modeled LLVM bytes.\ncheck --llvm-proof-input with the same target writes one JSON object containing the LLVM artifact and full function revision.\nbuild --llvm-preview -o OUTPUT uses the native target and requires the llvm-native feature.\nBuild the backend first: lake -d lean-kernel build vastitas-kernel\n"
 );
 
 struct Options {
@@ -46,7 +46,7 @@ fn options(args: &[OsString]) -> Result<Options, String> {
     };
     let mut expected_revision = None;
     let mut print_revision = false;
-    let mut llvm_preview = false;
+    let mut llvm_mode = None;
     let mut triple = None;
     let mut layout = None;
     let mut input = None;
@@ -62,11 +62,16 @@ fn options(args: &[OsString]) -> Result<Options, String> {
                 return Err(usage());
             }
             print_revision = true;
-        } else if arg == "--llvm-preview" {
-            if llvm_preview {
+        } else if arg == "--llvm-preview" || arg == "--llvm-proof-input" {
+            let action = match (arg.to_str(), mode) {
+                (Some("--llvm-proof-input"), "check") => "llvm-proof-input",
+                (Some("--llvm-preview"), "emit") => "llvm-build",
+                (Some("--llvm-preview"), _) => "llvm-check",
+                _ => return Err(usage()),
+            };
+            if llvm_mode.replace(action).is_some() {
                 return Err(usage());
             }
-            llvm_preview = true;
         } else if arg == "--target-triple" || arg == "--data-layout" {
             let slot = if arg == "--target-triple" {
                 &mut triple
@@ -145,27 +150,25 @@ fn options(args: &[OsString]) -> Result<Options, String> {
     if print_revision && expected_revision.is_some() {
         return Err(usage());
     }
-    let llvm_target = match (llvm_preview, mode, triple, layout) {
-        (true, "check", Some(triple), Some(layout)) if !print_revision => {
+    if llvm_mode == Some("llvm-proof-input") && expected_revision.is_some() {
+        return Err(usage());
+    }
+    let llvm_target = match (llvm_mode, triple, layout) {
+        (Some("llvm-check" | "llvm-proof-input"), Some(triple), Some(layout))
+            if !print_revision =>
+        {
             Some(llvm::Target { triple, layout })
         }
-        (true, "emit", None, None) => None,
-        (false, _, None, None) => None,
+        (Some("llvm-build") | None, None, None) => None,
         _ => return Err(usage()),
     };
     Ok(Options {
         llvm_target,
-        mode: if llvm_preview {
-            if mode == "emit" {
-                "llvm-build"
-            } else {
-                "llvm-check"
-            }
-        } else if print_revision {
+        mode: llvm_mode.unwrap_or(if print_revision {
             "function-revision"
         } else {
             mode
-        },
+        }),
         expected_revision,
         input,
         manifest,
@@ -304,6 +307,13 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
     }
     if let Some(target) = llvm_target {
         let artifact = llvm::checked_bytes(&response, &target, output.is_some())?;
+        if mode == "llvm-proof-input" {
+            return revision::print_proof_input(
+                &request,
+                &response["llvm"],
+                printed_revision.as_deref(),
+            );
+        }
         if let Some(output) = output {
             llvm::build(
                 &artifact,
@@ -570,17 +580,18 @@ fn invoke_kernel(
     let retention = crate::process::Retention::Complete(MAX_BACKEND_RESPONSE);
     let output = crate::process::capture(command, Some(request), retention)
         .map_err(|error| subprocess_error(error, "E_BACKEND", &shown(executable), true))?;
-    let (response, printed_revision) = if mode == "function-revision" {
-        revision::decode_print_response(&output.stdout)
-    } else {
-        serde_json::from_slice(&output.stdout).map(|v| (v, None))
-    }
-    .map_err(|error| {
-        format!(
-            "E_PROTOCOL: invalid backend response: {error}\n{}",
-            String::from_utf8_lossy(&output.stderr)
-        )
-    })?;
+    let (response, printed_revision) =
+        if matches!(mode, "function-revision" | "llvm-proof-input") {
+            revision::decode_print_response(&output.stdout)
+        } else {
+            serde_json::from_slice(&output.stdout).map(|v| (v, None))
+        }
+        .map_err(|error| {
+            format!(
+                "E_PROTOCOL: invalid backend response: {error}\n{}",
+                String::from_utf8_lossy(&output.stderr)
+            )
+        })?;
     let identity_problem = kernel_identity_problem(&response);
     let version_mismatch = response.get("version") != Some(&json!(crate::ir::PROTOCOL));
     if response.get("ok") == Some(&Value::Bool(false)) {

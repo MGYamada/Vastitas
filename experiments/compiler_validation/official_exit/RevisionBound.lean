@@ -18,5 +18,7 @@ attribute [local cbv_opaque] guard
 
 theorem boundedRevision : ResourceSource.FunctionRevision.bounded revision = true := by cbv
 
+theorem boundedDerivedRevision : ResourceSource.FunctionRevision.boundedDerived revision = true := by cbv
+
 end VastitasQualification.ExitAdmission
 #print axioms VastitasQualification.ExitAdmission.boundedRevision

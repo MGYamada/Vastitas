@@ -53,6 +53,20 @@ inductive Output (json : Json) (header : TargetHeader) where
 def Output.text {json header} : Output json header → String
   | .exactFlow _ s _ | .storage _ s _ | .exactProgram _ s _ | .exactLibrary _ s _ | .lookup _ s _ | .binary _ s _ | .forwarding _ s _ | .executable _ s _ | .folded _ s _ | .dispatch _ s _ | .finite _ s _ => s
 
+/-- Revision carried by the same artifact whose canonical text is published. -/
+def Output.revision {json header} : Output json header → Json
+  | .storage a .. => a.revision
+  | .exactProgram a .. => a.linked.exe.revision
+  | .exactFlow a .. => a.linked.exe.revision
+  | .finite a .. => a.linked.exe.revision
+  | .exactLibrary a .. => a.exe.revision
+  | .lookup a .. => a.exe.revision
+  | .binary a .. => a.exe.revision
+  | .forwarding a .. => a.exe.revision
+  | .executable a .. => a.exe.revision
+  | .folded a .. => a.exe.revision
+  | .dispatch a .. => a.exe.revision
+
 def Output.kind {json header} : Output json header → String
   | .storage a .. => if a.model.calls.any (fun c => c.target == .gemm || c.target == .diagonalPair) then "storage-gemm-program" else "storage-program"
   | .exactFlow .. => "boxed-control-flow"

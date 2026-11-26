@@ -121,6 +121,34 @@ theorem flatLibraryStep (filename entryText path text : String) (count base offs
   simp [Table.step, keys, off, label, body, pathBytes_string validPath, Json.getStr?, Except.toOption,
     notEntry, many, fits, bind, Except.bind, pure, Except.pure]
 
+/-- Canonical non-entry row for either protocol path encoding. -/
+def fileRow (offset : Nat) (label : Json) (text : String) : Json :=
+  Json.mkObj [("offset", toJson (Int.ofNat offset)), ("path", label), ("text", .str text)]
+
+/-- Check the path, offset and manifest transition on the same row with empty contents.
+The proved extent and bounds then restore the full text at the same cursor. -/
+theorem nonEntryFileStep (t : Table) (s : Cursor) (label : Json) (path : ByteArray) (wireText text : String)
+    (missing : ManifestSet) (size : Nat)
+    (sameText : wireText = text)
+    (other : (s.next == t.base) = false) (extent : text.utf8ByteSize = size)
+    (fits : (decide (size > 16 * 1024 * 1024) || decide (s.byteCount + size > 64 * 1024 * 1024)) = false)
+    (empty : t.step s (fileRow s.next label "") =
+      .ok ⟨s.files.push ⟨path, s.next, ""⟩, s.next + 1, s.byteCount, s.entry, missing⟩) :
+    t.step s (fileRow s.next label wireText) =
+      .ok ⟨s.files.push ⟨path, s.next, text⟩, s.next + size + 1, s.byteCount + size, s.entry, missing⟩ := by
+  subst wireText
+  have keys (a : String) : fields (fileRow s.next label a) ["offset","path","text"] = .ok () := by rfl
+  have off (a : String) : (fileRow s.next label a).getObjValAs? Nat "offset" = .ok s.next := by rfl
+  have lab (a : String) : field (fileRow s.next label a) "path" = .ok label := by rfl
+  have body (a : String) : str (fileRow s.next label a) "text" = .ok a := by rfl
+  have usedFits : ¬67108864 < s.byteCount := by
+    simp at fits
+    omega
+  simp [Table.step, keys, off, lab, body, other, extent, fits, usedFits, bind, Except.bind,
+    pure, Except.pure, throw, throwThe, MonadExceptOf.throw] at empty ⊢
+  repeat' (split at empty <;> simp_all [Array.push_eq_push])
+  all_goals grind
+
 /-- Decode the packaged entry after its root manifest using its checked byte extent. -/
 theorem packageEntryStep (root path text : String) (count base used size : Nat)
     (files : Array File) (previous : Option Nat) (owners missing : ManifestSet)

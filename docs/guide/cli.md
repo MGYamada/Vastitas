@@ -16,6 +16,7 @@ vastitas build INPUT.vast [--lib LIBRARY.vast]... -o OUTPUT
 vastitas check --manifest-path Vastitas.toml
 vastitas build --manifest-path Vastitas.toml -o OUTPUT [--openblas-prefix PREFIX] [--native-cc COMPILER]
 vastitas check --manifest-path Vastitas.toml --llvm-preview --target-triple TRIPLE --data-layout LAYOUT
+vastitas check --manifest-path Vastitas.toml --llvm-proof-input --target-triple TRIPLE --data-layout LAYOUT
 vastitas build --manifest-path Vastitas.toml --llvm-preview -o OUTPUT [--native-cc COMPILER]
 vastitas audit-lean LEAN4EXPORT.ndjson
 vastitas --help
@@ -26,7 +27,7 @@ vastitas --version
 
 | Command | What it does | What it writes on success |
 | --- | --- | --- |
-| `check` | Checks a program. The program need not have an entry point | The line `checked INPUT`, the JSON receipt with `--print-function-revision`, or the complete LLVM assembly with `--llvm-preview`, on standard output |
+| `check` | Checks a program. The program need not have an entry point | The line `checked INPUT`, the JSON receipt with `--print-function-revision`, the complete LLVM assembly with `--llvm-preview`, or proof input JSON with `--llvm-proof-input`, on standard output |
 | `build` | Checks a program in the same way and then builds an executable from its entry point | The file `OUTPUT`, and the line `built OUTPUT` on standard output |
 | `audit-lean` | Rechecks an exported Lean proof with a second checker. It checks no program. [`audit-lean`](#audit-lean) describes it | A report of four lines on standard output |
 | `--help`, `-h` | Prints the usage. `vastitas` without arguments does the same, and so do `check`, `build` and `audit-lean` with `--help` or `-h` as their only argument | The usage on standard output |
@@ -57,7 +58,8 @@ Rules:
 | `--print-function-revision` | `check` | Print the independently checked function revision as one JSON object on standard output |
 | `--expect-function-revision FILE` | `check`, `build` | Require the current kernel to reconstruct the revision in this file |
 | `--llvm-preview` | `check`, `build` | Select the finite LLVM backend described below |
-| `--target-triple TRIPLE`, `--data-layout LAYOUT` | `check --llvm-preview` | Supply both fields of the LLVM module header |
+| `--llvm-proof-input` | `check` | Write the LLVM report and full function revision for one emission as JSON |
+| `--target-triple TRIPLE`, `--data-layout LAYOUT` | `check --llvm-preview`, `check --llvm-proof-input` | Supply both fields of the LLVM module header |
 | `--native-cc COMPILER` | `build` | The compiler and linker of a numerical build, or the host linker of an LLVM build |
 
 For example, capture the revision of an assembly and require it when building:
@@ -171,6 +173,14 @@ modeled module from those bytes. A saved function revision can be required
 with `--expect-function-revision`. The revision and the assembly each occupy
 standard output, so `--print-function-revision` and `--llvm-preview` cannot
 be combined.
+
+`check --llvm-proof-input` takes the same target arguments and writes one JSON
+object. Its `llvm.ir` string contains the complete assembly and its `revision`
+object includes the original protocol-10 input and the checked function
+selections from that emission. The stage verifier reconstructs both from the
+input before checking its certificate. This output form is exclusive with
+`--llvm-preview`, `--print-function-revision` and `--expect-function-revision`.
+The compiled checker reports `official_kernel_checked: false` in this output.
 
 `build --llvm-preview` requires the Cargo feature `llvm-native`. When
 compiling the driver, set `LLVM_SYS_231_PREFIX` to the installation of LLVM

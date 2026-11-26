@@ -298,7 +298,7 @@ def compile {json main} (req : Request json main) : Option (Artifact req) := do
   let entry ← locals[sourceEntry]?
   let ⟨functions,bodies⟩ ← takeChecked (lowerFunctions req originals)
   let rev := ResourceSource.FunctionRevision.artifact (ResourceSource.Wire.revisionInput json) checked
-  guard (ResourceSource.FunctionRevision.bounded rev)
+  guard (ResourceSource.FunctionRevision.boundedDerived rev)
   let opt := Module.mk rev m.declarations.indexed functions (some entry)
   let ⟨originalEntry⟩ ← certify (m.main = some sourceEntry)
   let ⟨entryMap⟩ ← certify (originals[entry]? = some sourceEntry)

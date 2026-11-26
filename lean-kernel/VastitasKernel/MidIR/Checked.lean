@@ -66,7 +66,7 @@ def lowerChecked {json : Lean.Json} {main : Bool}
   guard (exactCalls functions source.executable.lowered.emittedCalls)
   let revision := ResourceSource.FunctionRevision.artifact
     (ResourceSource.Wire.revisionInput json) checked
-  guard (ResourceSource.FunctionRevision.bounded revision)
+  guard (ResourceSource.FunctionRevision.boundedDerived revision)
   let out := Module.mk revision core.declarations.indexed functions.toArray core.main
   guard (validSymbols out)
   return out

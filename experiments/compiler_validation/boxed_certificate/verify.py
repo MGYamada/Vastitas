@@ -270,25 +270,31 @@ def read_sources(wire, source, flat_names):
     offset = total = 0
     entry = None
     for name, row in zip(names, rows, strict=True):
+        require(row["offset"] == offset, "physical source offset differs from current files")
+        if offset == root["offset"]:
+            entry = len(files)
+            text = root["text"]
+        else:
+            text = row["text"]
+        require(isinstance(text, str), "expected UTF-8 source text")
         path = source.parent / os.fsdecode(name)
         with os.fdopen(os.open(path, os.O_RDONLY | os.O_NONBLOCK), "rb") as stream:
             info = os.fstat(stream.fileno())
             require(stat.S_ISREG(info.st_mode), "expected regular compilation input")
             limit = min(16 * 1024**2, 64 * 1024**2 - total)
             require(info.st_size <= limit, "physical source byte limit exceeded")
-            data = stream.read(info.st_size + 1)
-        require(len(data) == info.st_size, "source size changed during certificate preparation")
-        text = data.decode("utf-8")
-        require(row["offset"] == offset, "physical source offset differs from current files")
-        if offset == root["offset"]:
-            entry = len(files)
-            expected = root["text"]
-        else:
-            expected = row["text"]
-        require(text == expected, "source bytes changed during certificate preparation")
+            # A slice has at most 64 KiB of UTF-8. Keep the verified wire string
+            # as the file text after comparing every byte with its open descriptor.
+            seen = 0
+            for start in range(0, len(text), 16384):
+                part = text[start:start + 16384].encode("utf-8")
+                seen += len(part)
+                require(seen <= info.st_size and stream.read(len(part)) == part,
+                        "source bytes changed during certificate preparation")
+            require(seen == info.st_size and not stream.read(1), "source size changed during certificate preparation")
         files.append((name, offset, text))
-        total += len(data)
-        offset += len(data) + 1
+        total += seen
+        offset += seen + 1
     require(entry is not None, "missing physical entry")
     if flat_names is None:
         graph = check_manifest_inputs(wire, source, files, entry)
@@ -417,6 +423,10 @@ def physical_proof(wire, inputs, quote, physical, sized_texts):
     entry_extent = sized_texts.get(entry_text)
     for i, (row, (label, offset, text)) in enumerate(zip(rows, inputs.files, strict=True)):
         lines.append(f"def expectedFiles{i+1} := expectedFiles{i}.push {physical[i]}")
+        name = os.fsdecode(label)
+        if name in names:
+            lines.append(f"def missing{i+1} := {missing}.erase {quote(name)}")
+            missing = f"missing{i+1}"
         # Only the exact canonical wire shape can use the shared decoder proof.
         # Build the JSON from the captured wire and the output cursor from disk.
         flat_library = (flat and i != inputs.entry and set(row) == {"offset", "path", "text"}
@@ -447,14 +457,20 @@ def physical_proof(wire, inputs, quote, physical, sized_texts):
                      f"{wire_path} {quote(text)} table.count table.base "
                      f"{natural(offset)} {total} {size} expectedFiles{i} cursor{i}.entry {extent_proofs[text]} "
                      "rfl rfl (by with_unfolding_all rfl) rfl")
+        elif i != inputs.entry and set(row) == {"offset", "path", "text"}:
+            raw = official.json_term(row["path"], quote)
+            wire_text = quote(row["text"])
+            row_term = (f"VastitasOracle.CertificatePackages.fileRow {natural(row['offset'])} "
+                        f"({raw}) {wire_text}")
+            extent = (sized_texts[text] + ".property" if text in sized_texts else "(by with_unfolding_all rfl)")
+            # Equal contents share a binding. Keep distinct long strings closed on a mismatch.
+            proof = (f"VastitasOracle.CertificatePackages.nonEntryFileStep table cursor{i} ({raw}) "
+                     f"({physical[i]} : PhysicalSources.File).path {wire_text} {quote(text)} {missing} {size} "
+                     f"(by with_reducible rfl) rfl {extent} (by decide) (by with_unfolding_all rfl)")
         else:
             row_term = official.json_term(row, quote)
             proof = "by with_unfolding_all rfl"
         lines.append(f"def row{i} : Json := {row_term}")
-        name = os.fsdecode(label)
-        if name in names:
-            lines.append(f"def missing{i+1} := {missing}.erase {quote(name)}")
-            missing = f"missing{i+1}"
         if i == inputs.entry:
             entry = f"some {i}"
         total += size
@@ -566,8 +582,8 @@ def authority_modules(revision, model, triple, layout, data, sources):
     wire = physical_wire(revision["input"], quote)
     triple_term, layout_term = quote(triple), quote(layout)
     sized_texts = {}
-    for index, (_, _, text) in enumerate(files):
-        if len(text) > INLINE_TEXT_CHARS and (index == entry or graph.root == "vastitas:compat:flat"):
+    for _, _, text in files:
+        if len(text) > INLINE_TEXT_CHARS:
             sized_texts[text] = f"{strings[text]}Sized"
     batches, rows, expected_files, file_evidence = physical_proof(revision["input"], sources, quote, physical, sized_texts)
     bindings = "\n".join(
@@ -731,23 +747,31 @@ def verify(args, work, report):
     libraries = [os.path.relpath(lib.absolute(), source.parent) for lib in args.lib]
     for library in libraries:
         cmd.extend(["--lib", library])
-    revision_path = work / "revision.json"
-    phase("revision", [*cmd, "--print-function-revision"], revision_path, run_from=source.parent)
-    revision = json.loads(revision_path.read_bytes(), object_pairs_hook=fast.unique_fields)
+    proof_input = work / "proof-input.json"
+    phase("preview", [*cmd, "--llvm-proof-input", "--target-triple", args.target_triple,
+                      "--data-layout", args.data_layout], proof_input, run_from=source.parent)
+    with proof_input.open(encoding="utf-8") as stream:
+        publication = json.load(stream, object_pairs_hook=fast.unique_fields)
+    revision, llvm = publication["revision"], publication["llvm"]
     require(revision["input"]["version"] == 10, "expected wire 10")
     sources = read_sources(revision["input"], source, None if args.manifest_path else [source.name, *libraries])
     report["physical_inputs"] = len(sources.files)
-    preview = work / "preview.ll"
-    phase("preview", [*cmd, "--llvm-preview", "--expect-function-revision", revision_path,
-                      "--target-triple", args.target_triple, "--data-layout", args.data_layout], preview,
-          run_from=source.parent)
-    data = preview.read_bytes()
-    graph = "flow" if b"\n; flow -> " in data else "program"
+    kinds = {"boxed-control-flow": "flow", "boxed-exact-program": "program"}
+    require(llvm["kind"] in kinds and llvm["triple"] == args.target_triple and llvm["layout"] == args.data_layout
+            and llvm["verification_endpoint"] == "modeled-llvm-bytes" and llvm["verifier"] == "compiled-lean-checker"
+            and llvm["official_kernel_checked"] is False and llvm["native_generated"] is False,
+            "expected the compiled checker's boxed LLVM publication for this target")
+    graph = kinds[llvm["kind"]]
+    data = llvm["ir"].encode("utf-8")
+    (work / "preview.ll").write_bytes(data)
     namespace = "FlowCertificate" if graph == "flow" else "BoxedCertificate"
-    model = json.loads(phase("capture", [*lean, "--run", HERE / "Capture.lean", revision_path,
+    model = json.loads(phase("capture", [*lean, "--run", HERE / "Capture.lean", proof_input,
                                          args.target_triple, args.data_layout, graph]), object_pairs_hook=fast.unique_fields)
     require(model["kind"] == graph and model["ir"].encode("utf-8") == data, "captured model and public LLVM bytes differ")
-    report.update(bytes=len(data), llvm_sha256=official.digest(data), revision_sha256=official.digest(revision_path.read_bytes()),
+    digest = hashlib.sha256()
+    for piece in json.JSONEncoder(ensure_ascii=False, sort_keys=True, separators=(",", ":")).iterencode(revision):
+        digest.update(piece.encode("utf-8"))
+    report.update(bytes=len(data), llvm_sha256=official.digest(data), revision_sha256=digest.hexdigest(),
                   functions=len(model["functions"]), integer_result=integer(model["value"]))
     for module, source_text in authority_modules(revision, model, args.target_triple, args.data_layout, data, sources):
         (work / (module + ".lean")).write_text(source_text)

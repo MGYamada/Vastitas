@@ -248,4 +248,12 @@ private def remaining : Nat → Nat → List Json → Option Nat
 
 def bounded (j : Json) : Bool := (remaining maxBytes maxBytes [j]).isSome
 
+/-- The original wire has its own byte limit. Bound the fields derived by the
+checker separately when the full revision stays in the live compilation. -/
+def derivedFields? : Json → Option Json
+  | .obj fields => if fields.contains "input" then some (.obj (fields.erase "input")) else none
+  | _ => none
+
+def boundedDerived (revision : Json) : Bool := (derivedFields? revision).any bounded
+
 end VastitasKernel.ResourceSource.FunctionRevision

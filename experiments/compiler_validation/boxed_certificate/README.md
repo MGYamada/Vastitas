@@ -1,6 +1,6 @@
 # Live boxed-program certificates
 
-The driver checks a closed proof about one public boxed integer program with static calls and forward control flow. The proof subject contains the complete protocol-10 input and function revision, target header, typed instruction graph, mathematical integer result and all emitted LLVM bytes. The frontend replays the saved revision before returning its preview. A second execution of the Lean emitter recovers the graph from the linked artifact and compares its revision and bytes with that preview. [Capture](Capture.lean)
+The driver checks a closed proof about one public boxed integer program with static calls and forward control flow. The proof subject contains the complete protocol-10 input and function revision, target header, typed instruction graph, mathematical integer result and all emitted LLVM bytes. One invocation of `check --llvm-proof-input` returns the full function revision and LLVM report from the same emission. An independent execution of the Lean emitter recovers the graph and revision from the original request. The driver compares the complete revision and LLVM text before constructing the proof. [Capture](Capture.lean)
 
 For a conditional, the certificate checks the typed graph, the chosen edge, the full
 integer at the join and the complete printed module. Its subject imports the printer,
@@ -97,13 +97,14 @@ with a 120-second timeout per worker and a 1,536 MiB Lean allocator budget.
 | 16,384 | 6,324 | 21.1 / 21.9 | 4.4 / 3.0 | 1,447 / 1,443 |
 | 65,536 | 7,092 | 38.0 / 32.8 | 5.8 / 3.8 | 1,448 / 1,444 |
 | 262,144 | 10,164 | 107.1 / 101.4 | 11.1 / 8.2 | 1,470 / 1,467 |
+| 1,048,576 | 22,453 | 370.1 / 354.4 | 30.3 / 18.5 | 1,536 / 1,538 |
 
 Both modes check the same export and all 1,830 retained LLVM bytes at each size.
-The 16 MiB per-file and 64 MiB aggregate limits and large manifest graphs still
-need byte-size qualification.
+At 1 MiB the two verifiers checked the same 88,296,881-byte export.
+The single-entry and four-file sweeps below exercise the file and aggregate limits with repeated text.
 
 ```sh
-python3 experiments/compiler_validation/boxed_certificate/regression.py --library-bytes 4096 16384 65536 262144
+python3 experiments/compiler_validation/boxed_certificate/regression.py --library-bytes 4096 16384 65536 262144 1048576
 ```
 
 For a single flat input, the physical layout theorem checks the two root-source
@@ -131,6 +132,10 @@ retained 1,830 LLVM bytes. End-to-end times are 276.4 and 248.2 seconds.
 The external checkers take 65.1 and 39.3 seconds. Peak child RSS is 1,514
 and 1,512 MiB respectively.
 
+```sh
+python3 experiments/compiler_validation/boxed_certificate/regression.py --file-counts 8192 --with-entry-comment
+```
+
 The single-entry byte sweep uses a repeated multibyte pattern and keeps the
 four compiled functions fixed. A 15 MiB file produces a compact tree because
 equal chunks share definitions. The two modes checked the same 6,334
@@ -139,7 +144,7 @@ was 1,446 and 1,443 MiB. The checker work for this pattern depends on the
 number of distinct chunks as well as the total source size.
 
 ```sh
-python3 experiments/compiler_validation/boxed_certificate/regression.py --entry-bytes 1048576 4194304 15728640
+python3 experiments/compiler_validation/boxed_certificate/regression.py --entry-bytes 1048576 4194304 15728640 16777216
 ```
 
 The packaged entry sweep uses the selected integer comparison in an edition 2026
@@ -157,21 +162,40 @@ worker timeout and 1,536 MiB Lean allocator limit.
 | 65,536 | 6,287 | 19.0 / 15.4 | 4.4 / 2.8 | 1,372 / 1,360 |
 | 1,048,576 | 6,368 | 20.8 / 17.1 | 4.4 / 2.7 | 1,368 / 1,368 |
 | 15,728,640 | 6,450 | 42.6 / 40.6 | 4.4 / 2.8 | 1,373 / 1,365 |
+| 16,777,216 | 6,540 | 29.7 / 26.4 | 4.3 / 2.8 | 1,369 / 1,369 |
 
 The 15 MiB entry yielded a 39,488,821-byte proof export. Private files at
 sealing occupied 215,206,428 bytes for Official and 175,710,536 for Fast.
-Repeated chunks share proof terms. Heterogeneous package graphs and the
-64 MiB aggregate budget still need separate qualification.
+Repeated chunks share proof terms. The four-file sweep below keeps the flat
+function graph fixed while increasing aggregate source size.
 
 ```sh
-python3 experiments/compiler_validation/boxed_certificate/regression.py --package-entry-bytes 4096 65536 1048576 15728640
+python3 experiments/compiler_validation/boxed_certificate/regression.py --package-entry-bytes 4096 65536 1048576 15728640 16777216
 ```
 
-At exactly 16 MiB both the flat and packaged source checks and their complete LLVM previews succeed. The
-stage driver stops before proof generation because the function revision also
-includes the envelope and has its own 16 MiB transport limit. The loader rejects
-an additional source byte. The release still needs an input-bound proof path
-for the full byte budgets. [Function revision transport](../../../docs/guide/cli.md)
+At exactly 16 MiB the flat entry yielded 6,338 declarations and all 1,830
+corpus bytes in both modes. Official took 37.2 s and Fast took 32.0 s. The
+16 MiB packaged entry measurement includes the non-entry file proof for its
+manifest. Both modes checked the same 40,362,182-byte export. The public
+proof input includes the original wire once, alongside the remaining revision
+fields from the same artifact. A change to a revision field fails independent
+capture. The standalone receipt retains its 16 MiB transport limit. The loader
+rejects an entry one byte over its file limit. [CLI reference](../../../docs/guide/cli.md)
+
+Four flat files with different prefixes and repeated UTF-8 comments exercise
+the aggregate limit. At 64 MiB, each file is exactly 16 MiB. Both modes
+checked the same 41,952,372-byte export, all 6,455 declarations and every
+byte of the 1,830-byte boxed module on macOS arm64. Official took 47.5 s and
+Fast took 44.2 s. The largest worker reached 1,631 and 1,632 MiB RSS
+respectively under the 1,536 MiB Lean allocation limit. At sealing the
+private files occupied 454,532,566 and 412,571,548 bytes. The physical
+source reader compares the original file contents in slices of at most
+64 KiB of UTF-8. An additional one-byte file exceeds the aggregate limit.
+High-entropy text and large dependency graphs still need qualification.
+
+```sh
+python3 experiments/compiler_validation/boxed_certificate/regression.py --aggregate-bytes 65536 16777216 67108864
+```
 
 Official passes that snapshot to Lean 4.35.0’s `leanchecker --from-export`. It starts from an empty kernel environment and checks the reconstructed quotient primitives. Fast passes the same export to nanoda 0.4.19 and requires its exact declaration count. The qualification depends on the frontend, execution of the public Lean checker, the exporter and construction of the concrete subject from their outputs.
 
@@ -190,6 +214,37 @@ Given a publication, both the straight-line and control-flow theorems identify
 these owners with those in its checked program. [Package graph proof](../../../lean/VastitasOracle/CertificatePackages.lean)
 
 The inputs suite calls the same integer helper through a flat library and through an external module in a dependency. The flat case places the edited helper in file 129, immediately after the first proof batch. The package has five physical inputs. Editing a comment in its dependency manifest changes the function revision and preserves all 1,127 LLVM bytes. The suite checks both verifier modes and rejects the earlier proof after that edit.
+
+A dependency's manifest and external module each contain a separate repeated
+UTF-8 comment. The file-row theorem checks the path, offset and manifest-set
+transition using the protocol decoder. It uses the proved byte length of the
+actual text to restore the row and enforce both size limits. The inputs suite
+swaps the two same-length file contents independently and checks that Lean
+rejects each substitution. The size sweep compares every LLVM byte with a
+public compilation of the same package before either file is padded. Adding one
+byte to either dependency file at 16 MiB produces `E_LIMIT` and no proof input.
+
+On macOS arm64 both verifiers checked all 1,127 LLVM bytes and the same export
+at each size. The worker timeout was 120 seconds and the Lean allocator limit
+was 1,536 MiB. The measured RSS includes memory outside the Lean allocator.
+The export records absolute manifest paths, so its byte size can vary across workspaces.
+
+| Bytes per dependency file | Declarations | Export bytes | Wall seconds (Official / Fast) | Largest worker RSS, MiB (Official / Fast) |
+| ---: | ---: | ---: | ---: | ---: |
+| 65,536 | 6,185 | 39,402,103 | 19.9 / 15.3 | 1,440 / 1,436 |
+| 1,048,576 | 6,267 | 39,438,561 | 20.8 / 16.3 | 1,444 / 1,440 |
+| 16,777,216 | 6,364 | 39,489,681 | 32.8 / 29.0 | 1,554 / 1,555 |
+
+```sh
+python3 experiments/compiler_validation/boxed_certificate/regression.py --dependency-file-bytes 65536 1048576 16777216
+```
+
+The package entry passes the boxed 21 directly to `@vq_f0`, then calls
+`@vastitas_release_v1` on that argument. The helper passes it twice to the
+integer addition shim and returns 42. Lean 4.35.0's `emitFullApp` looks up
+a static callee, loads its arguments from their slots, builds the call and
+stores its result. This comparison uses the pinned emitter source.
+[Pinned emitFullApp](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L755-L774)
 
 The boxed publication theorem places each resolved implementation, classification and indexed family
 in Core and in both MidIR environments for the same revision and complete bytes.

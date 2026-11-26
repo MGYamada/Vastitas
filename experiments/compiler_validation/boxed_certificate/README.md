@@ -96,14 +96,42 @@ with a 120-second timeout per worker and a 1,536 MiB Lean allocator budget.
 | 4,096 | 6,132 | 16.3 / 12.9 | 4.1 / 2.7 | 1,438 / 1,430 |
 | 16,384 | 6,324 | 21.1 / 21.9 | 4.4 / 3.0 | 1,447 / 1,443 |
 | 65,536 | 7,092 | 38.0 / 32.8 | 5.8 / 3.8 | 1,448 / 1,444 |
+| 262,144 | 10,164 | 107.1 / 101.4 | 11.1 / 8.2 | 1,470 / 1,467 |
 
 Both modes check the same export and all 1,830 retained LLVM bytes at each size.
 The 16 MiB per-file and 64 MiB aggregate limits and large manifest graphs still
 need byte-size qualification.
 
 ```sh
-python3 experiments/compiler_validation/boxed_certificate/regression.py --library-bytes 4096 16384 65536
+python3 experiments/compiler_validation/boxed_certificate/regression.py --library-bytes 4096 16384 65536 262144
 ```
+
+For a single flat input, the physical layout theorem checks the two root-source
+fields, the protected package identity, the filename, its path bytes and the
+entry's checked UTF-8 byte length. Appending a 64 KiB repeated comment to the
+four-function entry previously exceeded the conversion recursion limit. On
+macOS arm64 both workers checked the resulting single-file revision, all 6,066
+declarations and the same 1,830 LLVM bytes. Official took 14.9 seconds end to
+end with a 3.9-second replay. Fast took 10.6 seconds with a 2.5-second replay.
+The boxed suite also changes the final chunk of a single-function entry and
+checks that the earlier certificate fails for the revised source.
+
+The single-entry byte sweep uses a repeated multibyte pattern and keeps the
+four compiled functions fixed. A 15 MiB file produces a compact tree because
+equal chunks share definitions. The two modes checked the same 6,334
+declarations and all 1,830 LLVM bytes in 33.6 and 29.2 seconds. Peak worker RSS
+was 1,446 and 1,443 MiB. The checker work for this pattern depends on the
+number of distinct chunks as well as the total source size.
+
+```sh
+python3 experiments/compiler_validation/boxed_certificate/regression.py --entry-bytes 1048576 4194304 15728640
+```
+
+At exactly 16 MiB the public source check and complete LLVM preview succeed. The
+stage driver stops before proof generation because the function revision also
+includes the envelope and has its own 16 MiB transport limit. The loader rejects
+an additional source byte. The release still needs an input-bound proof path
+for the full byte budgets. [Function revision transport](../../../docs/guide/cli.md)
 
 Official passes that snapshot to Lean 4.35.0’s `leanchecker --from-export`. It starts from an empty kernel environment and checks the reconstructed quotient primitives. Fast passes the same export to nanoda 0.4.19 and requires its exact declaration count. The qualification depends on the frontend, execution of the public Lean checker, the exporter and construction of the concrete subject from their outputs.
 

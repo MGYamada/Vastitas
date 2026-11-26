@@ -20,6 +20,33 @@ def ofProgram (p : Program) : Graph :=
 section
 open Lean PhysicalSources Namespace JsonDecode
 
+def flatSingleSource (text : String) : Json :=
+  Json.mkObj [("offset", toJson (0 : Int)), ("text", .str text)]
+
+/-- Check the complete single-file layout using a separately proved UTF-8 extent. -/
+theorem flatSingleLayout (wire : Json) (filename text : String) (size : Nat)
+    (source : field wire "root_source" = .ok (flatSingleSource text))
+    (file : str wire "file" = .ok filename)
+    (root : str wire "root" = .ok flatPackageId.source)
+    (valid : (filename.isEmpty || filename.toUTF8.data.contains 0) = false)
+    (extent : text.utf8ByteSize = size) (bound : size ≤ 16 * 1024 * 1024) :
+    PhysicalSources.layout wire = .ok ⟨#[⟨filename.toUTF8, 0, text⟩], 0⟩ := by
+  have keys : fields (flatSingleSource text) ["offset", "text", "files"] = .ok () := by rfl
+  have off : (flatSingleSource text).getObjValAs? Nat "offset" = .ok 0 := by rfl
+  have body : str (flatSingleSource text) "text" = .ok text := by rfl
+  have aggregate : size ≤ 64 * 1024 * 1024 + 8191 := by omega
+  have entry : AssemblySource.rootFile wire = .ok ⟨0, text⟩ := by
+    simp [AssemblySource.rootFile, source, root, keys, off, body, bind, Except.bind,
+      extent, Nat.not_lt_of_ge bound, Nat.not_lt_of_ge aggregate, pure, Except.pure]
+  have missing : ((flatSingleSource text).getObjVal? "files").isOk = false := by rfl
+  cases raw : (flatSingleSource text).getObjVal? "files" with
+  | error why =>
+    simp [PhysicalSources.layout, PhysicalSources.prepare, source, entry, file, root,
+      raw, pathBytes_string valid, bind, Except.bind, pure, Except.pure]
+  | ok _ =>
+    rw [raw] at missing
+    contradiction
+
 /-- Protocol-10 representation of a non-entry flat library with a UTF-8 path. -/
 def flatLibraryRow (offset : Nat) (path text : String) : Json :=
   Json.mkObj [("offset",toJson (Int.ofNat offset)),("path",.str path),("text",.str text)]

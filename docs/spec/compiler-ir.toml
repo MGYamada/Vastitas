@@ -1738,6 +1738,7 @@ evidence = [
   "VastitasOracle.BoxedCertificate.corresponds",
   "VastitasOracle.CertificatePackages.of_decoded",
   "VastitasOracle.CertificatePackages.flatLibraryStep",
+  "VastitasOracle.CertificatePackages.flatSingleLayout",
   "VastitasOracle.BoxedCertificate.published_packages",
   "VastitasOracle.FlowCertificate.published_packages",
 ]

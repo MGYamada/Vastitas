@@ -390,7 +390,15 @@ def physical_proof(wire, inputs, quote, physical, sized_texts):
     statement = "theorem physicalInputs : PhysicalSources.layout wire = .ok sources := by"
     rows = wire["root_source"].get("files")
     if rows is None:
-        return [], "", f"#[{', '.join(physical)}]", statement + "\n  with_unfolding_all rfl"
+        [(_, _, text)] = inputs.files
+        if text in sized_texts:
+            size = len(text.encode("utf-8"))
+            proof = (f"  exact VastitasOracle.CertificatePackages.flatSingleLayout wire "
+                     f"{quote(inputs.graph.file)} {quote(text)} {size} rfl rfl rfl "
+                     f"(by with_unfolding_all rfl) {sized_texts[text]}.property (by decide)")
+        else:
+            proof = "  with_unfolding_all rfl"
+        return [], "", f"#[{', '.join(physical)}]", statement + "\n" + proof
     flat = inputs.graph.root == "vastitas:compat:flat"
     owners = [] if flat else [p[0] for p in inputs.graph.packages]
     manifests = f"([{', '.join(map(quote, owners))}] : List String).foldl (fun s n => s.insert n) {{}}"
@@ -534,8 +542,9 @@ def authority_modules(revision, model, triple, layout, data, sources):
     triple_term, layout_term = quote(triple), quote(layout)
     sized_texts = {}
     if graph.root == "vastitas:compat:flat":
+        single = "files" not in revision["input"]["root_source"]
         for i, (_, _, text) in enumerate(files):
-            if i != entry and len(text) > INLINE_TEXT_CHARS:
+            if (single or i != entry) and len(text) > INLINE_TEXT_CHARS:
                 sized_texts[text] = f"{strings[text]}Sized"
     batches, rows, expected_files, file_evidence = physical_proof(revision["input"], sources, quote, physical, sized_texts)
     bindings = "\n".join(

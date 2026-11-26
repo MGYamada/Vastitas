@@ -81,7 +81,7 @@ def check_snapshot(work):
         require(sealed.read_bytes() == prefix + suffix, "sealed proof depends on the candidate")
 
 
-def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), timeout=120):
+def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), entry_bytes=(), timeout=120):
     # Both modes consume the same public path, bytes, target and function revision.
     source = work / "main.vast"
     source.write_bytes((verify.ROOT / "llvm/fixtures/BoxedProgram.vast").read_bytes())
@@ -124,8 +124,8 @@ def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), time
               f"{report['exported_declarations']} exported declarations)", flush=True)
         return report, roots
 
-    if file_counts or library_bytes:
-        check_file_scale(work, args, check, file_counts, library_bytes)
+    if file_counts or library_bytes or entry_bytes:
+        check_file_scale(work, args, check, file_counts, library_bytes, entry_bytes)
         return
     if suite == "inputs":
         check_physical_inputs(work, args, source, check)
@@ -288,7 +288,9 @@ def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), time
             "stale-source control must preserve exactly the emitted bytes")
 
     alt.unlink()
-    source.write_bytes((verify.ROOT / "llvm/fixtures/SingletonPower.vast").read_bytes())
+    singleton = (verify.ROOT / "llvm/fixtures/SingletonPower.vast").read_bytes()
+    comment = "// λ界🪐 ".encode() + b"ab" * 600 + b" endA\n"
+    source.write_bytes(singleton + comment)
     single, _ = check("singleton", "official")
     single_dir = work / "singleton"
     replay, _ = check("singleton-fast", "fast", candidate=single_dir / "sealed.ndjson")
@@ -297,13 +299,29 @@ def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), time
             "the single-function runtime certificate must cover the full quotient in both modes")
     require((single_dir / "preview.ll").read_bytes() == (verify.ROOT / "llvm/src/singleton-power.ll").read_bytes(),
             "single-function certificate differs from the retained LLVM module")
+    source.write_bytes(singleton + comment.replace(b"endA", b"endB"))
+    stale, _ = check("singleton-stale", "fast", candidate=single_dir / "sealed.ndjson",
+                     rejection="declaration environment differs")
+    require(single["llvm_sha256"] == stale["llvm_sha256"] and single["revision_sha256"] != stale["revision_sha256"],
+            "changing the last source chunk must preserve the module and invalidate its certificate")
 
 
-def check_file_scale(work, args, check, counts, library_bytes):
+def check_file_scale(work, args, check, counts, library_bytes, entry_bytes):
     """Vary one physical input dimension and replay each export in both kernels."""
     retained = (verify.ROOT / "llvm/src/boxed-program.ll").read_bytes()
-    for size in counts or library_bytes:
-        if library_bytes:
+    program = args.source.read_bytes()
+    for size in counts or library_bytes or entry_bytes:
+        if entry_bytes:
+            metric, count = "entry-bytes", 1
+            pattern = "λ界🪐0123456789abcdef".encode()
+            copies, tail = divmod(size - len(program) - 3, len(pattern))
+            with args.source.open("wb") as stream:
+                stream.write(program)
+                stream.write(b"//")
+                stream.write(pattern * copies)
+                stream.write(b"x" * tail + b"\n")
+            require(args.source.stat().st_size == size, "qualification entry byte count differs")
+        elif library_bytes:
             metric, count = "bytes", 2
             library = work / "library.vast"
             # Fixed seed, distinct chunks, one to four UTF-8 bytes per scalar.
@@ -625,6 +643,8 @@ if __name__ == "__main__":
                            help=f"qualify increasing physical input counts (1 to {verify.MAX_PHYSICAL_INPUTS}) in both modes")
     selection.add_argument("--library-bytes", type=int, nargs="+", metavar="N",
                            help="qualify increasing UTF-8 byte sizes of one flat library in both modes")
+    selection.add_argument("--entry-bytes", type=int, nargs="+", metavar="N",
+                           help="qualify increasing sizes of a single entry with a repeated UTF-8 comment")
     selection.add_argument("--suite", choices=[*suites, "host"], help="run one suite (default: all full suites)")
     parser.add_argument("--frontend", type=Path, default=verify.ROOT / "target/debug/vastitas")
     parser.add_argument("--timeout", type=int, default=120, metavar="SECONDS", help="wall time limit per worker")
@@ -638,8 +658,14 @@ if __name__ == "__main__":
     if args.library_bytes and (args.library_bytes != sorted(set(args.library_bytes)) or
                                args.library_bytes[0] < 16 or args.library_bytes[-1] > 16 * 1024**2):
         parser.error("--library-bytes must increase strictly between 16 bytes and 16 MiB")
-    selected = [args.suite or "file-scale"] if args.suite or args.file_counts or args.library_bytes else suites
+    if args.entry_bytes:
+        minimum = (verify.ROOT / "llvm/fixtures/BoxedProgram.vast").stat().st_size + 3
+        if (args.entry_bytes != sorted(set(args.entry_bytes)) or
+                args.entry_bytes[0] < minimum or args.entry_bytes[-1] > 16 * 1024**2):
+            parser.error(f"--entry-bytes must increase strictly between {minimum} bytes and 16 MiB")
+    scale = args.file_counts or args.library_bytes or args.entry_bytes
+    selected = [args.suite or "file-scale"] if args.suite or scale else suites
     for suite in selected:
         with tempfile.TemporaryDirectory(prefix=f"vastitas-{suite}-regression-") as tmp:
             run(Path(tmp), suite, args.frontend.resolve(), args.memory, file_counts=args.file_counts,
-                library_bytes=args.library_bytes, timeout=args.timeout)
+                library_bytes=args.library_bytes, entry_bytes=args.entry_bytes, timeout=args.timeout)

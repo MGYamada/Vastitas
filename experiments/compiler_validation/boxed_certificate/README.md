@@ -97,12 +97,14 @@ with a 120-second timeout per worker and a 1,536 MiB Lean allocator budget.
 | 16,384 | 6,324 | 21.1 / 21.9 | 4.4 / 3.0 | 1,447 / 1,443 |
 | 65,536 | 7,092 | 38.0 / 32.8 | 5.8 / 3.8 | 1,448 / 1,444 |
 | 262,144 | 10,164 | 107.1 / 101.4 | 11.1 / 8.2 | 1,470 / 1,467 |
+| 1,048,576 | 22,453 | 370.1 / 354.4 | 30.3 / 18.5 | 1,536 / 1,538 |
 
 Both modes check the same export and all 1,830 retained LLVM bytes at each size.
+At 1 MiB the two verifiers checked the same 88,296,881-byte export.
 The single-entry and four-file sweeps below exercise the file and aggregate limits with repeated text.
 
 ```sh
-python3 experiments/compiler_validation/boxed_certificate/regression.py --library-bytes 4096 16384 65536 262144
+python3 experiments/compiler_validation/boxed_certificate/regression.py --library-bytes 4096 16384 65536 262144 1048576
 ```
 
 For a single flat input, the physical layout theorem checks the two root-source
@@ -160,7 +162,7 @@ worker timeout and 1,536 MiB Lean allocator limit.
 | 65,536 | 6,287 | 19.0 / 15.4 | 4.4 / 2.8 | 1,372 / 1,360 |
 | 1,048,576 | 6,368 | 20.8 / 17.1 | 4.4 / 2.7 | 1,368 / 1,368 |
 | 15,728,640 | 6,450 | 42.6 / 40.6 | 4.4 / 2.8 | 1,373 / 1,365 |
-| 16,777,216 | 6,452 | 40.5 / 36.9 | 4.3 / 2.7 | 1,368 / 1,364 |
+| 16,777,216 | 6,540 | 29.7 / 26.4 | 4.3 / 2.8 | 1,369 / 1,369 |
 
 The 15 MiB entry yielded a 39,488,821-byte proof export. Private files at
 sealing occupied 215,206,428 bytes for Official and 175,710,536 for Fast.
@@ -173,7 +175,8 @@ python3 experiments/compiler_validation/boxed_certificate/regression.py --packag
 
 At exactly 16 MiB the flat entry yielded 6,338 declarations and all 1,830
 corpus bytes in both modes. Official took 37.2 s and Fast took 32.0 s. The
-packaged entry yielded the 39,488,670-byte export measured above. The public
+16 MiB packaged entry measurement includes the non-entry file proof for its
+manifest. Both modes checked the same 40,362,182-byte export. The public
 proof input includes the original wire once, alongside the remaining revision
 fields from the same artifact. A change to a revision field fails independent
 capture. The standalone receipt retains its 16 MiB transport limit. The loader

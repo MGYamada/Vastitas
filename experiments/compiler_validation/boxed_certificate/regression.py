@@ -429,28 +429,30 @@ def check_final_library_row(directory, args):
                                        data, inputs._replace(files=files))
     [(first, _), (last, changed)] = [(n, body) for n, body in modules if n.startswith("PhysicalBatch")]
     require((directory / (first + ".olean")).is_file() and last == "PhysicalBatch1", "expected two batches")
-    altered = directory / "ChangedLastBatch.lean"
-    altered.write_text(changed)
     prefix = fast.pinned_lean()
-    rejected = run_proof_worker([*verify.lean_command(prefix, args.memory), altered.name], cwd=directory,
-                                env=verify.environment(directory, prefix), timeout=args.timeout,
-                                capture_output=True, text=True)
-    require(rejected.returncode != 0 and "flatLibraryStep" in rejected.stdout,
-            "Lean must reject the substituted path in the final file proof")
-    print("last-batch library path substitution rejected by Lean", flush=True)
 
-    # Lambda and mu have the same UTF-8 width. A length witness must bind the
-    # supplied list of Unicode scalars to the literal that enters the wire.
-    altered = directory / "ChangedLiteral.lean"
-    altered.write_text('import PhysicalText0\nopen VastitasProof\n'
-                       'example : {s : String // s.utf8ByteSize = 2} := '
-                       """sizedLiteral "λ" ['μ'] rfl\n""")
-    rejected = run_proof_worker([*verify.lean_command(prefix, args.memory), altered.name], cwd=directory,
-                                env=verify.environment(directory, prefix), timeout=args.timeout,
-                                capture_output=True, text=True)
-    require(rejected.returncode != 0 and "rfl" in rejected.stdout and "String.ofList" in rejected.stdout,
-            "Lean must reject a different Unicode scalar of the same UTF-8 width")
-    print("same-width literal substitution rejected by Lean", flush=True)
+    def reject(filename, contents, control, *diagnostics):
+        altered = directory / filename
+        altered.write_text(contents)
+        result = run_proof_worker([*verify.lean_command(prefix, args.memory), filename], cwd=directory,
+                                  env=verify.environment(directory, prefix), timeout=args.timeout,
+                                  capture_output=True, text=True)
+        require(result.returncode != 0 and all(term in result.stdout for term in diagnostics),
+                f"{control}: expected Lean rejection at {', '.join(diagnostics)}")
+        print(f"{control} rejected by Lean", flush=True)
+
+    reject("ChangedLastBatch.lean", changed, "last-batch library path substitution", "flatLibraryStep")
+    # Lambda and mu have the same UTF-8 width. The literal must spell its witness.
+    reject("ChangedLiteral.lean", """import PhysicalText0
+open VastitasProof
+example : {s : String // s.utf8ByteSize = 2} := sizedLiteral "λ" ['μ'] rfl
+""", "same-width literal substitution", "rfl", "String.ofList")
+
+    wrong = deepcopy(revision)
+    wrong["input"]["root_source"]["files"][0]["path"] = "other-entry.vast"
+    modules = verify.authority_modules(wrong, captured, args.target_triple, args.data_layout, data, inputs)
+    entry = next(body for n, body in modules if n == first)
+    reject("ChangedEntryRow.lean", entry, "protected entry row path substitution", "flatEntryStep")
 
 
 def check_physical_inputs(work, args, source, check):
@@ -461,7 +463,7 @@ def check_physical_inputs(work, args, source, check):
     library = work / "helper.vast"
     flat_helper = helper + "// " + "quoted 🪐 e\u0301 " * 160 + "end λ1\r\n"
     library.write_text(flat_helper)
-    source.write_text("fn main() -> Int { helper(21) }")
+    source.write_text("fn main() -> Int { helper(21) } // " + "λ界🪐 abc" * 180 + "\n")
     # Place the edited helper just across the production proof-batch boundary.
     # Reuse the same CI checks for positive and stale flat-library revisions.
     libraries = [work / f"empty{i}.vast" for i in range(verify.ROWS_PER_MODULE - 1)]

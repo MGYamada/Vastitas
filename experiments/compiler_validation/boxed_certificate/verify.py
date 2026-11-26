@@ -414,6 +414,8 @@ def physical_proof(wire, inputs, quote, physical, sized_texts):
     batches = []
     missing = "table.manifests"
     extent_proofs = {}
+    entry_text = inputs.files[inputs.entry][2]
+    entry_extent = sized_texts.get(entry_text)
     for i, (row, (label, offset, text)) in enumerate(zip(rows, inputs.files, strict=True)):
         lines.append(f"def expectedFiles{i+1} := expectedFiles{i}.push {physical[i]}")
         # Only the exact canonical wire shape can use the shared decoder proof.
@@ -421,7 +423,12 @@ def physical_proof(wire, inputs, quote, physical, sized_texts):
         flat_library = (flat and i != inputs.entry and set(row) == {"offset", "path", "text"}
                         and isinstance(row["path"], str))
         size = len(text.encode("utf-8"))
-        if flat_library:
+        if (flat and i == inputs.entry == 0 and entry_extent and set(row) == {"offset", "path"}
+                and row["offset"] == 0 and isinstance(row["path"], str)):
+            row_term = f"VastitasOracle.CertificatePackages.flatEntryRow {quote(row['path'])}"
+            proof = (f"VastitasOracle.CertificatePackages.flatEntryStep table.filename table.entryText "
+                     f"table.count {size} {entry_extent}.property rfl (by with_unfolding_all rfl) (by decide)")
+        elif flat_library:
             if text not in extent_proofs:
                 extent_proofs[text] = f"fileExtent{i}"
                 extent = (sized_texts[text] + ".property" if text in sized_texts else "by with_unfolding_all rfl")
@@ -466,8 +473,14 @@ def physical_proof(wire, inputs, quote, physical, sized_texts):
     starts = range(0, len(rows), ROWS_PER_MODULE)
     data = "".join(f"rowsFrom{start} (" for start in starts) + "[]" + ")" * len(starts)
     scan = "".join(f"scanFrom{start} (" for start in starts) + "by rfl" + ")" * len(starts)
+    prepare = "by with_unfolding_all rfl"
+    if flat and entry_extent:
+        size = len(entry_text.encode("utf-8"))
+        prepare = (f"VastitasOracle.CertificatePackages.flatTableHeader wire table.filename table.entryText "
+                   f"rows table.count {size} rfl rfl rfl {entry_extent}.property (by decide) rfl "
+                   "(by decide) (by decide)")
     evidence = "\n".join([
-        "theorem prepared : PhysicalSources.prepare wire = .ok (.inr (table, rows)) := by with_unfolding_all rfl",
+        f"theorem prepared : PhysicalSources.prepare wire = .ok (.inr (table, rows)) := {prepare}",
         statement,
         f"  apply VastitasOracle.CertificatePackages.table_layout prepared (last := cursor{len(rows)})",
         f"  · exact {scan}",
@@ -542,9 +555,8 @@ def authority_modules(revision, model, triple, layout, data, sources):
     triple_term, layout_term = quote(triple), quote(layout)
     sized_texts = {}
     if graph.root == "vastitas:compat:flat":
-        single = "files" not in revision["input"]["root_source"]
-        for i, (_, _, text) in enumerate(files):
-            if (single or i != entry) and len(text) > INLINE_TEXT_CHARS:
+        for _, _, text in files:
+            if len(text) > INLINE_TEXT_CHARS:
                 sized_texts[text] = f"{strings[text]}Sized"
     batches, rows, expected_files, file_evidence = physical_proof(revision["input"], sources, quote, physical, sized_texts)
     bindings = "\n".join(

@@ -1338,7 +1338,7 @@ Claims:
 - `boxed-stage`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
     - [`VastitasOracle.BoxedCertificate`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/BoxedCertificate.lean): `VastitasOracle.BoxedCertificate.corresponds`, `VastitasOracle.BoxedCertificate.published_packages`
-    - [`VastitasOracle.CertificatePackages`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/CertificatePackages.lean): `VastitasOracle.CertificatePackages.of_decoded`, `VastitasOracle.CertificatePackages.flatLibraryStep`, `VastitasOracle.CertificatePackages.flatSingleLayout`
+    - [`VastitasOracle.CertificatePackages`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/CertificatePackages.lean): `VastitasOracle.CertificatePackages.of_decoded`, `VastitasOracle.CertificatePackages.flatLibraryStep`, `VastitasOracle.CertificatePackages.flatSingleLayout`, `VastitasOracle.CertificatePackages.flatTableHeader`, `VastitasOracle.CertificatePackages.flatEntryStep`
     - [`VastitasOracle.FlowCertificate`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/FlowCertificate.lean): `VastitasOracle.FlowCertificate.published_packages`
   - Premises:
     - The public emitter returns the checked boxed integer publication of this exact subject. The concrete execution-model certificate is valid.

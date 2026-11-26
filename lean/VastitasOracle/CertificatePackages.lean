@@ -20,6 +20,17 @@ def ofProgram (p : Program) : Graph :=
 section
 open Lean PhysicalSources Namespace JsonDecode
 
+private theorem flatRootFile (wire source : Json) (text : String) (size : Nat)
+    (src : field wire "root_source" = .ok source)
+    (keys : fields source ["offset", "text", "files"] = .ok ())
+    (off : source.getObjValAs? Nat "offset" = .ok 0) (body : str source "text" = .ok text)
+    (root : str wire "root" = .ok flatPackageId.source)
+    (extent : text.utf8ByteSize = size) (bound : size ≤ 16 * 1024 * 1024) :
+    AssemblySource.rootFile wire = .ok ⟨0, text⟩ := by
+  have aggregate : size ≤ 64 * 1024 * 1024 + 8191 := by omega
+  simp [AssemblySource.rootFile, src, root, keys, off, body, bind, Except.bind,
+    extent, Nat.not_lt_of_ge bound, Nat.not_lt_of_ge aggregate, pure, Except.pure]
+
 def flatSingleSource (text : String) : Json :=
   Json.mkObj [("offset", toJson (0 : Int)), ("text", .str text)]
 
@@ -31,13 +42,7 @@ theorem flatSingleLayout (wire : Json) (filename text : String) (size : Nat)
     (valid : (filename.isEmpty || filename.toUTF8.data.contains 0) = false)
     (extent : text.utf8ByteSize = size) (bound : size ≤ 16 * 1024 * 1024) :
     PhysicalSources.layout wire = .ok ⟨#[⟨filename.toUTF8, 0, text⟩], 0⟩ := by
-  have keys : fields (flatSingleSource text) ["offset", "text", "files"] = .ok () := by rfl
-  have off : (flatSingleSource text).getObjValAs? Nat "offset" = .ok 0 := by rfl
-  have body : str (flatSingleSource text) "text" = .ok text := by rfl
-  have aggregate : size ≤ 64 * 1024 * 1024 + 8191 := by omega
-  have entry : AssemblySource.rootFile wire = .ok ⟨0, text⟩ := by
-    simp [AssemblySource.rootFile, source, root, keys, off, body, bind, Except.bind,
-      extent, Nat.not_lt_of_ge bound, Nat.not_lt_of_ge aggregate, pure, Except.pure]
+  have entry := flatRootFile wire _ text size source (by rfl) (by rfl) (by rfl) root extent bound
   have missing : ((flatSingleSource text).getObjVal? "files").isOk = false := by rfl
   cases raw : (flatSingleSource text).getObjVal? "files" with
   | error why =>
@@ -46,6 +51,45 @@ theorem flatSingleLayout (wire : Json) (filename text : String) (size : Nat)
   | ok _ =>
     rw [raw] at missing
     contradiction
+
+def flatTableSource (text : String) (rows : Array Json) : Json :=
+  Json.mkObj [("files", .arr rows), ("offset", toJson (0 : Int)), ("text", .str text)]
+
+/-- Decode the header of a flat table without reducing the entire entry text. -/
+theorem flatTableHeader (wire : Json) (filename text : String) (rows : Array Json) (count size : Nat)
+    (source : field wire "root_source" = .ok (flatTableSource text rows))
+    (file : str wire "file" = .ok filename) (root : str wire "root" = .ok flatPackageId.source)
+    (extent : text.utf8ByteSize = size) (bound : size ≤ 16 * 1024 * 1024)
+    (len : rows.size = count) (positive : 0 < count) (limit : count ≤ 8192) :
+    PhysicalSources.prepare wire =
+      .ok (.inr (⟨filename, flatPackageId.source, 0, text, count, {}⟩, rows)) := by
+  have entry := flatRootFile wire _ text size source (by rfl) (by rfl) (by rfl) root extent bound
+  have files : (flatTableSource text rows).getObjVal? "files" = .ok (.arr rows) := by rfl
+  have nonempty : rows ≠ #[] := by
+    intro h
+    simp [h] at len
+    omega
+  simp [PhysicalSources.prepare, source, entry, file, root, files, Json.getArr?, nonempty, limit, len,
+    bind, Except.bind, pure, Except.pure]
+
+def flatEntryRow (path : String) : Json :=
+  Json.mkObj [("offset", toJson (0 : Int)), ("path", .str path)]
+
+/-- Consume the first row of a flat table at the protected entry offset. -/
+theorem flatEntryStep (filename text : String) (count size : Nat)
+    (extent : text.utf8ByteSize = size) (many : (count == 1) = false)
+    (validPath : (filename.isEmpty || filename.toUTF8.data.contains 0) = false)
+    (bound : size ≤ 16 * 1024 * 1024) :
+    (Table.mk filename flatPackageId.source 0 text count {}).step {missing := {}} (flatEntryRow filename) =
+      .ok ⟨#[⟨filename.toUTF8, 0, text⟩], size + 1, size, some 0, {}⟩ := by
+  have keys : fields (flatEntryRow filename) ["offset", "path", "text"] = .ok () := by rfl
+  have off : (flatEntryRow filename).getObjValAs? Nat "offset" = .ok 0 := by rfl
+  have label : field (flatEntryRow filename) "path" = .ok (.str filename) := by rfl
+  have missing : ((flatEntryRow filename).getObjVal? "text").isOk = false := by rfl
+  have aggregate : size ≤ 64 * 1024 * 1024 := by omega
+  simp [Table.step, keys, off, label, pathBytes_string validPath, missing, many, extent,
+    Nat.not_lt_of_ge bound, Nat.not_lt_of_ge aggregate, Json.getStr?, Except.toOption,
+    bind, Except.bind, pure, Except.pure]
 
 /-- Protocol-10 representation of a non-entry flat library with a UTF-8 path. -/
 def flatLibraryRow (offset : Nat) (path text : String) : Json :=

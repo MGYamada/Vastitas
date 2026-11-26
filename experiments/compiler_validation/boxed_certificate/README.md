@@ -116,6 +116,14 @@ end with a 3.9-second replay. Fast took 10.6 seconds with a 2.5-second replay.
 The boxed suite also changes the final chunk of a single-function entry and
 checks that the earlier certificate fails for the revised source.
 
+For a flat entry followed by libraries, the proof checks the canonical root
+fields, file count and first table row against the same protected filename
+and entry text. A 64 KiB comment in the entry of a two-file compilation
+previously exhausted the conversion recursion budget in two places. The
+header and first-row theorems reuse the entry's checked extent. Both modes
+check all 1,830 LLVM bytes. The inputs suite changes the first wire path and
+the last physical library path across two proof batches. Lean rejects each.
+
 The single-entry byte sweep uses a repeated multibyte pattern and keeps the
 four compiled functions fixed. A 15 MiB file produces a compact tree because
 equal chunks share definitions. The two modes checked the same 6,334

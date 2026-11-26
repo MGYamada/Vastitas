@@ -423,6 +423,10 @@ def physical_proof(wire, inputs, quote, physical, sized_texts):
     entry_extent = sized_texts.get(entry_text)
     for i, (row, (label, offset, text)) in enumerate(zip(rows, inputs.files, strict=True)):
         lines.append(f"def expectedFiles{i+1} := expectedFiles{i}.push {physical[i]}")
+        name = os.fsdecode(label)
+        if name in names:
+            lines.append(f"def missing{i+1} := {missing}.erase {quote(name)}")
+            missing = f"missing{i+1}"
         # Only the exact canonical wire shape can use the shared decoder proof.
         # Build the JSON from the captured wire and the output cursor from disk.
         flat_library = (flat and i != inputs.entry and set(row) == {"offset", "path", "text"}
@@ -453,14 +457,20 @@ def physical_proof(wire, inputs, quote, physical, sized_texts):
                      f"{wire_path} {quote(text)} table.count table.base "
                      f"{natural(offset)} {total} {size} expectedFiles{i} cursor{i}.entry {extent_proofs[text]} "
                      "rfl rfl (by with_unfolding_all rfl) rfl")
+        elif i != inputs.entry and set(row) == {"offset", "path", "text"}:
+            raw = official.json_term(row["path"], quote)
+            wire_text = quote(row["text"])
+            row_term = (f"VastitasOracle.CertificatePackages.fileRow {natural(row['offset'])} "
+                        f"({raw}) {wire_text}")
+            extent = (sized_texts[text] + ".property" if text in sized_texts else "(by with_unfolding_all rfl)")
+            # Equal contents share a binding. Keep distinct long strings closed on a mismatch.
+            proof = (f"VastitasOracle.CertificatePackages.nonEntryFileStep table cursor{i} ({raw}) "
+                     f"({physical[i]} : PhysicalSources.File).path {wire_text} {quote(text)} {missing} {size} "
+                     f"(by with_reducible rfl) rfl {extent} (by decide) (by with_unfolding_all rfl)")
         else:
             row_term = official.json_term(row, quote)
             proof = "by with_unfolding_all rfl"
         lines.append(f"def row{i} : Json := {row_term}")
-        name = os.fsdecode(label)
-        if name in names:
-            lines.append(f"def missing{i+1} := {missing}.erase {quote(name)}")
-            missing = f"missing{i+1}"
         if i == inputs.entry:
             entry = f"some {i}"
         total += size
@@ -572,8 +582,8 @@ def authority_modules(revision, model, triple, layout, data, sources):
     wire = physical_wire(revision["input"], quote)
     triple_term, layout_term = quote(triple), quote(layout)
     sized_texts = {}
-    for index, (_, _, text) in enumerate(files):
-        if len(text) > INLINE_TEXT_CHARS and (index == entry or graph.root == "vastitas:compat:flat"):
+    for _, _, text in files:
+        if len(text) > INLINE_TEXT_CHARS:
             sized_texts[text] = f"{strings[text]}Sized"
     batches, rows, expected_files, file_evidence = physical_proof(revision["input"], sources, quote, physical, sized_texts)
     bindings = "\n".join(

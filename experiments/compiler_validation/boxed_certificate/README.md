@@ -212,6 +212,36 @@ these owners with those in its checked program. [Package graph proof](../../../l
 
 The inputs suite calls the same integer helper through a flat library and through an external module in a dependency. The flat case places the edited helper in file 129, immediately after the first proof batch. The package has five physical inputs. Editing a comment in its dependency manifest changes the function revision and preserves all 1,127 LLVM bytes. The suite checks both verifier modes and rejects the earlier proof after that edit.
 
+A dependency's manifest and external module each contain a separate repeated
+UTF-8 comment. The file-row theorem checks the path, offset and manifest-set
+transition using the protocol decoder. It uses the proved byte length of the
+actual text to restore the row and enforce both size limits. The inputs suite
+swaps the two same-length file contents independently and checks that Lean
+rejects each substitution. The size sweep compares every LLVM byte with a
+public compilation of the same package before either file is padded.
+
+On macOS arm64 both verifiers checked all 1,127 LLVM bytes and the same export
+at each size. The worker timeout was 120 seconds and the Lean allocator limit
+was 1,536 MiB. The measured RSS includes memory outside the Lean allocator.
+The export records absolute manifest paths, so its byte size can vary across workspaces.
+
+| Bytes per dependency file | Declarations | Export bytes | Wall seconds (Official / Fast) | Largest worker RSS, MiB (Official / Fast) |
+| ---: | ---: | ---: | ---: | ---: |
+| 65,536 | 6,185 | 39,402,103 | 19.9 / 15.3 | 1,440 / 1,436 |
+| 1,048,576 | 6,267 | 39,438,561 | 20.8 / 16.3 | 1,444 / 1,440 |
+| 16,777,216 | 6,364 | 39,489,681 | 32.8 / 29.0 | 1,554 / 1,555 |
+
+```sh
+python3 experiments/compiler_validation/boxed_certificate/regression.py --dependency-file-bytes 65536 1048576 16777216
+```
+
+The package entry passes the boxed 21 directly to `@vq_f0`, then calls
+`@vastitas_release_v1` on that argument. The helper passes it twice to the
+integer addition shim and returns 42. Lean 4.35.0's `emitFullApp` looks up
+a static callee, loads its arguments from their slots, builds the call and
+stores its result. This comparison uses the pinned emitter source.
+[Pinned emitFullApp](https://github.com/leanprover/lean4/blob/eb6cafb7290e8bd5f2937522d8d804f58f02bafc/src/Lean/Compiler/IR/EmitLLVM.lean#L755-L774)
+
 The boxed publication theorem places each resolved implementation, classification and indexed family
 in Core and in both MidIR environments for the same revision and complete bytes.
 The Lean certificate generator shares repeated source text and paths as closed string definitions.

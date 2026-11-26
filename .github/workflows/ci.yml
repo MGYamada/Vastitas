@@ -74,6 +74,7 @@ jobs:
           python3 -m unittest discover -s experiments/iterator_prefix -p 'test_*.py'
       - name: Compiler qualification runner boundary tests
         run: |
+          python3 -m unittest discover -s experiments/compiler_validation/official_exit -p 'test_*.py'
           python3 -m unittest discover -s experiments/compiler_validation/reduction -p 'test_*.py'
           python3 -m unittest discover -s experiments/compiler_validation/llvm -p 'test_*.py'
       - name: Allocation, diagnostic and lifetime verifier tests

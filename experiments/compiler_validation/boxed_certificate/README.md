@@ -99,7 +99,7 @@ with a 120-second timeout per worker and a 1,536 MiB Lean allocator budget.
 | 262,144 | 10,164 | 107.1 / 101.4 | 11.1 / 8.2 | 1,470 / 1,467 |
 
 Both modes check the same export and all 1,830 retained LLVM bytes at each size.
-The single-entry sweep below also exercises the 16 MiB file limit with repeated text. Distinct library chunks, large manifest graphs and the 64 MiB aggregate require separate measurements.
+The single-entry and four-file sweeps below exercise the file and aggregate limits with repeated text.
 
 ```sh
 python3 experiments/compiler_validation/boxed_certificate/regression.py --library-bytes 4096 16384 65536 262144
@@ -129,6 +129,10 @@ Fast accept the same 76,730,387-byte export with 38,990 declarations and the
 retained 1,830 LLVM bytes. End-to-end times are 276.4 and 248.2 seconds.
 The external checkers take 65.1 and 39.3 seconds. Peak child RSS is 1,514
 and 1,512 MiB respectively.
+
+```sh
+python3 experiments/compiler_validation/boxed_certificate/regression.py --file-counts 8192 --with-entry-comment
+```
 
 The single-entry byte sweep uses a repeated multibyte pattern and keeps the
 four compiled functions fixed. A 15 MiB file produces a compact tree because
@@ -160,8 +164,8 @@ worker timeout and 1,536 MiB Lean allocator limit.
 
 The 15 MiB entry yielded a 39,488,821-byte proof export. Private files at
 sealing occupied 215,206,428 bytes for Official and 175,710,536 for Fast.
-Repeated chunks share proof terms. Heterogeneous package graphs and the
-64 MiB aggregate budget still need separate qualification.
+Repeated chunks share proof terms. The four-file sweep below keeps the flat
+function graph fixed while increasing aggregate source size.
 
 ```sh
 python3 experiments/compiler_validation/boxed_certificate/regression.py --package-entry-bytes 4096 65536 1048576 15728640 16777216
@@ -174,6 +178,21 @@ proof input includes the original wire once, alongside the remaining revision
 fields from the same artifact. A change to a revision field fails independent
 capture. The standalone receipt retains its 16 MiB transport limit. The loader
 rejects an entry one byte over its file limit. [CLI reference](../../../docs/guide/cli.md)
+
+Four flat files with different prefixes and repeated UTF-8 comments exercise
+the aggregate limit. At 64 MiB, each file is exactly 16 MiB. Both modes
+checked the same 41,952,372-byte export, all 6,455 declarations and every
+byte of the 1,830-byte boxed module on macOS arm64. Official took 47.5 s and
+Fast took 44.2 s. The largest worker reached 1,631 and 1,632 MiB RSS
+respectively under the 1,536 MiB Lean allocation limit. At sealing the
+private files occupied 454,532,566 and 412,571,548 bytes. The physical
+source reader compares the original file contents in slices of at most
+64 KiB of UTF-8. An additional one-byte file exceeds the aggregate limit.
+High-entropy text and large dependency graphs still need qualification.
+
+```sh
+python3 experiments/compiler_validation/boxed_certificate/regression.py --aggregate-bytes 65536 16777216 67108864
+```
 
 Official passes that snapshot to Lean 4.35.0’s `leanchecker --from-export`. It starts from an empty kernel environment and checks the reconstructed quotient primitives. Fast passes the same export to nanoda 0.4.19 and requires its exact declaration count. The qualification depends on the frontend, execution of the public Lean checker, the exporter and construction of the concrete subject from their outputs.
 

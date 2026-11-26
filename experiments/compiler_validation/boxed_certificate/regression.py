@@ -86,10 +86,14 @@ def check_snapshot(work):
         require(sealed.read_bytes() == prefix + suffix, "sealed proof depends on the candidate")
 
 
-def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), entry_bytes=(), packaged=False, timeout=120):
+def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), entry_bytes=(),
+        aggregate_bytes=(), packaged=False, with_entry_comment=False, timeout=120):
     # Both modes consume the same public path, bytes, target and function revision.
     source = work / "main.vast"
     source.write_bytes((verify.ROOT / "llvm/fixtures/BoxedProgram.vast").read_bytes())
+    if with_entry_comment:
+        with source.open("ab") as stream:
+            stream.write(b"//" + b"0123456789abcdef" * 4096 + b"\n")
     target = json.loads(verify.official.TARGET_REPORT.read_bytes())["target"]
     args = Namespace(source=source, lib=[], manifest_path=None, frontend=frontend,
                      mode="official", candidate=None, save_candidate=None, timeout=timeout, memory=memory,
@@ -129,8 +133,8 @@ def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), entr
               f"{report['exported_declarations']} exported declarations)", flush=True)
         return report, roots
 
-    if file_counts or library_bytes or entry_bytes:
-        check_file_scale(work, args, check, file_counts, library_bytes, entry_bytes, packaged)
+    if file_counts or library_bytes or entry_bytes or aggregate_bytes:
+        check_file_scale(work, args, check, file_counts, library_bytes, entry_bytes, aggregate_bytes, packaged)
         return
     if suite == "inputs":
         check_physical_inputs(work, args, source, check)
@@ -322,7 +326,22 @@ def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), entr
             "changing the last source chunk must preserve the module and invalidate its certificate")
 
 
-def check_file_scale(work, args, check, counts, library_bytes, entry_bytes, packaged):
+def write_padded_source(path, program, size):
+    pattern = "λ界🪐0123456789abcdef".encode()
+    copies, tail = divmod(size - len(program) - 3, len(pattern))
+    require(copies >= 0, "qualification source is too small")
+    block = pattern * 4096
+    with path.open("wb") as stream:
+        stream.write(program)
+        stream.write(b"//")
+        blocks, remainder = divmod(copies, 4096)
+        for _ in range(blocks):
+            stream.write(block)
+        stream.write(pattern * remainder + b"x" * tail + b"\n")
+    require(path.stat().st_size == size, "qualification source byte count differs")
+
+
+def check_file_scale(work, args, check, counts, library_bytes, entry_bytes, aggregate_bytes, packaged):
     """Vary one physical input dimension and replay each export in both kernels."""
     source = args.source
     if packaged:
@@ -334,17 +353,17 @@ def check_file_scale(work, args, check, counts, library_bytes, entry_bytes, pack
     else:
         program = source.read_bytes()
         retained = (verify.ROOT / "llvm/src/boxed-program.ll").read_bytes()
-    for size in counts or library_bytes or entry_bytes:
+    for size in counts or library_bytes or entry_bytes or aggregate_bytes:
         if entry_bytes:
             metric, count = ("package-entry-bytes", 2) if packaged else ("entry-bytes", 1)
-            pattern = "λ界🪐0123456789abcdef".encode()
-            copies, tail = divmod(size - len(program) - 3, len(pattern))
-            with source.open("wb") as stream:
-                stream.write(program)
-                stream.write(b"//")
-                stream.write(pattern * copies)
-                stream.write(b"x" * tail + b"\n")
-            require(source.stat().st_size == size, "qualification entry byte count differs")
+            write_padded_source(source, program, size)
+        elif aggregate_bytes:
+            metric, count = "aggregate-bytes", 4
+            per_file, extra = divmod(size, count)
+            args.lib = [work / f"lib{i}.vast" for i in range(1, count)]
+            for index, path in enumerate([source, *args.lib]):
+                prefix = program if index == 0 else f"// library {index}\n".encode()
+                write_padded_source(path, prefix, per_file + (index < extra))
         elif library_bytes:
             metric, count = "bytes", 2
             library = work / "library.vast"
@@ -393,6 +412,23 @@ def check_file_scale(work, args, check, counts, library_bytes, entry_bytes, pack
             require(over.returncode != 0 and not over.stdout and b"E_LIMIT" in over.stderr,
                     "a source one byte over the file limit must fail before publication")
             print("standalone receipt and source size limits enforced", flush=True)
+        if aggregate_bytes and size == 64 * 1024**2:
+            extra = work / "extra.vast"
+            extra.write_bytes(b"\n")
+            cmd = [args.frontend, "check", source.name, "--llvm-proof-input",
+                   "--target-triple", args.target_triple, "--data-layout", args.data_layout]
+            for path in [*args.lib, extra]:
+                cmd.extend(["--lib", path.name])
+            receipt = [args.frontend, "check", source.name, "--print-function-revision"]
+            for path in args.lib:
+                receipt.extend(["--lib", path.name])
+            standalone = subprocess.run(receipt, cwd=work, capture_output=True, timeout=args.timeout)
+            require(standalone.returncode != 0 and not standalone.stdout and b"64 MiB output limit" in standalone.stderr,
+                    "serializing the standalone kernel revision must still enforce the full-envelope limit")
+            over = subprocess.run(cmd, cwd=work, capture_output=True, timeout=args.timeout)
+            require(over.returncode != 0 and not over.stdout and b"E_LIMIT" in over.stderr,
+                    "one extra byte in a fifth file must fail before publication")
+            print("aggregate byte limit enforced", flush=True)
 
 
 def check_external_inputs(work, frontend):
@@ -406,7 +442,7 @@ def check_external_inputs(work, frontend):
     (base / "main.vast").write_text("mod space { pub mod child; } mod other; mod alias; "
                                     "fn main() -> Int { space::child::leaf::answer() }")
     (nested / "mod.vast").write_text("pub mod leaf;")
-    body = "pub fn answer() -> Int { 42 }"
+    body = "pub fn answer() -> Int { 42 }\n//" + "λ界🪐" * 5500 + "a"
     leaf = nested / "leaf.vast"
     leaf.write_text(body)
     (base / "other.vast").write_text(body)
@@ -426,6 +462,9 @@ def check_external_inputs(work, frontend):
         else:
             raise ValueError("accepted incorrect physical module inputs")
 
+    leaf.write_text(body[:-1] + "b")
+    rejected(wire, "source bytes changed")
+    leaf.write_text(body)
     changed = deepcopy(wire)
     rows = changed["root_source"]["files"]
     rows[3]["path"], rows[4]["path"] = rows[4]["path"], rows[3]["path"]
@@ -702,15 +741,21 @@ if __name__ == "__main__":
                            help="qualify increasing UTF-8 byte sizes of one flat library in both modes")
     selection.add_argument("--entry-bytes", type=int, nargs="+", metavar="N",
                            help="qualify increasing sizes of a single entry with a repeated UTF-8 comment")
+    selection.add_argument("--aggregate-bytes", type=int, nargs="+", metavar="N",
+                           help="qualify the total bytes of four flat files with repeated UTF-8 comments")
     selection.add_argument("--package-entry-bytes", type=int, nargs="+", metavar="N",
                            help="qualify the assembled comparison package at increasing entry sizes")
     selection.add_argument("--suite", choices=[*suites, "host"], help="run one suite (default: all full suites)")
+    parser.add_argument("--with-entry-comment", action="store_true",
+                        help="append the 64 KiB comment payload to the entry in a file-count sweep")
     parser.add_argument("--frontend", type=Path, default=verify.ROOT / "target/debug/vastitas")
     parser.add_argument("--timeout", type=int, default=120, metavar="SECONDS", help="wall time limit per worker")
     verify.add_memory_argument(parser)
     args = parser.parse_args()
     if args.timeout <= 0:
         parser.error("positive timeout required")
+    if args.with_entry_comment and not args.file_counts:
+        parser.error("--with-entry-comment requires --file-counts")
     if args.file_counts and (args.file_counts != sorted(set(args.file_counts)) or
                              args.file_counts[0] < 1 or args.file_counts[-1] > verify.MAX_PHYSICAL_INPUTS):
         parser.error(f"--file-counts must increase strictly within 1 to {verify.MAX_PHYSICAL_INPUTS}")
@@ -724,10 +769,15 @@ if __name__ == "__main__":
         if (entry_bytes != sorted(set(entry_bytes)) or
                 entry_bytes[0] < minimum or entry_bytes[-1] > 16 * 1024**2):
             parser.error(f"entry sizes must increase strictly between {minimum} bytes and 16 MiB")
-    scale = args.file_counts or args.library_bytes or entry_bytes
+    if args.aggregate_bytes:
+        minimum = 4 * ((verify.ROOT / "llvm/fixtures/BoxedProgram.vast").stat().st_size + 3)
+        if (args.aggregate_bytes != sorted(set(args.aggregate_bytes)) or
+                args.aggregate_bytes[0] < minimum or args.aggregate_bytes[-1] > 64 * 1024**2):
+            parser.error(f"aggregate sizes must increase strictly between {minimum} bytes and 64 MiB")
+    scale = args.file_counts or args.library_bytes or entry_bytes or args.aggregate_bytes
     selected = [args.suite or "file-scale"] if args.suite or scale else suites
     for suite in selected:
         with tempfile.TemporaryDirectory(prefix=f"vastitas-{suite}-regression-") as tmp:
             run(Path(tmp), suite, args.frontend.resolve(), args.memory, file_counts=args.file_counts,
-                library_bytes=args.library_bytes, entry_bytes=entry_bytes, packaged=bool(args.package_entry_bytes),
-                timeout=args.timeout)
+                library_bytes=args.library_bytes, entry_bytes=entry_bytes, aggregate_bytes=args.aggregate_bytes,
+                packaged=bool(args.package_entry_bytes), with_entry_comment=args.with_entry_comment, timeout=args.timeout)

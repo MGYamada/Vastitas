@@ -119,7 +119,7 @@ def compile {json : Lean.Json} {main : Bool} (req : Wire.CheckedInput json main)
   let ⟨literal, term⟩ ← ExitFunction.literalBody core.body
   let effects ← StorageEffects.lower exec.statements
   let revision := FunctionRevision.artifact (Wire.revisionInput json) req.checked
-  guard (FunctionRevision.bounded revision)
+  guard (FunctionRevision.boundedDerived revision)
   return ⟨entry, selected, owner, ownerAt, namedMain, resultSlot, fragment, whole, returned,
     function, functionAt, entryResult, target, checkedTarget, signature, coverage, observations, core, exactCore, coreSignature,
     literal, term, effects, revision, rfl⟩

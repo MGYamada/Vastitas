@@ -356,6 +356,11 @@ fn executable_actions_return_one_artifact_for_the_same_wire_and_target() {
             assert_eq!(checked["llvm"]["triple"], triple);
             assert_eq!(checked["llvm"]["layout"], layout);
             assert_eq!(checked, built);
+            let proof = common::kernel_with_args(&wire, &["llvm-proof-input", triple, layout]);
+            assert_eq!(proof["ok"], true, "{proof}");
+            assert_eq!(proof["llvm"], checked["llvm"]);
+            let fields = proof["function_revision"].as_object().unwrap();
+            assert!(fields.contains_key("schema") && !fields.contains_key("input"));
         }
         let mut stale = wire;
         stale["expected_function_revision"] = serde_json::json!({});
@@ -364,6 +369,9 @@ fn executable_actions_return_one_artifact_for_the_same_wire_and_target() {
         common::assert_wire_rejected(&check, "E_FUNCTION_REVISION");
         assert!(check.get("llvm").is_none());
         assert_eq!(check, build);
+        let proof = common::kernel_with_args(&stale, &["llvm-proof-input", TARGET[2], TARGET[4]]);
+        common::assert_wire_rejected(&proof, "E_ARGUMENT");
+        assert!(proof.get("llvm").is_none() && proof.get("function_revision").is_none());
     }
 }
 
@@ -1208,6 +1216,7 @@ fn target_choice_and_output_form_are_explicit() {
         vec!["--llvm-preview"],
         vec!["--target-triple", "test"],
         vec!["--llvm-preview", "--data-layout", "e"],
+        vec!["--llvm-proof-input", "--target-triple", "test"],
         [TARGET.as_slice(), &["--print-function-revision"]].concat(),
     ] {
         let o = s
@@ -1217,6 +1226,13 @@ fn target_choice_and_output_form_are_explicit() {
             .unwrap();
         expect_code(&o, "E_USAGE");
     }
+    let build = s
+        .command("build", "app/Vastitas.toml")
+        .args(["--llvm-proof-input", "-o", "program"])
+        .output()
+        .unwrap();
+    expect_code(&build, "E_USAGE");
+    assert!(build.stdout.is_empty());
     for (triple, layout) in [("bad\"triple", "e"), ("arm64", "e\n;injected")] {
         let o = s
             .command("check", "app/Vastitas.toml")

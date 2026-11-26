@@ -56,8 +56,9 @@ private def process (mode : Action) (input : String) : Lean.Json := Id.run do
           ("official_kernel_checked", false), ("native_generated", false)]
         let response := (successJson none).setObjVal! "llvm" evidence
         if proofInput then
-          let .obj fields := artifact.revision | return failureJson {code := "E_PROTOCOL", message := "invalid LLVM artifact revision"}
-          return response.setObjVal! "function_revision" (.obj (fields.erase "input"))
+          let some fields := ResourceSource.FunctionRevision.derivedFields? artifact.revision
+            | return failureJson {code := "E_PROTOCOL", message := "invalid LLVM artifact revision"}
+          return response.setObjVal! "function_revision" fields
         return acknowledge response
     | .emit =>
       match ResourceSource.Wire.emit json with

@@ -311,8 +311,11 @@ formatting do not select a method. A mismatch is `E_FUNCTION_REVISION`.
 Success with a supplied receipt adds `function_revision_matched: true` to
 the response. Changes to source locations, unapplied bodies or another
 package invalidate the compilation revision even when the winner is the
-same. Revisions have a 64 MiB compact JSON limit, and the ordinary request
-limits still apply during replay. The receipt is evidence about this input
+same. Printing or replaying a standalone revision in the kernel has a 64 MiB
+compact JSON limit, and the ordinary request limits still apply during replay.
+For a live LLVM artifact the original wire is already bounded at input. Its
+derived revision fields share a separate 64 MiB compact JSON budget. The
+artifact retains the complete request and all checked fields. The receipt is evidence about this input
 and its checked functions, and carries no native or LLVM proof.
 
 ## Flat programs and the legacy geometry

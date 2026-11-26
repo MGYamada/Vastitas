@@ -200,7 +200,7 @@ ordinal and result type of integer negation. Official replay checks this complet
 revision against the same signed-literal artifact that determines the LLVM bytes.
 [ResourceRecord.lean](ResourceRecord.lean) reconstructs every computational
 field of the checked input. [RevisionBound.lean](RevisionBound.lean) applies the
-actual size check to the complete nominal revision.
+standalone output size check to the complete nominal revision and certifies the separate limit on the fields used in live lowering.
 [LinkedMid.lean](LinkedMid.lean) proves the exact equations for `MidIR.lowerChecked`
 and `MidIR.Module.execute`. Both modules contain the same source owner, symbol
 0 and specialization key. A single integer instruction carries −(2¹²⁸ + 1).

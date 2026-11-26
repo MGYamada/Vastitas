@@ -270,25 +270,31 @@ def read_sources(wire, source, flat_names):
     offset = total = 0
     entry = None
     for name, row in zip(names, rows, strict=True):
+        require(row["offset"] == offset, "physical source offset differs from current files")
+        if offset == root["offset"]:
+            entry = len(files)
+            text = root["text"]
+        else:
+            text = row["text"]
+        require(isinstance(text, str), "expected UTF-8 source text")
         path = source.parent / os.fsdecode(name)
         with os.fdopen(os.open(path, os.O_RDONLY | os.O_NONBLOCK), "rb") as stream:
             info = os.fstat(stream.fileno())
             require(stat.S_ISREG(info.st_mode), "expected regular compilation input")
             limit = min(16 * 1024**2, 64 * 1024**2 - total)
             require(info.st_size <= limit, "physical source byte limit exceeded")
-            data = stream.read(info.st_size + 1)
-        require(len(data) == info.st_size, "source size changed during certificate preparation")
-        text = data.decode("utf-8")
-        require(row["offset"] == offset, "physical source offset differs from current files")
-        if offset == root["offset"]:
-            entry = len(files)
-            expected = root["text"]
-        else:
-            expected = row["text"]
-        require(text == expected, "source bytes changed during certificate preparation")
+            # A slice has at most 64 KiB of UTF-8. Keep the verified wire string
+            # as the file text after comparing every byte with its open descriptor.
+            seen = 0
+            for start in range(0, len(text), 16384):
+                part = text[start:start + 16384].encode("utf-8")
+                seen += len(part)
+                require(seen <= info.st_size and stream.read(len(part)) == part,
+                        "source bytes changed during certificate preparation")
+            require(seen == info.st_size and not stream.read(1), "source size changed during certificate preparation")
         files.append((name, offset, text))
-        total += len(data)
-        offset += len(data) + 1
+        total += seen
+        offset += seen + 1
     require(entry is not None, "missing physical entry")
     if flat_names is None:
         graph = check_manifest_inputs(wire, source, files, entry)

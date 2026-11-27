@@ -3,8 +3,11 @@
 The driver checks a closed proof about one public boxed integer program with static calls and forward control flow. The proof subject contains the complete protocol-10 input and function revision, target header, typed instruction graph, mathematical integer result and all emitted LLVM bytes. One invocation of `check --llvm-proof-input` returns the full function revision and LLVM report from the same emission. An independent execution of the Lean emitter recovers the graph and revision from the original request. The driver compares the complete revision and LLVM text before constructing the proof. [Capture](Capture.lean)
 
 Each certificate also checks the protocol-10 declaration decoder on its own wire.
-One worker per package checks the equation between its encoded fields and bodies
-and the decoded package. The next worker assembles those values in wire order.
+Each package carries an equation between its encoded fields and bodies and the
+decoded package. For long body lists, workers prove up to eight row equations
+at a time. The package proof uses those equations on the original function,
+method, contribution, resource function and indexed declaration rows. A pure
+function with observations goes through the package decoder with its annotations. The next worker assembles those values in wire order.
 Two further workers check reserved package identities and resolve operator names
 on that same program. They share a header with the physical file texts removed. Lean checks equality of the public decoder's header fields, including
 every package and method body, against the complete request. A separate proof checks
@@ -35,8 +38,21 @@ and 849 MiB for Fast. With the same budgets, the ordered-calls program and a
 dependency containing the metric-frame or indexed-record declarations each
 returned 23 and reproduced all 2,311 corpus bytes in both modes.
 For the latter two cases the exports contained 11,778 and 11,774 declarations,
-respectively. The largest single package still determines the cost of decoding
-its bodies in a worker.
+respectively. These counts were measured before splitting long declaration lists into rows.
+With the 16 indexed records split across two workers, the Official dependency
+decoding peak fell from 1,578 to 1,085 MiB RSS. Fast preparation peaked at
+1,075 MiB for the same dependency. Both modes checked the same 11,901-declaration
+export. Corrupting only the last record also fails its row proof.
+
+The declaration decoder alone was replayed on public requests with 8, 32 and
+128 uncalled integer helpers plus an entry function at the same allocator
+limit. To vary the number of indexed declarations through both external
+checkers and the complete bytes, run the marker qualification. Package
+assembly, namespace resolution and external kernel replay have separate costs.
+
+```sh
+python3 experiments/compiler_validation/boxed_certificate/regression.py --declaration-counts 8 32
+```
 
 From the repository root, build the matching frontend, checker and oracle, then run the qualification.
 
@@ -152,6 +168,13 @@ Fast accept the same 76,730,387-byte export with 38,990 declarations and the
 retained 1,830 LLVM bytes. End-to-end times are 276.4 and 248.2 seconds.
 The external checkers take 65.1 and 39.3 seconds. Peak child RSS is 1,514
 and 1,512 MiB respectively.
+
+With declaration decoding enabled, an isolated Fast run rebuilt the statement
+from the same 8,192 physical inputs and checked the complete 120,072,982-byte
+export accepted by Official. Nanoda checked all 43,110 declarations in 42.3
+seconds at 529 MiB peak RSS. The run took 274.3 seconds with a 360-second limit
+per worker and a 1,536 MiB Lean allocator limit. The export worker peaked at
+1,593 MiB RSS. All 1,830 output bytes matched the retained boxed module.
 
 ```sh
 python3 experiments/compiler_validation/boxed_certificate/regression.py --file-counts 8192 --with-entry-comment

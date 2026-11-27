@@ -14,6 +14,7 @@ import tempfile
 import time
 
 import verify
+import source_decode
 from verify import fast, require
 
 sys.path.insert(0, str(verify.ROOT / "scripts"))
@@ -89,7 +90,7 @@ def check_snapshot(work):
         require(sealed.read_bytes() == prefix + suffix, "sealed proof depends on the candidate")
 
 
-def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), entry_bytes=(),
+def run(work, suite, frontend, memory, *, file_counts=(), declaration_counts=(), library_bytes=(), entry_bytes=(),
         aggregate_bytes=(), dependency_bytes=(), packaged=False, with_entry_comment=False, timeout=120):
     # Both modes consume the same public path, bytes, target and function revision.
     source = work / "main.vast"
@@ -129,6 +130,8 @@ def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), entr
                 (private / name).unlink(missing_ok=True)
             if not keep_authority:
                 (private / "Authority.olean").unlink(missing_ok=True)
+                for path in private.glob("Source*.olean"):
+                    path.unlink()
             if candidate is not None and not keep_snapshot:
                 (private / "sealed.ndjson").unlink(missing_ok=True)
         require(rejection is None, f"{label} accepted an invalid candidate")
@@ -136,6 +139,25 @@ def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), entr
               f"{report['exported_declarations']} exported declarations)", flush=True)
         return report, roots
 
+    if declaration_counts:
+        args.manifest_path, _, unit = dependency_files(
+            work, "pub fn main() -> Int { dep::units::helper(21) }\n", DEPENDENCY_UNIT, DEPENDENCY_MANIFEST)
+        args.source = None
+        reference = subprocess.check_output(
+            [frontend, "check", "--manifest-path", args.manifest_path.name, "--llvm-preview",
+             "--target-triple", args.target_triple, "--data-layout", args.data_layout], cwd=work, timeout=timeout)
+        for count in declaration_counts:
+            with unit.open("w") as stream:
+                stream.write(DEPENDENCY_UNIT)
+                size = len(DEPENDENCY_UNIT)
+                for i in range(count):
+                    line = f"pub indexed marker Marker{i};\n"
+                    size += len(line)
+                    require(size <= 16 * 1024**2, "generated dependency exceeds the physical input limit")
+                    stream.write(line)
+            value = check_file_sample(work, check, "indexed-markers", count, 5, reference)
+            require(value == "42", "adding unused markers must preserve the dependency call result")
+        return
     if dependency_bytes:
         check_dependency_scale(work, args, check, dependency_bytes)
         return
@@ -286,8 +308,8 @@ def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), entr
         altered.mkdir()
         [(name, declaration)] = verify.authority_modules(revision, model, args.target_triple, args.data_layout, data, inputs)
         require(name == "Authority", "single-file mutation must use one authority module")
-        for module, _ in verify.declaration_modules(revision["input"]):
-            os.link(producer / (module + ".olean"), altered / (module + ".olean"))
+        for path in producer.glob("Source*.olean"):
+            os.link(path, altered / path.name)
         (altered / "Authority.lean").write_text(declaration)
         (altered / "Certificate.lean").write_text(verify.certificate())
         env = verify.environment(altered, prefix)
@@ -659,7 +681,7 @@ def check_physical_inputs(work, args, source, check):
             changed_file, count = dep_manifest, 5
             replacement = dep_manifest.read_text().replace("revision A", "revision B", 1)
             args.manifest_path, args.source, args.lib = manifest, None, []
-        baseline, _ = check(label, "official")
+        baseline, _ = check(label, "official", keep_authority=True)
         image = work / label / "sealed.ndjson"
         peer, _ = check(label + "-fast", "fast", candidate=image)
         require(baseline["physical_inputs"] == count and baseline["certificate"] == peer["certificate"]
@@ -733,6 +755,8 @@ pub indexed primitive chosen = descriptor(Y);
         require(baseline["physical_inputs"] == 4 and baseline["integer_result"] == "23" and
                 baseline["certificate"] == replay["certificate"] and (compiled / "preview.ll").read_bytes() == retained,
                 f"{group} and the ordered calls must share one certificate")
+        if group == "indexed-records":
+            check_last_declaration(compiled, args)
         for label, old, new in edits:
             require(declarations.count(old) == 1, "expected one " + label + " field")
             library.write_text(declarations.replace(old, new))
@@ -742,6 +766,19 @@ pub indexed primitive chosen = descriptor(Y);
                     (work / (group + "-stale-" + label) / "preview.ll").read_bytes() == retained,
                     "a stale " + label + " must change the revision and preserve the LLVM bytes")
         candidate.unlink()
+
+
+def check_last_declaration(directory, args):
+    wire = published_revision(directory)["input"]
+    (p, m, rows), = ((i, j, mod["indexed_declarations"])
+                     for i, pkg in enumerate(wire["packages"]) for j, mod in enumerate(pkg["modules"])
+                     if mod.get("indexed_declarations"))
+    require(len(rows) > source_decode.ROWS_PER_WORKER, "expected multiple declaration batches")
+    rows[-1]["kind"] = "invalid"
+    last = f"def p{p}m{m}indexed_declarations{len(rows) - 1}Wire : Json"
+    body, = (source for _, source in verify.declaration_modules(wire) if last in source)
+    reject_lean_control(directory, args, "InvalidLastDeclaration.lean", body,
+                        "malformed final indexed declaration", "Except.error", "Except.ok")
 
 
 def check_package_substitutions(wire, manifest):
@@ -829,7 +866,7 @@ def check_borrowed_operator(work, args, check):
     (compiled / "sealed.ndjson").unlink()
 
     args.manifest_path = verify.ROOT / "llvm/fixtures/uncalled-operator/Vastitas.toml"
-    uncalled, _ = check("uncalled-operator", "official")
+    uncalled, _ = check("uncalled-operator", "official", keep_authority=True)
     compiled = work / "uncalled-operator"
     peer, _ = check("uncalled-operator-fast", "fast", candidate=compiled / "sealed.ndjson")
     require(uncalled["certificate"] == peer["certificate"] and uncalled["functions"] == 6
@@ -847,6 +884,8 @@ if __name__ == "__main__":
     selection = parser.add_mutually_exclusive_group()
     selection.add_argument("--file-counts", type=int, nargs="+", metavar="N",
                            help=f"qualify increasing physical input counts (1 to {verify.MAX_PHYSICAL_INPUTS}) in both modes")
+    selection.add_argument("--declaration-counts", type=int, nargs="+", metavar="N",
+                           help="replay increasing counts of physical marker declarations in one dependency module")
     selection.add_argument("--library-bytes", type=int, nargs="+", metavar="N",
                            help="qualify increasing UTF-8 byte sizes of one flat library in both modes")
     selection.add_argument("--entry-bytes", type=int, nargs="+", metavar="N",
@@ -891,11 +930,16 @@ if __name__ == "__main__":
         if (args.dependency_file_bytes != sorted(set(args.dependency_file_bytes)) or
                 args.dependency_file_bytes[0] < minimum or args.dependency_file_bytes[-1] > 16 * 1024**2):
             parser.error(f"--dependency-file-bytes must increase strictly between {minimum} bytes and 16 MiB")
-    scale = args.file_counts or args.library_bytes or entry_bytes or args.aggregate_bytes or args.dependency_file_bytes
+    if args.declaration_counts and (args.declaration_counts != sorted(set(args.declaration_counts))
+                                    or args.declaration_counts[0] < 1):
+        parser.error("--declaration-counts requires strictly increasing positive counts")
+    scale = (args.file_counts or args.declaration_counts or args.library_bytes or entry_bytes or
+             args.aggregate_bytes or args.dependency_file_bytes)
     selected = [args.suite or "file-scale"] if args.suite or scale else suites
     for suite in selected:
         with tempfile.TemporaryDirectory(prefix=f"vastitas-{suite}-regression-") as tmp:
             run(Path(tmp), suite, args.frontend.resolve(), args.memory, file_counts=args.file_counts,
-                library_bytes=args.library_bytes, entry_bytes=entry_bytes, aggregate_bytes=args.aggregate_bytes,
+                declaration_counts=args.declaration_counts, library_bytes=args.library_bytes,
+                entry_bytes=entry_bytes, aggregate_bytes=args.aggregate_bytes,
                 dependency_bytes=args.dependency_file_bytes, packaged=bool(args.package_entry_bytes),
                 with_entry_comment=args.with_entry_comment, timeout=args.timeout)

@@ -21,6 +21,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "official_exit"))
 import fast_check as fast
 from fast_check import official, require
+from source_decode import declaration_modules, json_object
 
 ROOT = official.ROOT
 MAX_PHYSICAL_INPUTS = 8192
@@ -519,64 +520,12 @@ def physical_proof(wire, inputs, quote, physical, sized_texts):
     return batches, f"def rows : Array Json := ({data}).toArray", f"expectedFiles{len(rows)}", evidence
 
 
-def json_object_with(fields, name, term, quote=official.lean_string):
-    pairs = [(official.lean_string(key), term if key == name else official.json_term(fields[key], quote))
-             for key in sorted(fields)]
-    return "(Json.mkObj [" + ", ".join(f"({key}, {value})" for key, value in pairs) + "])"
-
-
 def physical_wire(wire, quote):
     # Reuse the exact checked rows, preserving every other field of both objects.
     if "files" not in wire["root_source"]:
         return official.json_term(wire, quote)
-    root = json_object_with(wire["root_source"], "files", ".arr rows", quote)
-    return json_object_with(wire, "root_source", root, quote)
-
-
-def declaration_modules(wire):
-    """Decode each package once, then check identities and operators on the recovered program."""
-    def module(imports, body):
-        return f"""{imports}
-set_option Elab.async false
-set_option autoImplicit false
-set_option maxRecDepth 65536
-set_option maxHeartbeats 8000000
-namespace VastitasProof.Source
-open Lean VastitasKernel VastitasKernel.ResourceSource
-{body}
-end VastitasProof.Source
-"""
-
-    oracle = "import VastitasOracle.CertificatePackages"
-    imports, rows, values, steps = [], [], [], []
-    for i, package in enumerate(wire["packages"]):
-        name, row, result = f"SourcePackage{i}", f"packageRow{i}", f"packageResult{i}"
-        # The equality both infers the actual decoded package and certifies it.
-        # Subsequent workers can project the value without re-running the decoder.
-        yield name, module(oracle, f"""def {row} : Json := {official.json_term(package)}
-def {result} : {{ p : Package // Wire.package {row} = .ok p }} := by
-  have decoded := Eq.refl (Wire.package {row})
-  conv at decoded => rhs; cbv
-  exact ⟨_, decoded⟩""")
-        imports.append("import " + name)
-        rows.append(row)
-        values.append(result + ".val")
-        steps.append(f"VastitasOracle.CertificatePackages.map_row {result}.property (")
-    package_rows = ", ".join(rows)
-    header = json_object_with(dict(wire, root_source=None), "packages", f".arr #[{package_rows}]")
-    root, file = map(official.lean_string, (wire["root"], wire["file"]))
-    legacy = "true" if wire.get("legacy_geometry") is True else "false"
-    mapped = "".join(steps) + "by rfl" + ")" * len(steps)
-    yield "SourceFields", module("\n".join([oracle, *imports]), f"""def headerWire : Json := {header}
-def raw : Program := {{file := {file}, root := {root}, legacyGeometry := {legacy}, packages := [{', '.join(values)}]}}
-theorem fields : Wire.decodeFields headerWire = .ok raw :=
-  VastitasOracle.CertificatePackages.fields_of_packages (rows := [{package_rows}])
-    (by with_unfolding_all rfl) ({mapped})""")
-    yield "SourceIdentities", module("import SourceFields",
-        "theorem identities : (Wire.reservedIdentities raw.root raw.packages).isOk = true := by cbv")
-    yield "SourceOperators", module("import SourceIdentities", """theorem operators : (Wire.operatorNames raw).isOk = true := by cbv
-theorem decoded : (Wire.sourceCandidate headerWire).isOk = true :=
-  VastitasOracle.CertificatePackages.candidate_of_stages fields identities operators""")
+    root = json_object(wire["root_source"], {"files": ".arr rows"}, quote)
+    return json_object(wire, {"root_source": root}, quote)
 
 
 def authority_modules(revision, model, triple, layout, data, sources):

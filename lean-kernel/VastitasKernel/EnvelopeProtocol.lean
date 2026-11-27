@@ -50,12 +50,12 @@ def decodeSurfaceGeneric (j : Json) (allowPublic : Bool := false) : Except Strin
     fields param ["name", "span"]
     pure { name := ← str param "name", span := ← decodeSpan param : RawGenericParam }
   let raw ← field j "domain"
-  let keys ← if raw == .null then pure [] else (·.toList) <$> raw.getArr?
+  let keys ← if raw.isNull then pure [] else (·.toList) <$> raw.getArr?
   let domain ← keys.mapM fun key => do
     (← key.getArr?).toList.mapM fun ty => do
       let .data raw ← decodeSurfaceType Limits.typeNesting ty | throw "dispatch domains require scalar types"
       pure raw
-  pure { name := ← str j "name", params, domain, span := ← decodeSpan j, inferDomain := raw == .null }
+  pure { name := ← str j "name", params, domain, span := ← decodeSpan j, inferDomain := raw.isNull }
 
 def decodeTypePath (j : Json) : Except String TypePath := do
   fields j ["path", "span"]
@@ -135,7 +135,7 @@ private def event (j : Json) : Except String Namespace.EditEvent := do
   | "apply" =>
     namespaceFields j ["op", "contribution", "loan", "span"]
     let loan ← field j "loan"
-    let loan ← if loan == Json.null then pure none else some <$> loan.getStr?
+    let loan ← if loan.isNull then pure none else some <$> loan.getStr?
     return .apply (← segments j "contribution") loan span
   | "return" =>
     namespaceFields j ["op", "loan", "span"]

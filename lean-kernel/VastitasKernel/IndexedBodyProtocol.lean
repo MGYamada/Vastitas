@@ -177,7 +177,7 @@ mutual
       | "let" =>
         fields j ["kind", "span", "name", "annotation", "value"]
         let annotation ← field j "annotation"
-        let annotation ← if annotation == Json.null then pure none else some <$> fnType annotation
+        let annotation ← if annotation.isNull then pure none else some <$> fnType annotation
         return .letE (← str j "name") annotation (← expression fuel (← field j "value")) span
       | "unpack_fields" =>
         fields j ["kind", "span", "value", "witness", "fields"]

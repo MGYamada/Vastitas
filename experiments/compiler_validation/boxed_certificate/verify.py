@@ -4,6 +4,7 @@ import argparse
 from bisect import bisect_right
 from collections import defaultdict
 import hashlib
+from itertools import chain
 import json
 import os
 from pathlib import Path
@@ -20,13 +21,15 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "official_exit"))
 import fast_check as fast
 from fast_check import official, require
+from source_decode import declaration_modules, json_object
 
 ROOT = official.ROOT
 MAX_PHYSICAL_INPUTS = 8192
 GOAL = "VastitasProof.obligation"
 THEOREM = "VastitasProof.checked"
 ROOTS = [*fast.AXIOMS, "Eq.refl", "id", "VastitasOracle.BoxedCertificate.Valid.mk",
-         "VastitasOracle.BoxedCertificate.printedLines", "VastitasProof.packageOwners", "VastitasProof.physicalInputs", GOAL]
+         "VastitasOracle.BoxedCertificate.printedLines", "VastitasProof.packageOwners", "VastitasProof.physicalInputs",
+         "VastitasProof.sourceDecoded", GOAL]
 KINDS = {"Int": ".int", "Nat": ".nat", "Bool": ".bool", "Pair<Int>": "(.pair .int)", "Pair<Nat>": "(.pair .nat)"}
 OPS = {f"{k}_{op}": f"(.{k} .{op})" for k in ("int", "nat") for op in ("add", "sub", "mul", "div")}
 OPS.update(nat_int_div=".natIntDiv", int_nat_div=".intNatDiv", int_neg=".neg", nat_to_int=".natToInt")
@@ -52,11 +55,11 @@ def lean_command(prefix, memory):
 
 
 PROOF = """by
-  refine ⟨rfl, physicalInputs, packageOwners, rfl, rfl, rfl, ?_⟩
+  refine ⟨rfl, physicalInputs, packageOwners, sourceDecoded, rfl, rfl, rfl, ?_⟩
   exact VastitasOracle.BoxedCertificate.printedLines code headerBytes lines rfl rfl"""
 
 FLOW_PROOF = """by
-  exact ⟨rfl, physicalInputs, packageOwners, rfl, rfl, evaluated, printed⟩"""
+  exact ⟨rfl, physicalInputs, packageOwners, sourceDecoded, rfl, rfl, evaluated, printed⟩"""
 
 
 def natural(value):
@@ -518,17 +521,11 @@ def physical_proof(wire, inputs, quote, physical, sized_texts):
 
 
 def physical_wire(wire, quote):
-    # Reference the exact row definitions above in the captured JSON as well.
-    # Preserve every other field of both objects, including unfamiliar fields.
-    def object_with(fields, name, term):
-        pairs = [(official.lean_string(key), term if key == name else official.json_term(fields[key], quote))
-                 for key in sorted(fields)]
-        return "(Json.mkObj [" + ", ".join(f"({key}, {value})" for key, value in pairs) + "])"
-
+    # Reuse the exact checked rows, preserving every other field of both objects.
     if "files" not in wire["root_source"]:
         return official.json_term(wire, quote)
-    root = object_with(wire["root_source"], "files", ".arr rows")
-    return object_with(wire, "root_source", root)
+    root = json_object(wire["root_source"], {"files": ".arr rows"}, quote)
+    return json_object(wire, {"root_source": root}, quote)
 
 
 def authority_modules(revision, model, triple, layout, data, sources):
@@ -591,8 +588,9 @@ def authority_modules(revision, model, triple, layout, data, sources):
         for value, name in strings.items())
     dependency = "VastitasOracle.FlowCertificate.Subject" if flow else "VastitasOracle.BoxedCertificate"
 
-    def module_source(dependency, body):
-        return f"""import {dependency}
+    def module_source(dependency, body, *extra_imports):
+        imports = "\n".join(f"import {name}" for name in (dependency, *extra_imports))
+        return f"""{imports}
 set_option Elab.async false
 set_option autoImplicit false
 set_option maxRecDepth 65536
@@ -630,11 +628,15 @@ def lines : List String := [{lines}]
 def subject : Subject := ⟨wire, revision, sources, packages, header, code,
   headerBytes ++ ("\\n" ++ String.intercalate "\\n" lines ++ "\\n").toUTF8.data.toList, {integer(model['value'])}⟩
 {file_evidence}
+theorem sourceDecoded : (ResourceSource.Wire.sourceCandidate wire).isOk = true := by
+  rw [VastitasOracle.CertificatePackages.candidate_of_header (b := Source.headerWire)
+    (by with_unfolding_all rfl : ResourceSource.Wire.requestFields wire = _)]
+  exact Source.decoded
 theorem packageOwners : VastitasOracle.CertificatePackages.read wire = .ok packages := by
   with_unfolding_all rfl
 def obligation : Prop := Valid subject
 """)
-    yield "Authority", module_source(dependency, "\n".join(parts))
+    yield "Authority", module_source(dependency, "\n".join(parts), "SourceOperators")
 
 
 def certificate(proof=PROOF, module="Authority"):
@@ -682,11 +684,13 @@ def snapshot(candidate, authority_path, destination):
     with os.fdopen(os.open(candidate, os.O_RDONLY | os.O_NONBLOCK), "rb") as src, authority_path.open("r+b", buffering=0) as image:
         info = os.fstat(src.fileno())
         prefix_size = os.fstat(image.fileno()).st_size
-        require(stat.S_ISREG(info.st_mode) and prefix_size < info.st_size <= fast.MAX_EXPORT,
+        require(stat.S_ISREG(info.st_mode) and info.st_size <= fast.MAX_EXPORT,
                 "expected bounded regular certificate with a proof suffix")
+        require(info.st_size >= prefix_size, "declaration environment differs from current input: incomplete prefix")
         while expected := image.read(fast.CHUNK):
             require(src.read(len(expected)) == expected, "declaration environment differs from current input")
             digest.update(expected)
+        require(info.st_size > prefix_size, "expected a certificate with a proof suffix")
         total = prefix_size
         try:
             while block := src.read(fast.CHUNK):
@@ -773,7 +777,8 @@ def verify(args, work, report):
         digest.update(piece.encode("utf-8"))
     report.update(bytes=len(data), llvm_sha256=official.digest(data), revision_sha256=digest.hexdigest(),
                   functions=len(model["functions"]), integer_result=integer(model["value"]))
-    for module, source_text in authority_modules(revision, model, args.target_triple, args.data_layout, data, sources):
+    authority = authority_modules(revision, model, args.target_triple, args.data_layout, data, sources)
+    for module, source_text in chain(declaration_modules(revision["input"]), authority):
         (work / (module + ".lean")).write_text(source_text)
         phase(module.lower(), [*lean, "-DwarningAsError=true", "-o", module + ".olean", module + ".lean"])
     module = "Authority"

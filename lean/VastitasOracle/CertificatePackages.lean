@@ -250,19 +250,71 @@ private theorem graph_of_fields {wire : Lean.Json} {p : Program} (h : Wire.decod
   rw [metadata_of_packages hp]
   rfl
 
+/-- Declaration decoding uses only the fields returned by the protocol header decoder. -/
+theorem candidate_of_header {a b : Lean.Json} (same : Wire.requestFields a = Wire.requestFields b) :
+    Wire.sourceCandidate a = Wire.sourceCandidate b := by
+  unfold Wire.sourceCandidate Wire.decodeFields
+  rw [same]
+
+/-- Compose a decoded row with its ordered tail without evaluating the row again. -/
+theorem map_row {α β : Type} {readRow : α → Except String β} {row : α} {rows : List α}
+    {value : β} {values : List β} (first : readRow row = .ok value)
+    (rest : rows.mapM readRow = .ok values) :
+    (row :: rows).mapM readRow = .ok (value :: values) := by
+  simp [List.mapM_cons, first, rest, bind, Except.bind, pure, Except.pure]
+
+/-- Every decoded package occurs in the same position in the program as in the wire. -/
+theorem fields_of_packages {j : Lean.Json} {file root : String} {legacy : Bool}
+    {rows : List Lean.Json} {packages : List Package}
+    (header : Wire.requestFields j = .ok ⟨file, root, legacy, rows⟩)
+    (decoded : rows.mapM Wire.package = .ok packages) :
+    Wire.decodeFields j = .ok {file, root, legacyGeometry := legacy, packages} := by
+  simp [Wire.decodeFields, header, decoded, bind, Except.bind, pure, Except.pure]
+
+/-- Compose identity and operator checks on the exact program recovered by the decoder. -/
+theorem candidate_of_stages {j : Lean.Json} {raw : Program} (fields : Wire.decodeFields j = .ok raw)
+    (ids : (Wire.reservedIdentities raw.root raw.packages).isOk = true)
+    (operators : (Wire.operatorNames raw).isOk = true) :
+    (Wire.sourceCandidate j).isOk = true := by
+  cases hi : Wire.reservedIdentities raw.root raw.packages with
+  | error e => simp [hi, Except.isOk, Except.toBool] at ids
+  | ok _ =>
+    cases hn : Wire.operatorNames raw with
+    | error e => simp [hn, Except.isOk, Except.toBool] at operators
+    | ok names => simp [Wire.sourceCandidate, fields, hi, hn, bind, Except.bind, pure, Except.pure,
+        Except.isOk, Except.toBool]
+
+private theorem graph_of_candidate {wire : Lean.Json} {p : Program} (h : Wire.sourceCandidate wire = .ok p) :
+    read wire = .ok (ofProgram p) := by
+  unfold Wire.sourceCandidate at h
+  cases hf : Wire.decodeFields wire <;> simp [hf, bind, Except.bind] at h
+  rename_i raw
+  cases hr : Wire.reservedIdentities raw.root raw.packages <;> simp [hr] at h
+  cases hn : Wire.operatorNames raw <;> simp [hn, pure, Except.pure] at h
+  cases h
+  exact graph_of_fields (p := raw) hf
+
+/-- The recovered candidate has the independently supplied owner graph. The public decoder
+returns that very candidate exactly when its physical source checks also succeed. -/
+theorem replayed_candidate {wire : Lean.Json} {owners : Graph}
+    (decoded : (Wire.sourceCandidate wire).isOk = true) (metadata : read wire = .ok owners) :
+    ∃ p, Wire.sourceCandidate wire = .ok p ∧ ofProgram p = owners ∧
+      (Wire.program wire = .ok p ↔ Wire.exactSources wire p = .ok ()) := by
+  cases c : Wire.sourceCandidate wire with
+  | error e => simp [c, Except.isOk, Except.toBool] at decoded
+  | ok p =>
+    refine ⟨p, rfl, Except.ok.inj ((graph_of_candidate c).symm.trans metadata), ?_⟩
+    cases src : Wire.exactSources wire p <;> simp [Wire.program, c, src, bind, Except.bind, pure, Except.pure]
+
 /-- Every accepted wire has exactly the file, root, profile, package IDs and
 ordered dependency targets read by the independently replayed stage proof. -/
 theorem of_decoded {wire : Lean.Json} {p : Program} (h : Wire.program wire = .ok p) :
     read wire = .ok (ofProgram p) := by
-  unfold Wire.program at h
-  cases hf : Wire.decodeFields wire <;> simp [hf, bind, Except.bind] at h
-  rename_i raw
-  cases hr : Wire.reservedIdentities raw.root raw.packages <;> simp [hr] at h
-  cases hn : Wire.operatorNames raw <;> simp [hn] at h
-  rename_i names
-  cases hs : Wire.exactSources wire {raw with operatorValues := names} <;>
-    simp [hs, pure, Except.pure] at h
-  cases h
-  exact graph_of_fields (p := raw) hf
+  cases c : Wire.sourceCandidate wire with
+  | error e => simp [Wire.program, c, bind, Except.bind] at h
+  | ok candidate =>
+    cases src : Wire.exactSources wire candidate <;>
+      simp [Wire.program, c, src, bind, Except.bind, pure, Except.pure] at h
+    exact h ▸ graph_of_candidate c
 
 end VastitasOracle.CertificatePackages

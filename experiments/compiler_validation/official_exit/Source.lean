@@ -23,7 +23,7 @@ private theorem reserved : ResourceSource.Wire.reservedIdentities candidate.root
 private theorem names : ResourceSource.Wire.operatorNames candidate = .ok [] := by cbv
 
 theorem decodedProgram : ResourceSource.Wire.program wire = .ok candidate := by
-  unfold ResourceSource.Wire.program
+  unfold ResourceSource.Wire.program ResourceSource.Wire.sourceCandidate
   simp only [parsedFields, bind, Except.bind, reserved, names]
   change (do ResourceSource.Wire.exactSources wire candidate; pure candidate) = .ok candidate
   rw [checkedSource]

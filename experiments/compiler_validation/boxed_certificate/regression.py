@@ -14,6 +14,7 @@ import tempfile
 import time
 
 import verify
+import source_decode
 from verify import fast, require
 
 sys.path.insert(0, str(verify.ROOT / "scripts"))
@@ -62,14 +63,20 @@ def check_snapshot(work):
         prefix = b"a" * (fast.CHUNK + 1)
         suffix = b"proof" * (fast.CHUNK // 5 + 1)
         authority.write_bytes(prefix)
-        candidate.write_bytes(prefix[:-1] + b"b" + suffix)
-        try:
-            verify.snapshot(candidate, authority, sealed)
-        except ValueError as error:
-            require("declaration environment differs" in str(error), str(error))
-        else:
-            raise ValueError("accepted a changed final prefix byte")
-        require(authority.read_bytes() == prefix and not sealed.exists(), "changed authority after rejection")
+        for contents, diagnostic in [
+            (prefix[:-1] + b"b" + suffix, "declaration environment differs"),
+            (prefix[:-1] + b"b", "declaration environment differs"),
+            (prefix[:-1], "declaration environment differs"),
+            (prefix, "proof suffix"),
+        ]:
+            candidate.write_bytes(contents)
+            try:
+                verify.snapshot(candidate, authority, sealed)
+            except ValueError as error:
+                require(diagnostic in str(error), str(error))
+            else:
+                raise ValueError("accepted a changed or incomplete certificate")
+            require(authority.read_bytes() == prefix and not sealed.exists(), "changed authority after rejection")
         candidate.write_bytes(prefix + suffix)
         sealed.write_bytes(b"previous")
         try:
@@ -89,7 +96,7 @@ def check_snapshot(work):
         require(sealed.read_bytes() == prefix + suffix, "sealed proof depends on the candidate")
 
 
-def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), entry_bytes=(),
+def run(work, suite, frontend, memory, *, file_counts=(), declaration_counts=(), library_bytes=(), entry_bytes=(),
         aggregate_bytes=(), dependency_bytes=(), packaged=False, with_entry_comment=False, timeout=120):
     # Both modes consume the same public path, bytes, target and function revision.
     source = work / "main.vast"
@@ -129,6 +136,8 @@ def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), entr
                 (private / name).unlink(missing_ok=True)
             if not keep_authority:
                 (private / "Authority.olean").unlink(missing_ok=True)
+                for path in private.glob("Source*.olean"):
+                    path.unlink()
             if candidate is not None and not keep_snapshot:
                 (private / "sealed.ndjson").unlink(missing_ok=True)
         require(rejection is None, f"{label} accepted an invalid candidate")
@@ -136,6 +145,25 @@ def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), entr
               f"{report['exported_declarations']} exported declarations)", flush=True)
         return report, roots
 
+    if declaration_counts:
+        args.manifest_path, _, unit = dependency_files(
+            work, "pub fn main() -> Int { dep::units::helper(21) }\n", DEPENDENCY_UNIT, DEPENDENCY_MANIFEST)
+        args.source = None
+        reference = subprocess.check_output(
+            [frontend, "check", "--manifest-path", args.manifest_path.name, "--llvm-preview",
+             "--target-triple", args.target_triple, "--data-layout", args.data_layout], cwd=work, timeout=timeout)
+        for count in declaration_counts:
+            with unit.open("w") as stream:
+                stream.write(DEPENDENCY_UNIT)
+                size = len(DEPENDENCY_UNIT)
+                for i in range(count):
+                    line = f"pub indexed marker Marker{i};\n"
+                    size += len(line)
+                    require(size <= 16 * 1024**2, "generated dependency exceeds the physical input limit")
+                    stream.write(line)
+            value = check_file_sample(work, check, "indexed-markers", count, 5, reference)
+            require(value == "42", "adding unused markers must preserve the dependency call result")
+        return
     if dependency_bytes:
         check_dependency_scale(work, args, check, dependency_bytes)
         return
@@ -286,6 +314,8 @@ def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), entr
         altered.mkdir()
         [(name, declaration)] = verify.authority_modules(revision, model, args.target_triple, args.data_layout, data, inputs)
         require(name == "Authority", "single-file mutation must use one authority module")
+        for path in producer.glob("Source*.olean"):
+            os.link(path, altered / path.name)
         (altered / "Authority.lean").write_text(declaration)
         (altered / "Certificate.lean").write_text(verify.certificate())
         env = verify.environment(altered, prefix)
@@ -596,12 +626,29 @@ def check_manifest_entry_span(directory, args):
     owner = next(package for package in wire["packages"] if package["source"] == wire["root"])
     root_module = next(module for module in owner["modules"] if not module["path"])
     root_module["span"]["end"] = offset + len(text.encode("utf-8")) + 1
-    model = json.loads((directory / "capture.stdout").read_bytes())
-    modules = verify.authority_modules(revision, model, args.target_triple, args.data_layout,
-                                       (directory / "preview.ll").read_bytes(), inputs)
-    changed = next(body for name, body in modules if name == "Authority")
-    reject_lean_control(directory, args, "ChangedPackageSpan.lean", changed,
-                        "root module one byte beyond the physical entry", "readManifests")
+    # Keep the accepted physical files and change only the package table's span.
+    # Prove the public decoder's exact error without elaborating a second,
+    # deliberately stale declaration-header proof after the physical rejection.
+    packages = verify.official.json_term(wire["packages"])
+    filename = "ChangedPackageSpan.lean"
+    (directory / filename).write_text(f"""import Authority
+set_option autoImplicit false
+set_option Elab.async false
+set_option maxRecDepth 65536
+set_option maxHeartbeats 8000000
+namespace VastitasProof
+open Lean VastitasKernel
+def outsideEntry : Json := wire.setObjVal! "packages" ({packages})
+example : PhysicalSources.layout outsideEntry = .error "root module is outside the physical entry" := by
+  with_unfolding_all rfl
+end VastitasProof
+""")
+    prefix = fast.pinned_lean()
+    result = run_proof_worker([*verify.lean_command(prefix, args.memory), "-DwarningAsError=true", filename],
+                              cwd=directory, env=verify.environment(directory, prefix), timeout=args.timeout,
+                              capture_output=True, text=True)
+    require(result.returncode == 0, f"wrong physical entry span rejection: {result.stdout[:1200]}{result.stderr[:400]}")
+    print("root module one byte beyond the physical entry rejected by Lean", flush=True)
 
 
 def check_dependency_file_contents(directory, args, manifest, module):
@@ -627,8 +674,46 @@ def check_dependency_file_contents(directory, args, manifest, module):
         row["text"] = original
 
 
+def check_observed_rows(directory, args):
+    directory.mkdir()
+    manifest = directory / "Vastitas.toml"
+    manifest.write_text('[package]\nname = "observed_rows"\nversion = "0.1.0"\nedition = "2026"\nroot = "main.vast"\n')
+    helpers = "".join(f"fn f{i}(x: Int) -> Int {{ x }}\n" for i in range(source_decode.ROWS_PER_WORKER))
+    (directory / "main.vast").write_text(helpers + "pub fn main() -> Int { let a = show!(42); let b = show!(a); b }\n")
+    revision = subprocess.check_output([args.frontend, "check", "--manifest-path", manifest.name,
+                                        "--print-function-revision"], cwd=directory, timeout=args.timeout)
+    wire = json.loads(revision)["input"]
+    package, = wire["packages"]
+    module, = package["modules"]
+    funcs = module["functions"]
+    require(len(funcs) == source_decode.ROWS_PER_WORKER + 1 and funcs[-1]["name"] == "main",
+            "expected the observed entry after one full batch of functions")
+    modules = list(verify.declaration_modules(wire))
+    row = f"def p0m0functions{len(funcs)-1}Wire : Json"
+    last, = (name for name, body in modules if row in body and "Rows" in name)
+    # The pure function decoder consumes the stripped body. The package must
+    # retain both observations in their original statement positions.
+    modules.append(("RetainedObservations", source_decode.module("import SourceOperators",
+        'example : packageResult0.val.modules.map (·.observations) = '
+        '[[("main", [⟨0, "42"⟩, ⟨1, "a"⟩])]] := by with_unfolding_all rfl')))
+    prefix = fast.pinned_lean()
+    env = verify.environment(directory, prefix)
+    for name, body in modules:
+        filename = name + ".lean"
+        (directory / filename).write_text(body)
+        result = run_proof_worker([*verify.lean_command(prefix, args.memory), "-DwarningAsError=true",
+                                   "-o", name + ".olean", filename], cwd=directory, env=env,
+                                  timeout=args.timeout, capture_output=True, text=True)
+        require(result.returncode == 0, f"{name}: {result.stdout[:1200]}{result.stderr[:400]}")
+    funcs[-1]["observations"][-1]["label"] = 42
+    changed = next(body for name, body in verify.declaration_modules(wire) if name == last)
+    reject_lean_control(directory, args, "ChangedObservation.lean", changed,
+                        "malformed annotation on the final function", "Except.error", "Except.ok")
+
+
 def check_physical_inputs(work, args, source, check):
     """Compile the same helper through each loader and replay a stale proof."""
+    check_observed_rows(work / "observed-rows", args)
     check_external_inputs(work, args.frontend)
     # The same long source text passes through both the wire and the physical layout.
     helper = 'fn helper(x: Int) -> Int { x + x } // "λ1" 🪐 e\u0301 \\end\r\n'
@@ -657,7 +742,7 @@ def check_physical_inputs(work, args, source, check):
             changed_file, count = dep_manifest, 5
             replacement = dep_manifest.read_text().replace("revision A", "revision B", 1)
             args.manifest_path, args.source, args.lib = manifest, None, []
-        baseline, _ = check(label, "official")
+        baseline, _ = check(label, "official", keep_authority=True)
         image = work / label / "sealed.ndjson"
         peer, _ = check(label + "-fast", "fast", candidate=image)
         require(baseline["physical_inputs"] == count and baseline["certificate"] == peer["certificate"]
@@ -731,6 +816,8 @@ pub indexed primitive chosen = descriptor(Y);
         require(baseline["physical_inputs"] == 4 and baseline["integer_result"] == "23" and
                 baseline["certificate"] == replay["certificate"] and (compiled / "preview.ll").read_bytes() == retained,
                 f"{group} and the ordered calls must share one certificate")
+        if group == "indexed-records":
+            check_last_declaration(compiled, args)
         for label, old, new in edits:
             require(declarations.count(old) == 1, "expected one " + label + " field")
             library.write_text(declarations.replace(old, new))
@@ -740,6 +827,19 @@ pub indexed primitive chosen = descriptor(Y);
                     (work / (group + "-stale-" + label) / "preview.ll").read_bytes() == retained,
                     "a stale " + label + " must change the revision and preserve the LLVM bytes")
         candidate.unlink()
+
+
+def check_last_declaration(directory, args):
+    wire = published_revision(directory)["input"]
+    (p, m, rows), = ((i, j, mod["indexed_declarations"])
+                     for i, pkg in enumerate(wire["packages"]) for j, mod in enumerate(pkg["modules"])
+                     if mod.get("indexed_declarations"))
+    require(len(rows) > source_decode.ROWS_PER_WORKER, "expected multiple declaration batches")
+    rows[-1]["kind"] = "invalid"
+    last = f"def p{p}m{m}indexed_declarations{len(rows) - 1}Wire : Json"
+    body, = (source for _, source in verify.declaration_modules(wire) if last in source)
+    reject_lean_control(directory, args, "InvalidLastDeclaration.lean", body,
+                        "malformed final indexed declaration", "Except.error", "Except.ok")
 
 
 def check_package_substitutions(wire, manifest):
@@ -760,6 +860,29 @@ def check_package_substitutions(wire, manifest):
             require(diagnostic in str(error), str(error))
         else:
             raise ValueError(f"accepted a substituted {label}")
+
+
+def check_uncalled_declaration(directory, args):
+    wire = published_revision(directory)["input"]
+    index, = (i for i, pkg in enumerate(wire["packages"]) if pkg["name"] == "edit_base")
+    base = wire["packages"][index]
+    method, = base["modules"][0]["methods"]
+    result = method["body"]["result"]
+    require(method["name"] == "choose" and result["kind"] == "integer" and result["value"] == "0",
+            "expected the uncalled fallback method")
+    # Only the encoded fallback changes. Keep the file texts, owner graph and LLVM bytes.
+    result["kind"] = "invalid"
+    mutated = next(body for name, body in verify.declaration_modules(wire) if name == f"SourcePackage{index}")
+    reject_lean_control(directory, args, "InvalidFallback.lean", mutated,
+                        "malformed uncalled method body", "Except.error", "Except.ok")
+    result.update(kind="integer", value="1")
+    old_header = "VastitasProof.Source.headerWire"
+    changed = verify.official.json_term(dict(wire, root_source=None))
+    reject_lean_control(directory, args, "StaleFallback.lean", f"""import SourceOperators
+open Lean VastitasKernel.ResourceSource
+def changed : Json := {changed}
+example : Wire.requestFields changed = Wire.requestFields {old_header} := by with_unfolding_all rfl
+""", "saved decoder proof for a different uncalled literal", "rfl", "Wire.requestFields")
 
 
 def check_borrowed_operator(work, args, check):
@@ -804,7 +927,7 @@ def check_borrowed_operator(work, args, check):
     (compiled / "sealed.ndjson").unlink()
 
     args.manifest_path = verify.ROOT / "llvm/fixtures/uncalled-operator/Vastitas.toml"
-    uncalled, _ = check("uncalled-operator", "official")
+    uncalled, _ = check("uncalled-operator", "official", keep_authority=True)
     compiled = work / "uncalled-operator"
     peer, _ = check("uncalled-operator-fast", "fast", candidate=compiled / "sealed.ndjson")
     require(uncalled["certificate"] == peer["certificate"] and uncalled["functions"] == 6
@@ -812,6 +935,7 @@ def check_borrowed_operator(work, args, check):
             "uncalled method family or entry differs")
     retained = verify.ROOT / "llvm/src/uncalled-operator.ll"
     require((compiled / "preview.ll").read_bytes() == retained.read_bytes(), "different uncalled-family module")
+    check_uncalled_declaration(compiled, args)
 
 
 
@@ -821,6 +945,8 @@ if __name__ == "__main__":
     selection = parser.add_mutually_exclusive_group()
     selection.add_argument("--file-counts", type=int, nargs="+", metavar="N",
                            help=f"qualify increasing physical input counts (1 to {verify.MAX_PHYSICAL_INPUTS}) in both modes")
+    selection.add_argument("--declaration-counts", type=int, nargs="+", metavar="N",
+                           help="replay increasing counts of physical marker declarations in one dependency module")
     selection.add_argument("--library-bytes", type=int, nargs="+", metavar="N",
                            help="qualify increasing UTF-8 byte sizes of one flat library in both modes")
     selection.add_argument("--entry-bytes", type=int, nargs="+", metavar="N",
@@ -865,11 +991,16 @@ if __name__ == "__main__":
         if (args.dependency_file_bytes != sorted(set(args.dependency_file_bytes)) or
                 args.dependency_file_bytes[0] < minimum or args.dependency_file_bytes[-1] > 16 * 1024**2):
             parser.error(f"--dependency-file-bytes must increase strictly between {minimum} bytes and 16 MiB")
-    scale = args.file_counts or args.library_bytes or entry_bytes or args.aggregate_bytes or args.dependency_file_bytes
+    if args.declaration_counts and (args.declaration_counts != sorted(set(args.declaration_counts))
+                                    or args.declaration_counts[0] < 1):
+        parser.error("--declaration-counts requires strictly increasing positive counts")
+    scale = (args.file_counts or args.declaration_counts or args.library_bytes or entry_bytes or
+             args.aggregate_bytes or args.dependency_file_bytes)
     selected = [args.suite or "file-scale"] if args.suite or scale else suites
     for suite in selected:
         with tempfile.TemporaryDirectory(prefix=f"vastitas-{suite}-regression-") as tmp:
             run(Path(tmp), suite, args.frontend.resolve(), args.memory, file_counts=args.file_counts,
-                library_bytes=args.library_bytes, entry_bytes=entry_bytes, aggregate_bytes=args.aggregate_bytes,
+                declaration_counts=args.declaration_counts, library_bytes=args.library_bytes,
+                entry_bytes=entry_bytes, aggregate_bytes=args.aggregate_bytes,
                 dependency_bytes=args.dependency_file_bytes, packaged=bool(args.package_entry_bytes),
                 with_entry_comment=args.with_entry_comment, timeout=args.timeout)

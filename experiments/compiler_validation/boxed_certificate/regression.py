@@ -63,14 +63,20 @@ def check_snapshot(work):
         prefix = b"a" * (fast.CHUNK + 1)
         suffix = b"proof" * (fast.CHUNK // 5 + 1)
         authority.write_bytes(prefix)
-        candidate.write_bytes(prefix[:-1] + b"b" + suffix)
-        try:
-            verify.snapshot(candidate, authority, sealed)
-        except ValueError as error:
-            require("declaration environment differs" in str(error), str(error))
-        else:
-            raise ValueError("accepted a changed final prefix byte")
-        require(authority.read_bytes() == prefix and not sealed.exists(), "changed authority after rejection")
+        for contents, diagnostic in [
+            (prefix[:-1] + b"b" + suffix, "declaration environment differs"),
+            (prefix[:-1] + b"b", "declaration environment differs"),
+            (prefix[:-1], "declaration environment differs"),
+            (prefix, "proof suffix"),
+        ]:
+            candidate.write_bytes(contents)
+            try:
+                verify.snapshot(candidate, authority, sealed)
+            except ValueError as error:
+                require(diagnostic in str(error), str(error))
+            else:
+                raise ValueError("accepted a changed or incomplete certificate")
+            require(authority.read_bytes() == prefix and not sealed.exists(), "changed authority after rejection")
         candidate.write_bytes(prefix + suffix)
         sealed.write_bytes(b"previous")
         try:

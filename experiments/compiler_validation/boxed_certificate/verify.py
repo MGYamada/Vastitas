@@ -684,11 +684,13 @@ def snapshot(candidate, authority_path, destination):
     with os.fdopen(os.open(candidate, os.O_RDONLY | os.O_NONBLOCK), "rb") as src, authority_path.open("r+b", buffering=0) as image:
         info = os.fstat(src.fileno())
         prefix_size = os.fstat(image.fileno()).st_size
-        require(stat.S_ISREG(info.st_mode) and prefix_size < info.st_size <= fast.MAX_EXPORT,
+        require(stat.S_ISREG(info.st_mode) and info.st_size <= fast.MAX_EXPORT,
                 "expected bounded regular certificate with a proof suffix")
+        require(info.st_size >= prefix_size, "declaration environment differs from current input: incomplete prefix")
         while expected := image.read(fast.CHUNK):
             require(src.read(len(expected)) == expected, "declaration environment differs from current input")
             digest.update(expected)
+        require(info.st_size > prefix_size, "expected a certificate with a proof suffix")
         total = prefix_size
         try:
             while block := src.read(fast.CHUNK):

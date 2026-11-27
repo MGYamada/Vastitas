@@ -588,30 +588,34 @@ def exactSources (j : Json) (p : Program) : Except String Unit := do
     throw s!"manifest {toJson pkg.id.source} must declare package.root and match the wire package name, version and package.edition = \"{currentEdition}\""
   ExactModelSource.check layout p
 
-def program (j : Json) : Except String Program := do
+/-- Decode every package and body, check reserved identities and resolve the operator profile. -/
+def sourceCandidate (j : Json) : Except String Program := do
   let raw ← decodeFields j
   reservedIdentities raw.root raw.packages
   let names ← operatorNames raw
-  let p := {raw with operatorValues := names}
+  return {raw with operatorValues := names}
+
+def program (j : Json) : Except String Program := do
+  let p ← sourceCandidate j
   exactSources j p
   return p
 
 theorem checks_of_program {j : Json} {p : Program} (h : program j = .ok p) :
     reservedIdentities p.root p.packages = .ok () ∧ exactSources j p = .ok () := by
   cases hd : decodeFields j with
-  | error msg => simp [program, hd, bind, Except.bind] at h
+  | error msg => simp [program, sourceCandidate, hd, bind, Except.bind] at h
   | ok raw =>
     cases hr : reservedIdentities raw.root raw.packages with
-    | error msg => simp [program, hd, hr, bind, Except.bind] at h
+    | error msg => simp [program, sourceCandidate, hd, hr, bind, Except.bind] at h
     | ok _ =>
       cases hn : operatorNames raw with
-      | error msg => simp [program, hd, hr, hn, bind, Except.bind] at h
+      | error msg => simp [program, sourceCandidate, hd, hr, hn, bind, Except.bind] at h
       | ok names =>
         cases hs : exactSources j {raw with operatorValues := names} with
-        | error msg => simp [program, hd, hr, hn, hs, bind, Except.bind] at h
+        | error msg => simp [program, sourceCandidate, hd, hr, hn, hs, bind, Except.bind, pure, Except.pure] at h
         | ok _ =>
           have eq : {raw with operatorValues := names} = p := by
-            simpa [program, hd, hr, hn, hs, bind, Except.bind, pure, Except.pure] using h
+            simpa [program, sourceCandidate, hd, hr, hn, hs, bind, Except.bind, pure, Except.pure] using h
           exact eq ▸ ⟨hr, hs⟩
 
 theorem exactSources_of_program {j : Json} {p : Program} (h : program j = .ok p) :

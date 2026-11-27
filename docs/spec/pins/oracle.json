@@ -126,6 +126,7 @@
     {"name": "VastitasOracle.CertificatePackages.of_decoded", "module": "VastitasOracle.CertificatePackages", "kind": "theorem", "statement": "sha256:b01ae9384de64de91b68517ae279df7482da9bca932901a514d4079d2b44b4a8"},
     {"name": "VastitasOracle.CertificatePackages.packageEntryStep", "module": "VastitasOracle.CertificatePackages", "kind": "theorem", "statement": "sha256:7e9c9086d686ecdb15d3bb6cb69370b7fb8834f22ada1bbaf5c64f8200bcf097"},
     {"name": "VastitasOracle.CertificatePackages.packageTableHeader", "module": "VastitasOracle.CertificatePackages", "kind": "theorem", "statement": "sha256:5e9c858ab5a936ac2fdb911dd5b69486d2a6e2ffc5bbfb28fa69cc0f32550457"},
+    {"name": "VastitasOracle.CertificatePackages.replayed_candidate", "module": "VastitasOracle.CertificatePackages", "kind": "theorem", "statement": "sha256:37ae13caf9fccb6c97fb47154b6ac64cc0b3c3059e77d06be328b22bcf352df8"},
     {"name": "VastitasOracle.DispatchFunction.correspondence", "module": "VastitasOracle.DispatchFunction", "kind": "theorem", "statement": "sha256:5fa25912e79533efe547f02614176bd70c3d6c3e1653542693e4756dcf00ab8a"},
     {"name": "VastitasOracle.DispatchFunction.method_correspondence", "module": "VastitasOracle.DispatchFunction", "kind": "theorem", "statement": "sha256:954b68b070ae7f3d9e98294fd912a3e5b0e89a35384b7aaee4b2d949557f8c25"},
     {"name": "VastitasOracle.Emission.derived_revision_lookup", "module": "VastitasOracle.Emission", "kind": "theorem", "statement": "sha256:d3b88406e8da90961c5da1bf59aa2be5ac94437effd767e40ab11b5a6174f23f"},

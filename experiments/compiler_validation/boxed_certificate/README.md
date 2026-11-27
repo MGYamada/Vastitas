@@ -2,6 +2,16 @@
 
 The driver checks a closed proof about one public boxed integer program with static calls and forward control flow. The proof subject contains the complete protocol-10 input and function revision, target header, typed instruction graph, mathematical integer result and all emitted LLVM bytes. One invocation of `check --llvm-proof-input` returns the full function revision and LLVM report from the same emission. An independent execution of the Lean emitter recovers the graph and revision from the original request. The driver compares the complete revision and LLVM text before constructing the proof. [Capture](Capture.lean)
 
+Each certificate also checks the protocol-10 declaration decoder on its own wire.
+One worker per package checks the equation between its encoded fields and bodies
+and the decoded package. The next worker assembles those values in wire order.
+Two further workers check reserved package identities and resolve operator names
+on that same program. They share a header with the physical file texts removed. Lean checks equality of the public decoder's header fields, including
+every package and method body, against the complete request. A separate proof checks
+the physical file layout. The resulting candidate still needs the source checks in
+`Wire.exactSources` for the public program decoder to return it.
+[Candidate theorem](../../../lean/VastitasOracle/CertificatePackages.lean)
+
 For a conditional, the certificate checks the typed graph, the chosen edge, the full
 integer at the join and the complete printed module. Its subject imports the printer,
 execution model and physical input decoder. The publication theorem also connects
@@ -17,6 +27,16 @@ Lean's kernel to decide the equality of the computed and expected integers.
 Each verifier includes both proofs and their dependencies in the regenerated
 declaration prefix. The assembly log
 reports elapsed seconds and peak resident memory for each worker.
+
+On macOS arm64, the uncalled-operator package replayed 11,680 declarations and
+all 1,829 LLVM bytes with a 1,536 MiB Lean allocator limit and a 120-second
+per-worker timeout. The verifier processes used 415 MiB peak RSS for Official
+and 849 MiB for Fast. With the same budgets, the ordered-calls program and a
+dependency containing the metric-frame or indexed-record declarations each
+returned 23 and reproduced all 2,311 corpus bytes in both modes.
+For the latter two cases the exports contained 11,778 and 11,774 declarations,
+respectively. The largest single package still determines the cost of decoding
+its bodies in a worker.
 
 From the repository root, build the matching frontend, checker and oracle, then run the qualification.
 
@@ -62,6 +82,7 @@ files come from disk. Each flat library with a UTF-8 path uses the shared
 three-field decoder theorem and supplies its own path, offset and size checks.
 Identical contents share a proof of UTF-8 length.
 
+The following physical-layout measurements predate the declaration decoder replay.
 This macOS arm64 run used the same 1,536 MiB Lean allocator limit and 360-second
 per-worker timeout for all three sizes, including the decoder's 8,192-file limit.
 Each pair of measurements gives Official first and Fast second. Wall time

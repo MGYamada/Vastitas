@@ -200,9 +200,8 @@ def geometricSetting (j : Json) : Except String GeometricSetting := do
   | _ => throw "expected scheme or smooth setting"
 
 def representation (j : Json) : Except String Source.Representation := do
-  if j == Json.str "affine_descriptor" then return .affineDescriptor
-  if j == Json.str "smooth_affine" then
-    return .smoothAffine
+  if let .str "affine_descriptor" := j then return .affineDescriptor
+  if let .str "smooth_affine" := j then return .smoothAffine
   if let .ok body := j.getObjVal? "presented_affine" then
     if (← j.getObj?).size != 1 then throw "expected exactly one concrete representation"
     fields body ["field"]

@@ -286,6 +286,8 @@ def run(work, suite, frontend, memory, *, file_counts=(), library_bytes=(), entr
         altered.mkdir()
         [(name, declaration)] = verify.authority_modules(revision, model, args.target_triple, args.data_layout, data, inputs)
         require(name == "Authority", "single-file mutation must use one authority module")
+        for module, _ in verify.declaration_modules(revision["input"]):
+            os.link(producer / (module + ".olean"), altered / (module + ".olean"))
         (altered / "Authority.lean").write_text(declaration)
         (altered / "Certificate.lean").write_text(verify.certificate())
         env = verify.environment(altered, prefix)
@@ -762,6 +764,29 @@ def check_package_substitutions(wire, manifest):
             raise ValueError(f"accepted a substituted {label}")
 
 
+def check_uncalled_declaration(directory, args):
+    wire = published_revision(directory)["input"]
+    index, = (i for i, pkg in enumerate(wire["packages"]) if pkg["name"] == "edit_base")
+    base = wire["packages"][index]
+    method, = base["modules"][0]["methods"]
+    result = method["body"]["result"]
+    require(method["name"] == "choose" and result["kind"] == "integer" and result["value"] == "0",
+            "expected the uncalled fallback method")
+    # Only the encoded fallback changes. Keep the file texts, owner graph and LLVM bytes.
+    result["kind"] = "invalid"
+    mutated = next(body for name, body in verify.declaration_modules(wire) if name == f"SourcePackage{index}")
+    reject_lean_control(directory, args, "InvalidFallback.lean", mutated,
+                        "malformed uncalled method body", "Except.error", "Except.ok")
+    result.update(kind="integer", value="1")
+    old_header = "VastitasProof.Source.headerWire"
+    changed = verify.official.json_term(dict(wire, root_source=None))
+    reject_lean_control(directory, args, "StaleFallback.lean", f"""import SourceOperators
+open Lean VastitasKernel.ResourceSource
+def changed : Json := {changed}
+example : Wire.requestFields changed = Wire.requestFields {old_header} := by with_unfolding_all rfl
+""", "saved decoder proof for a different uncalled literal", "rfl", "Wire.requestFields")
+
+
 def check_borrowed_operator(work, args, check):
     args.source = None
     args.manifest_path = verify.ROOT / "llvm/fixtures/borrowed-operator/Vastitas.toml"
@@ -812,6 +837,7 @@ def check_borrowed_operator(work, args, check):
             "uncalled method family or entry differs")
     retained = verify.ROOT / "llvm/src/uncalled-operator.ll"
     require((compiled / "preview.ll").read_bytes() == retained.read_bytes(), "different uncalled-family module")
+    check_uncalled_declaration(compiled, args)
 
 
 

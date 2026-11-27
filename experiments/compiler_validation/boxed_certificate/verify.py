@@ -4,6 +4,7 @@ import argparse
 from bisect import bisect_right
 from collections import defaultdict
 import hashlib
+from itertools import chain
 import json
 import os
 from pathlib import Path
@@ -26,7 +27,8 @@ MAX_PHYSICAL_INPUTS = 8192
 GOAL = "VastitasProof.obligation"
 THEOREM = "VastitasProof.checked"
 ROOTS = [*fast.AXIOMS, "Eq.refl", "id", "VastitasOracle.BoxedCertificate.Valid.mk",
-         "VastitasOracle.BoxedCertificate.printedLines", "VastitasProof.packageOwners", "VastitasProof.physicalInputs", GOAL]
+         "VastitasOracle.BoxedCertificate.printedLines", "VastitasProof.packageOwners", "VastitasProof.physicalInputs",
+         "VastitasProof.sourceDecoded", GOAL]
 KINDS = {"Int": ".int", "Nat": ".nat", "Bool": ".bool", "Pair<Int>": "(.pair .int)", "Pair<Nat>": "(.pair .nat)"}
 OPS = {f"{k}_{op}": f"(.{k} .{op})" for k in ("int", "nat") for op in ("add", "sub", "mul", "div")}
 OPS.update(nat_int_div=".natIntDiv", int_nat_div=".intNatDiv", int_neg=".neg", nat_to_int=".natToInt")
@@ -52,11 +54,11 @@ def lean_command(prefix, memory):
 
 
 PROOF = """by
-  refine ⟨rfl, physicalInputs, packageOwners, rfl, rfl, rfl, ?_⟩
+  refine ⟨rfl, physicalInputs, packageOwners, sourceDecoded, rfl, rfl, rfl, ?_⟩
   exact VastitasOracle.BoxedCertificate.printedLines code headerBytes lines rfl rfl"""
 
 FLOW_PROOF = """by
-  exact ⟨rfl, physicalInputs, packageOwners, rfl, rfl, evaluated, printed⟩"""
+  exact ⟨rfl, physicalInputs, packageOwners, sourceDecoded, rfl, rfl, evaluated, printed⟩"""
 
 
 def natural(value):
@@ -517,18 +519,64 @@ def physical_proof(wire, inputs, quote, physical, sized_texts):
     return batches, f"def rows : Array Json := ({data}).toArray", f"expectedFiles{len(rows)}", evidence
 
 
-def physical_wire(wire, quote):
-    # Reference the exact row definitions above in the captured JSON as well.
-    # Preserve every other field of both objects, including unfamiliar fields.
-    def object_with(fields, name, term):
-        pairs = [(official.lean_string(key), term if key == name else official.json_term(fields[key], quote))
-                 for key in sorted(fields)]
-        return "(Json.mkObj [" + ", ".join(f"({key}, {value})" for key, value in pairs) + "])"
+def json_object_with(fields, name, term, quote=official.lean_string):
+    pairs = [(official.lean_string(key), term if key == name else official.json_term(fields[key], quote))
+             for key in sorted(fields)]
+    return "(Json.mkObj [" + ", ".join(f"({key}, {value})" for key, value in pairs) + "])"
 
+
+def physical_wire(wire, quote):
+    # Reuse the exact checked rows, preserving every other field of both objects.
     if "files" not in wire["root_source"]:
         return official.json_term(wire, quote)
-    root = object_with(wire["root_source"], "files", ".arr rows")
-    return object_with(wire, "root_source", root)
+    root = json_object_with(wire["root_source"], "files", ".arr rows", quote)
+    return json_object_with(wire, "root_source", root, quote)
+
+
+def declaration_modules(wire):
+    """Decode each package once, then check identities and operators on the recovered program."""
+    def module(imports, body):
+        return f"""{imports}
+set_option Elab.async false
+set_option autoImplicit false
+set_option maxRecDepth 65536
+set_option maxHeartbeats 8000000
+namespace VastitasProof.Source
+open Lean VastitasKernel VastitasKernel.ResourceSource
+{body}
+end VastitasProof.Source
+"""
+
+    oracle = "import VastitasOracle.CertificatePackages"
+    imports, rows, values, steps = [], [], [], []
+    for i, package in enumerate(wire["packages"]):
+        name, row, result = f"SourcePackage{i}", f"packageRow{i}", f"packageResult{i}"
+        # The equality both infers the actual decoded package and certifies it.
+        # Subsequent workers can project the value without re-running the decoder.
+        yield name, module(oracle, f"""def {row} : Json := {official.json_term(package)}
+def {result} : {{ p : Package // Wire.package {row} = .ok p }} := by
+  have decoded := Eq.refl (Wire.package {row})
+  conv at decoded => rhs; cbv
+  exact ⟨_, decoded⟩""")
+        imports.append("import " + name)
+        rows.append(row)
+        values.append(result + ".val")
+        steps.append(f"VastitasOracle.CertificatePackages.map_row {result}.property (")
+    package_rows = ", ".join(rows)
+    header = json_object_with(dict(wire, root_source=None), "packages", f".arr #[{package_rows}]")
+    root, file = map(official.lean_string, (wire["root"], wire["file"]))
+    legacy = "true" if wire.get("legacy_geometry") is True else "false"
+    mapped = "".join(steps) + "by rfl" + ")" * len(steps)
+    yield "SourceFields", module("\n".join([oracle, *imports]), f"""def headerWire : Json := {header}
+def raw : Program := {{file := {file}, root := {root}, legacyGeometry := {legacy}, packages := [{', '.join(values)}]}}
+theorem fields : Wire.decodeFields headerWire = .ok raw :=
+  VastitasOracle.CertificatePackages.fields_of_packages (rows := [{package_rows}])
+    (by with_unfolding_all rfl) ({mapped})""")
+    yield "SourceIdentities", module("import SourceFields",
+        "theorem identities : (Wire.reservedIdentities raw.root raw.packages).isOk = true := by cbv")
+    yield "SourceOperators", module("import SourceIdentities", """theorem operators : (Wire.operatorNames raw).isOk = true := by cbv
+theorem decoded : (Wire.sourceCandidate headerWire).isOk = true :=
+  VastitasOracle.CertificatePackages.candidate_of_stages fields identities operators""")
 
 
 def authority_modules(revision, model, triple, layout, data, sources):
@@ -591,8 +639,9 @@ def authority_modules(revision, model, triple, layout, data, sources):
         for value, name in strings.items())
     dependency = "VastitasOracle.FlowCertificate.Subject" if flow else "VastitasOracle.BoxedCertificate"
 
-    def module_source(dependency, body):
-        return f"""import {dependency}
+    def module_source(dependency, body, *extra_imports):
+        imports = "\n".join(f"import {name}" for name in (dependency, *extra_imports))
+        return f"""{imports}
 set_option Elab.async false
 set_option autoImplicit false
 set_option maxRecDepth 65536
@@ -630,11 +679,15 @@ def lines : List String := [{lines}]
 def subject : Subject := ⟨wire, revision, sources, packages, header, code,
   headerBytes ++ ("\\n" ++ String.intercalate "\\n" lines ++ "\\n").toUTF8.data.toList, {integer(model['value'])}⟩
 {file_evidence}
+theorem sourceDecoded : (ResourceSource.Wire.sourceCandidate wire).isOk = true := by
+  rw [VastitasOracle.CertificatePackages.candidate_of_header (b := Source.headerWire)
+    (by with_unfolding_all rfl : ResourceSource.Wire.requestFields wire = _)]
+  exact Source.decoded
 theorem packageOwners : VastitasOracle.CertificatePackages.read wire = .ok packages := by
   with_unfolding_all rfl
 def obligation : Prop := Valid subject
 """)
-    yield "Authority", module_source(dependency, "\n".join(parts))
+    yield "Authority", module_source(dependency, "\n".join(parts), "SourceOperators")
 
 
 def certificate(proof=PROOF, module="Authority"):
@@ -773,7 +826,8 @@ def verify(args, work, report):
         digest.update(piece.encode("utf-8"))
     report.update(bytes=len(data), llvm_sha256=official.digest(data), revision_sha256=digest.hexdigest(),
                   functions=len(model["functions"]), integer_result=integer(model["value"]))
-    for module, source_text in authority_modules(revision, model, args.target_triple, args.data_layout, data, sources):
+    authority = authority_modules(revision, model, args.target_triple, args.data_layout, data, sources)
+    for module, source_text in chain(declaration_modules(revision["input"]), authority):
         (work / (module + ".lean")).write_text(source_text)
         phase(module.lower(), [*lean, "-DwarningAsError=true", "-o", module + ".olean", module + ".lean"])
     module = "Authority"

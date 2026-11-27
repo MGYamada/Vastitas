@@ -26,6 +26,7 @@ structure Valid (s : Subject) : Prop where
   input : s.revision.getObjVal? "input" = .ok s.wire
   physical : PhysicalSources.layout s.wire = .ok s.sources
   owners : CertificatePackages.read s.wire = .ok s.packages
+  decoded : (ResourceSource.Wire.sourceCandidate s.wire).isOk = true
   target : s.code.header = s.header
   typed : s.code.valid = true
   evaluated : s.code.entryValue = some s.value

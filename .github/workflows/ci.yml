@@ -368,17 +368,18 @@ jobs:
             python3 scripts/check_numerical_harness.py --prefix "$RUNNER_TEMP/vastitas-openblas"
           fi
 
-  compiler-proofs:
-    name: Public compiler proof qualification (${{ matrix.os }})
+  compiler-proof-linux:
+    name: Compiler proofs (Linux, ${{ matrix.suite }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    # Linux runs the full proof matrix. macOS replays one assembled program in
-    # both modes and checks that changing the selection invalidates its proof.
-    timeout-minutes: 120
-    steps:
+        suite: [assembly, inputs]
+    env:
+      PROOF_SUITE: ${{ matrix.suite }}
+      PROOF_ARTIFACT: compiler-proof-qualification-linux-${{ matrix.suite }}
+    steps: &compiler_proof_steps
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
@@ -403,24 +404,24 @@ jobs:
         if: runner.os == 'macOS'
         run: python3 experiments/compiler_validation/boxed_certificate/regression.py --suite host --memory 6144 2>&1 | tee "$RUNNER_TEMP/proof-assembly.log"
       - name: Verify the assembled method and its operator in the published revision
-        if: ${{ runner.os == 'Linux' && !cancelled() && steps.build_tools.outcome == 'success' }}
+        if: ${{ env.PROOF_SUITE == 'assembly' && !cancelled() && steps.build_tools.outcome == 'success' }}
         run: python3 experiments/compiler_validation/boxed_certificate/regression.py --suite assembly --memory 6144 2>&1 | tee "$RUNNER_TEMP/proof-assembly.log"
       - name: Replay the signed literal from the public request through the complete bytes
-        if: ${{ runner.os == 'Linux' && !cancelled() && steps.build_tools.outcome == 'success' }}
+        if: ${{ env.PROOF_SUITE == 'assembly' && !cancelled() && steps.build_tools.outcome == 'success' }}
         run: |
           python3 experiments/compiler_validation/official_exit/run.py --artifact --timeout 120 --memory 2500 \
             --output "$RUNNER_TEMP/proof-signed-literal.json"
       - name: Replay the Lean-verified LLVM corpus
-        if: ${{ runner.os == 'Linux' && !cancelled() && steps.build_tools.outcome == 'success' }}
+        if: ${{ env.PROOF_SUITE == 'assembly' && !cancelled() && steps.build_tools.outcome == 'success' }}
         run: python3 -u llvm/check.py 2>&1 | tee "$RUNNER_TEMP/proof-corpus.log"
       - name: Check the boxed program and proof substitutions in both modes
-        if: ${{ runner.os == 'Linux' && !cancelled() && steps.build_tools.outcome == 'success' }}
+        if: ${{ env.PROOF_SUITE == 'inputs' && !cancelled() && steps.build_tools.outcome == 'success' }}
         run: python3 experiments/compiler_validation/boxed_certificate/regression.py --suite boxed --memory 6144 2>&1 | tee "$RUNNER_TEMP/proof-boxed.log"
       - name: Check library and manifest revisions in both modes
-        if: ${{ runner.os == 'Linux' && !cancelled() && steps.build_tools.outcome == 'success' }}
+        if: ${{ env.PROOF_SUITE == 'inputs' && !cancelled() && steps.build_tools.outcome == 'success' }}
         run: python3 experiments/compiler_validation/boxed_certificate/regression.py --suite inputs --memory 6144 2>&1 | tee "$RUNNER_TEMP/proof-inputs.log"
       - name: Replay the packaged entry and flat aggregate at their byte limits
-        if: ${{ runner.os == 'Linux' && !cancelled() && steps.build_tools.outcome == 'success' }}
+        if: ${{ env.PROOF_SUITE == 'inputs' && !cancelled() && steps.build_tools.outcome == 'success' }}
         run: |
           python3 -u experiments/compiler_validation/boxed_certificate/regression.py --package-entry-bytes 16777216 --memory 6144 2>&1 | tee "$RUNNER_TEMP/proof-entry-limit.log"
           python3 -u experiments/compiler_validation/boxed_certificate/regression.py --aggregate-bytes 67108864 --memory 6144 2>&1 | tee "$RUNNER_TEMP/proof-aggregate-limit.log"
@@ -428,7 +429,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: compiler-proof-qualification-${{ matrix.os }}
+          name: ${{ env.PROOF_ARTIFACT }}
           path: |
             ${{ runner.temp }}/proof-signed-literal.json
             ${{ runner.temp }}/proof-corpus.log
@@ -438,6 +439,33 @@ jobs:
             ${{ runner.temp }}/proof-entry-limit.log
             ${{ runner.temp }}/proof-aggregate-limit.log
           if-no-files-found: warn
+
+  compiler-proof-macos:
+    name: Public compiler proof qualification (macos-latest)
+    runs-on: macos-latest
+    timeout-minutes: 120
+    env:
+      PROOF_SUITE: host
+      PROOF_ARTIFACT: compiler-proof-qualification-macos-latest
+    steps: *compiler_proof_steps
+
+  compiler-proofs:
+    name: Public compiler proof qualification (ubuntu-latest)
+    runs-on: ubuntu-latest
+    needs: compiler-proof-linux
+    if: always()
+    timeout-minutes: 5
+    steps:
+      - name: Combine the Linux proof logs
+        uses: actions/upload-artifact/merge@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: compiler-proof-qualification-ubuntu-latest
+          pattern: compiler-proof-qualification-linux-*
+      - name: Require both Linux proof suites
+        if: always()
+        env:
+          RESULT: ${{ needs.compiler-proof-linux.result }}
+        run: test "$RESULT" = success
 
   oracle:
     # Preserve the repository's required-check name; this job is Mathlib-free.

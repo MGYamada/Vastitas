@@ -620,12 +620,29 @@ def check_manifest_entry_span(directory, args):
     owner = next(package for package in wire["packages"] if package["source"] == wire["root"])
     root_module = next(module for module in owner["modules"] if not module["path"])
     root_module["span"]["end"] = offset + len(text.encode("utf-8")) + 1
-    model = json.loads((directory / "capture.stdout").read_bytes())
-    modules = verify.authority_modules(revision, model, args.target_triple, args.data_layout,
-                                       (directory / "preview.ll").read_bytes(), inputs)
-    changed = next(body for name, body in modules if name == "Authority")
-    reject_lean_control(directory, args, "ChangedPackageSpan.lean", changed,
-                        "root module one byte beyond the physical entry", "readManifests")
+    # Keep the accepted physical files and change only the package table's span.
+    # Prove the public decoder's exact error without elaborating a second,
+    # deliberately stale declaration-header proof after the physical rejection.
+    packages = verify.official.json_term(wire["packages"])
+    filename = "ChangedPackageSpan.lean"
+    (directory / filename).write_text(f"""import Authority
+set_option autoImplicit false
+set_option Elab.async false
+set_option maxRecDepth 65536
+set_option maxHeartbeats 8000000
+namespace VastitasProof
+open Lean VastitasKernel
+def outsideEntry : Json := wire.setObjVal! "packages" ({packages})
+example : PhysicalSources.layout outsideEntry = .error "root module is outside the physical entry" := by
+  with_unfolding_all rfl
+end VastitasProof
+""")
+    prefix = fast.pinned_lean()
+    result = run_proof_worker([*verify.lean_command(prefix, args.memory), "-DwarningAsError=true", filename],
+                              cwd=directory, env=verify.environment(directory, prefix), timeout=args.timeout,
+                              capture_output=True, text=True)
+    require(result.returncode == 0, f"wrong physical entry span rejection: {result.stdout[:1200]}{result.stderr[:400]}")
+    print("root module one byte beyond the physical entry rejected by Lean", flush=True)
 
 
 def check_dependency_file_contents(directory, args, manifest, module):

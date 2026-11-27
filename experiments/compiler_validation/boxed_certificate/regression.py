@@ -674,8 +674,46 @@ def check_dependency_file_contents(directory, args, manifest, module):
         row["text"] = original
 
 
+def check_observed_rows(directory, args):
+    directory.mkdir()
+    manifest = directory / "Vastitas.toml"
+    manifest.write_text('[package]\nname = "observed_rows"\nversion = "0.1.0"\nedition = "2026"\nroot = "main.vast"\n')
+    helpers = "".join(f"fn f{i}(x: Int) -> Int {{ x }}\n" for i in range(source_decode.ROWS_PER_WORKER))
+    (directory / "main.vast").write_text(helpers + "pub fn main() -> Int { let a = show!(42); let b = show!(a); b }\n")
+    revision = subprocess.check_output([args.frontend, "check", "--manifest-path", manifest.name,
+                                        "--print-function-revision"], cwd=directory, timeout=args.timeout)
+    wire = json.loads(revision)["input"]
+    package, = wire["packages"]
+    module, = package["modules"]
+    funcs = module["functions"]
+    require(len(funcs) == source_decode.ROWS_PER_WORKER + 1 and funcs[-1]["name"] == "main",
+            "expected the observed entry after one full batch of functions")
+    modules = list(verify.declaration_modules(wire))
+    row = f"def p0m0functions{len(funcs)-1}Wire : Json"
+    last, = (name for name, body in modules if row in body and "Rows" in name)
+    # The pure function decoder consumes the stripped body. The package must
+    # retain both observations in their original statement positions.
+    modules.append(("RetainedObservations", source_decode.module("import SourceOperators",
+        'example : packageResult0.val.modules.map (·.observations) = '
+        '[[("main", [⟨0, "42"⟩, ⟨1, "a"⟩])]] := by with_unfolding_all rfl')))
+    prefix = fast.pinned_lean()
+    env = verify.environment(directory, prefix)
+    for name, body in modules:
+        filename = name + ".lean"
+        (directory / filename).write_text(body)
+        result = run_proof_worker([*verify.lean_command(prefix, args.memory), "-DwarningAsError=true",
+                                   "-o", name + ".olean", filename], cwd=directory, env=env,
+                                  timeout=args.timeout, capture_output=True, text=True)
+        require(result.returncode == 0, f"{name}: {result.stdout[:1200]}{result.stderr[:400]}")
+    funcs[-1]["observations"][-1]["label"] = 42
+    changed = next(body for name, body in verify.declaration_modules(wire) if name == last)
+    reject_lean_control(directory, args, "ChangedObservation.lean", changed,
+                        "malformed annotation on the final function", "Except.error", "Except.ok")
+
+
 def check_physical_inputs(work, args, source, check):
     """Compile the same helper through each loader and replay a stale proof."""
+    check_observed_rows(work / "observed-rows", args)
     check_external_inputs(work, args.frontend)
     # The same long source text passes through both the wire and the physical layout.
     helper = 'fn helper(x: Int) -> Int { x + x } // "λ1" 🪐 e\u0301 \\end\r\n'

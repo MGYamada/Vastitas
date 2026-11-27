@@ -39,7 +39,33 @@ def witness(name, result_type, expression):
   exact ⟨_, decoded⟩"""
 
 
+def observed_function_row(label, item):
+    """Check the stripped function and its named observations in the same worker."""
+    row, decoded, clean = label + "Wire", label + "Observed", label + "BodyWire"
+    annotations, observed_read = label + "Annotations", label + "ObservedRead"
+    value, body_read = label + "Value", label + "Read"
+    observation_type = "String × List Indexed.Core.Observation"
+    lines = [
+        f"def {row} : Json := {official.json_term(item)}",
+        f"def {decoded} : {{p : Json × ({observation_type}) // Wire.observedFunction {row} = .ok (p.1, some p.2)}} := by",
+        f"  have decoded := Eq.refl (Wire.observedFunction {row})",
+        "  conv at decoded => rhs; cbv",
+        "  exact ⟨(_, _), decoded⟩",
+        f"def {clean} := {decoded}.val.1",
+        f"def {annotations} := {decoded}.val.2",
+        f"theorem {observed_read} : Wire.observedFunction {row} = .ok ({clean}, some {annotations}) := {decoded}.property",
+        witness(label, "Indexed.FunctionSource.Function", f"Indexed.Wire.function {clean}"),
+        f"def {value} := {label}.val",
+        f"theorem {body_read} : Indexed.Wire.function {clean} = .ok {value} := {label}.property",
+    ]
+    rules = (f"attribute [local cbv_opaque] {row} {clean} {annotations} {value}\n"
+             f"attribute [local cbv_eval] {observed_read} {body_read}")
+    return row, "\n".join(lines), rules
+
+
 def decoded_row(label, key, item):
+    if key == "functions" and "observations" in item:
+        return observed_function_row(label, item)
     decoder, result_type = DECODERS[key]
     row, value, proof = label + "Wire", label + "Value", label + "Read"
     body = [f"def {row} : Json := {official.json_term(item)}",
@@ -79,10 +105,6 @@ def package_modules(index, package):
                 continue
             entries = []
             for i, item in enumerate(source[key]):
-                # The checker strips observation annotations before decoding the body.
-                if key == "functions" and "observations" in item:
-                    entries.append(official.json_term(item))
-                    continue
                 entry, evidence, rules = decoded_row(f"p{index}m{m}{key}{i}", key, item)
                 entries.append(entry)
                 chunk.append(evidence)

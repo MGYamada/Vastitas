@@ -482,7 +482,7 @@ def function (j : Json) : Except String Function := do
 /-- The optional `observations` of a pure function (#836): a nonempty array of
 `{"statement", "label"}` objects, by the function's name, and the function
 without them. -/
-private def observedFunction (j : Json) :
+def observedFunction (j : Json) :
     Except String (Json × Option (String × List Indexed.Core.Observation)) := do
   match j.getObjVal? "observations" with
   | .error _ => return (j, none)

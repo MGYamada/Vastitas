@@ -6,8 +6,12 @@ Each certificate also checks the protocol-10 declaration decoder on its own wire
 Each package carries an equation between its encoded fields and bodies and the
 decoded package. For long body lists, workers prove up to eight row equations
 at a time. The package proof uses those equations on the original function,
-method, contribution, resource function and indexed declaration rows. A pure
-function with observations goes through the package decoder with its annotations. The next worker assembles those values in wire order.
+method, contribution, resource function and indexed declaration rows. For a
+function with observations, the same worker checks the annotation decoder and
+the pure body it returns. The next worker assembles the body and annotations
+in wire order. The inputs suite uses eight helpers followed by an entry with
+two observations. Lean checks both labels and statement positions in the
+returned package and rejects a malformed final label.
 Two further workers check reserved package identities and resolve operator names
 on that same program. They share a header with the physical file texts removed. Lean checks equality of the public decoder's header fields, including
 every package and method body, against the complete request. A separate proof checks
@@ -169,12 +173,13 @@ retained 1,830 LLVM bytes. End-to-end times are 276.4 and 248.2 seconds.
 The external checkers take 65.1 and 39.3 seconds. Peak child RSS is 1,514
 and 1,512 MiB respectively.
 
-With declaration decoding enabled, an isolated Fast run rebuilt the statement
-from the same 8,192 physical inputs and checked the complete 120,072,982-byte
-export accepted by Official. Nanoda checked all 43,110 declarations in 42.3
-seconds at 529 MiB peak RSS. The run took 274.3 seconds with a 360-second limit
-per worker and a 1,536 MiB Lean allocator limit. The export worker peaked at
-1,593 MiB RSS. All 1,830 output bytes matched the retained boxed module.
+With observation-bearing functions checked in batches as well, Official rebuilt
+the certificate for 8,192 physical inputs in 313.6 seconds. An isolated Fast
+run then rebuilt the statement and checked the same 120,072,982-byte export in
+270.4 seconds. Nanoda checked all 43,110 declarations in 39.1 seconds at
+390 MiB peak RSS. The largest child used 1,588 MiB in Official and 1,353 MiB
+in Fast. Both runs used a 360-second limit per worker and a 1,536 MiB Lean
+allocator limit. All 1,830 LLVM bytes matched the retained boxed module.
 
 ```sh
 python3 experiments/compiler_validation/boxed_certificate/regression.py --file-counts 8192 --with-entry-comment
